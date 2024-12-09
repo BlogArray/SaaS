@@ -1,0 +1,41 @@
+﻿@model RoleViewModel
+
+@{
+    ViewData["Title"] = "Delete";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-1">Delete role</h3>
+        <nav aria-label="breadcrumb mb-0 mbe-0 form-text">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a asp-action="Index">
+                        All roles
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Delete role @Model.Name</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-2">
+                @Html.DisplayNameFor(model => model.Name)
+            </dt>
+            <dd class="col-sm-10">
+                @Html.DisplayFor(model => model.Name)
+            </dd>
+        </dl>
+
+        <form asp-action="Delete">
+            <input type="hidden" asp-for="Id" />
+            <input type="submit" value="Delete role" class="btn btn-danger" />
+        </form>
+    </div>
+</div>
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

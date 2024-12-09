@@ -1,0 +1,92 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using System.Security.Claims
+
+@{
+    string givenName = User.FindFirst(ClaimTypes.GivenName)?.Value ?? User.Identity?.Name;
+    string email = User.FindFirst(ClaimTypes.Email).Value;
+    string profileIcon = User.FindFirst("image").Value;
+}
+<div class="d-flex">
+    @if (User.Identity.IsAuthenticated)
+    {
+        <div class="dropdown me-2">
+            <button class="dropdown-toggle btn btn-primary no-toggle" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <div class="d-flex">
+                    <i class="bi bi-plus-lg"></i>
+                    <span class="d-none d-md-block ms-2">Add new</span>
+                </div>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+                <li>
+                    <a class="dropdown-item gap-2 py-2 px-3 lh-sm" asp-controller="Tenants" asp-action="Create">
+                        @* <i class="bi bi-app-indicator"></i> *@
+                        <i class="bi bi-building-add"></i>
+                        Add tenant
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item gap-2 py-2 px-3 lh-sm" asp-controller="Users" asp-action="Create">
+                        <i class="bi bi-person-add"></i>
+                        Add user
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item gap-2 py-2 px-3 lh-sm" asp-controller="Roles" asp-action="Create">
+                        <i class="bi bi-lock"></i>
+                        Add role
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item gap-2 py-2 px-3 lh-sm" asp-controller="Scopes" asp-action="Create">
+                        <i class="bi bi-key"></i>
+                        Add scope
+                    </a>
+                </li>
+            </ul>
+        </div>
+        <div class="nav-item dropdown">
+            <button class="nav-link dropdown-toggle btn btn-sm p-0 m-0" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <img height="32" width="32" class="rounded-circle" id="headerProfileImage" alt="profile icon" loading="lazy" src="@profileIcon" />
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow">
+                <li>
+                    <a target="_blank" rel="external" asp-controller="Authentication" asp-action="Manage" class="dropdown-item d-flex gap-3 py-3" aria-current="true">
+                        <img id="headerProfileViewImage" src="@profileIcon" alt="profile image" width="48" height="48" class="rounded-circle flex-shrink-0">
+                        <div class="d-flex gap-2 w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-0">@givenName</h6>
+                                <p class="mb-0 opacity-75">@email</p>
+                            </div>
+                        </div>
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item gap-2 py-2 px-3 lh-sm" target="_blank" rel="external" asp-controller="Authentication" asp-action="Manage">
+                        <i class="bi bi-person"></i>
+                        Profile
+                        <i class="bi bi-box-arrow-up-right float-end"></i>
+                    </a>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <a class="dropdown-item gap-2 py-2 px-3 lh-sm" asp-controller="Authentication" asp-action="LogOut">
+                        <i class="bi bi-box-arrow-right"></i>
+                        Logout
+                    </a>
+                </li>
+            </ul>
+        </div>
+    }
+    else
+    {
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link text-dark" asp-controller="Authentication" asp-action="LogIn">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    Login
+                </a>
+            </li>
+        </ul>
+    }
+</div>

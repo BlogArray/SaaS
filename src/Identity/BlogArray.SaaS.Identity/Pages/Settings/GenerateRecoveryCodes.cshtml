@@ -1,0 +1,38 @@
+﻿@page
+@model GenerateRecoveryCodesModel
+@{
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+}
+
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Generate 2FA recovery codes</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning" role="alert">
+            <p>
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Put these codes in a safe place.</strong>
+            </p>
+            <p>
+                Emergency recovery codes can be utilized to log into your account in cases where your device is lost, and two-factor authentication codes cannot be received. If you lose your device and don't have the recovery codes you will lose access to your account.
+            </p>
+            <p>
+                Generating new emergency recovery codes does not change the keys used in authenticator apps. If you wish to change the key
+                used in an authenticator app you should <a asp-page="./ResetAuthenticator">reset your authenticator keys.</a>
+            </p>
+            <p>
+                When you generate new emergency recovery codes, it is essential to download or copy the new codes.
+                <strong>Your old codes will no longer work</strong>.
+            </p>
+        </div>
+        <div>
+            <form method="post">
+                <button class="btn btn-primary" type="submit">Generate Recovery Codes</button>
+            </form>
+        </div>
+
+    </div>
+</div>

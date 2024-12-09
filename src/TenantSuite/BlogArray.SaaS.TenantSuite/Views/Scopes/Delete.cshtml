@@ -1,0 +1,58 @@
+﻿@model BlogArray.SaaS.OpenId.Entities.OpenIdScope
+
+@{
+    ViewData["Title"] = "Delete";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Delete scope</h3>
+        <p class="mb-0 form-text">
+            Delete scope
+        </p>
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="col-sm-2">
+                @Html.DisplayNameFor(model => model.Name)
+            </dt>
+            <dd class="col-sm-10">
+                @Html.DisplayFor(model => model.Name)
+            </dd>
+            <dt class="col-sm-2">
+                @Html.DisplayNameFor(model => model.DisplayName)
+            </dt>
+            <dd class="col-sm-10">
+                @Html.DisplayFor(model => model.DisplayName)
+            </dd>
+            <dt class="col-sm-2">
+                @Html.DisplayNameFor(model => model.Description)
+            </dt>
+            <dd class="col-sm-10">
+                @Html.DisplayFor(model => model.Description)
+            </dd>
+            <dt class="col-sm-2">
+                @Html.DisplayNameFor(model => model.Properties)
+            </dt>
+            <dd class="col-sm-10">
+                @Html.DisplayFor(model => model.Properties)
+            </dd>
+            <dt class="col-sm-2">
+                @Html.DisplayNameFor(model => model.Resources)
+            </dt>
+            <dd class="col-sm-10">
+                @Html.DisplayFor(model => model.Resources)
+            </dd>
+        </dl>
+
+        <form asp-action="Delete">
+            <input type="hidden" asp-for="Id" />
+            <input type="submit" value="Delete scope" class="btn btn-danger" />
+        </form>
+    </div>
+</div>
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

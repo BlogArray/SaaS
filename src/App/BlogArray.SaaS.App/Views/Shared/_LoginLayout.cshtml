@@ -1,0 +1,44 @@
+@{
+    Layout = "~/Views/Shared/_BaseLayout.cshtml";
+}
+<div class="login-body">
+    <div class="d-flex d-flex align-items-center justify-content-center min-vh-100 login-overlay">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-sm-12 col-md-8 col-lg-4 m-5">
+                    <div class="p-4 login-shadow bg-white text-black rounded">
+                        <div class="mb-4">
+                            <img src="~/_content/BlogArray.SaaS.Resources/resources/images/logo-full.png" alt="logo" height="40" class="m-auto d-flex" />
+                        </div>
+                        @RenderBody()
+                        <hr />
+                        <div class="text-center">
+                            @* <img src="~/_content/BlogArray.SaaS.Resources/resources/images/logo-full.png" alt="logo" height="30" class="m-auto d-flex mb-3 icon-grad" /> *@
+
+                            <p class="small text-secondary mb-0">
+                                <a href="https://help.blogarray.com/docs/site-policy/privacy-policy/" target="_blank" class="link-dark">Privacy Policy</a>
+                                •
+                                <a href="https://help.blogarray.com/docs/site-policy/terms-of-use/" target="_blank" class="link-dark">Terms of use</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @await RenderSectionAsync("Scripts", required: false)
+    </div>
+</div>
+<style>
+    .login-body {
+        color: white;
+        background-image: url('/_content/BlogArray.SaaS.Resources/resources/images/log-icon.webp');
+        min-height: 100vh;
+        background-position: center;
+        background-size: cover;
+        background-repeat: no-repeat;
+    }
+
+    .login-overlay {
+        background-color: rgba(3, 3, 3, 0.5);
+    }
+</style>

@@ -1,0 +1,14 @@
+﻿@{
+    var alertMessage = TempData["AlertMessage"];
+    var alertType = TempData["AlertType"];
+}
+
+@if (alertMessage != null)
+{
+    <div class="pt-1">
+        <div class="alert alert-@alertType alert-dismissible fade show" role="alert">
+            @alertMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+}

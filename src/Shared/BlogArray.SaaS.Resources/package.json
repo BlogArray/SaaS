@@ -1,0 +1,24 @@
+{
+  "name": "blogarray.saas.resources",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "author": "BlogArray,sisindrymedagam",
+  "license": "MIT",
+  "scripts": {
+    "build:css": "sass wwwroot/css/site.scss wwwroot/css/site.css && postcss wwwroot/css/site.css -o wwwroot/css/site.min.css",
+    "build:js": "uglifyjs wwwroot/js/site.js -c -m -o wwwroot/js/site.min.js",
+    "watch:css": "nodemon -e scss -x \"npm run build:css\"",
+    "watch:js": "nodemon -e js -x \"npm run build:js\"",
+    "watch": "npm run watch:css & npm run watch:js",
+    "build": "npm run build:css && npm run build:js"
+  },
+  "devDependencies": {
+    "bootstrap": "^5.3.3",
+    "cssnano": "^7.0.6",
+    "nodemon": "^3.1.7",
+    "postcss-cli": "^11.0.0",
+    "sass": "^1.80.4",
+    "uglify-js": "^3.19.3"
+  }
+}

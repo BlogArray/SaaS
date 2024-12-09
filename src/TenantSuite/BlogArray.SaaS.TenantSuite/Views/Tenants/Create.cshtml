@@ -1,0 +1,134 @@
+﻿@model CreateApplicationViewModel
+
+@{
+    ViewData["Title"] = "Create a new tenant";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-1">Create a new tenant</h3>
+        <nav aria-label="breadcrumb mb-0 mbe-0 form-text">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a asp-action="Index">
+                        All tenants
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Create</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="card-body">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="mb-3">
+                <label asp-for="DisplayName" class="form-label">Display name</label>
+                <input asp-for="DisplayName" class="form-control" />
+                <span asp-validation-for="DisplayName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Legalname" class="form-label">Legal name</label>
+                <input asp-for="Legalname" class="form-control" />
+                <span asp-validation-for="Legalname" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ClientId" class="form-label">Client Id (Tenant id)</label>
+                <input asp-for="ClientId" class="form-control" />
+                <div class="form-text">
+                    Client Id is used to determine tenant. Example: If Client Id is "site1", the tenant URL prefix is "https://orchardcore.net/site1".
+                </div>
+                <span asp-validation-for="ClientId" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ClientSecret" class="form-label">Client Secret</label>
+                <div class="input-group">
+                    <input aria-describedby="secretHelpBlock" readonly asp-for="ClientSecret" class="form-control border-danger">
+                    <button class="btn btn-outline-danger border-danger" type="button" data-bs-toggle="tooltip" data-bs-title="Copy client secret" onclick="copySecret()">
+                        <i class="bi bi-copy"></i>
+                    </button>
+                    <button class="btn btn-outline-danger border-danger" type="button" data-bs-toggle="tooltip" data-bs-title="Generate new client secret" onclick="generateNewSecret()">
+                        <i class="bi bi-shuffle"></i>
+                    </button>
+                </div>
+                <div id="secretHelpBlock" class="form-text text-danger">
+                    Make sure to copy your new client secret now. You won’t be able to see it again.
+                </div>
+                <span asp-validation-for="ClientSecret" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="APIKey" class="form-label">API Key</label>
+                <div class="input-group">
+                    <input aria-describedby="secretAPI" readonly asp-for="APIKey" class="form-control border-danger">
+                    <button class="btn btn-outline-danger border-danger" type="button" data-bs-toggle="tooltip" data-bs-title="Copy api key" onclick="copyApiKey()">
+                        <i class="bi bi-copy"></i>
+                    </button>
+                    <button class="btn btn-outline-danger border-danger" type="button" data-bs-toggle="tooltip" data-bs-title="Generate new api key" onclick="generateNewApiKey()">
+                        <i class="bi bi-shuffle"></i>
+                    </button>
+                </div>
+                <div id="secretAPI" class="form-text text-danger">
+                    Make sure to copy your new api key now. You won’t be able to see it again.
+                </div>
+                <span asp-validation-for="APIKey" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="ConnectionString" class="form-label">Connection string</label>
+                <textarea asp-for="ConnectionString" aria-describedby="secretCS" class="form-control"></textarea>
+                <div id="secretCS" class="form-text">
+                    The connection string to your database instance, e.g. Server=localhost;Database=Orchard;User Id=username;Password=password.
+                </div>
+                <span asp-validation-for="ConnectionString" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Website" class="form-label"></label>
+                <input asp-for="Website" class="form-control" />
+                <span asp-validation-for="Website" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Description" class="form-label"></label>
+                <textarea asp-for="Description" class="form-control"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="RedirectUri" class="form-label">Redirect Uri</label>
+                <input asp-for="RedirectUri" class="form-control" />
+                <span asp-validation-for="RedirectUri" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="PostLogoutRedirectUri" class="form-label">Post Logout Redirect Uri</label>
+                <input asp-for="PostLogoutRedirectUri" class="form-control" />
+                <span asp-validation-for="PostLogoutRedirectUri" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <input type="submit" value="Create tenant" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+<script>
+    $(document).ready(function () {
+        generateNewSecret()
+        generateNewApiKey()
+    });
+
+    function generateNewSecret() {
+        $("#ClientSecret").val(AppCrypto.GenerateUniqueCode());
+    }
+
+    function copySecret() {
+        ClipboardModule.copyText("ClientSecret", 'The client secret has been copied to your clipboard! Make sure to copy your client secret now. You won’t be able to see it again.', 'Failed to copy the client secret.');
+    }
+
+    function generateNewApiKey() {
+        $("#APIKey").val(AppCrypto.GenerateUniqueCode());
+    }
+
+    function copyApiKey() {
+        ClipboardModule.copyText("APIKey", 'The api key has been copied to your clipboard! Make sure to copy your api key now. You won’t be able to see it again.', 'Failed to copy the client secret.');
+    }
+</script>

@@ -1,0 +1,25 @@
+{
+  "Applications": [
+    {
+      "ClientId": "postman",
+      "ClientSecret": "postman",
+      "DisplayName": "postman",
+      "RedirectUri": "https://oauth.pstmn.io/v1/callback"
+    },
+    {
+      "ClientId": "tenantsuite",
+      "ClientSecret": "615dc2576a304db88cb881f235682cd4",
+      "DisplayName": "Tenant Suite",
+      "RedirectUri": "https://www.console.blogarray.dev/signin-oidc",
+      "LogoutUri": "https://www.console.blogarray.dev/signout-callback-oidc",
+      "Users": [ "16d81679-26ad-4ea7-8f93-1a12268ba340" ]
+    },
+    {
+      "ClientId": "tenantadmin",
+      "ClientSecret": "b00217c008cf43a8836b09ad69e4c71b",
+      "DisplayName": "Tenant Admin",
+      "RedirectUri": "https://www.admin.blogarray.dev/signin-oidc",
+      "LogoutUri": "https://www.admin.blogarray.dev/signout-callback-oidc"
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+﻿@page
+@using Microsoft.AspNetCore.Http.Features
+@model TwoFactorAuthenticationModel
+@{
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+}
+
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">
+            Two-factor authentication (2FA)
+            @if (Model.Is2faEnabled)
+            {
+                <span class="badge bg-success-subtle text-success">Enabled</span>
+            }
+        </h3>
+        <p class="mb-0 form-text">
+            The two-factor authentication provides you with an additional level of security by requiring more than just a password to access your account.
+        </p>
+    </div>
+    <div class="card-body">
+        <p>
+            When you log in to BlogArray using GitHub or LinkedIn, the two-factor authentication (2FA) is not applied.
+            We recommend using Microsoft Authenticator, Google Authenticator, Duo Mobile, Authy, or another equivalent authentication tool.
+            One-time passwords are used as a second factor to verify your identity when prompted during sign-in.
+        </p>
+
+        @{
+            var consentFeature = HttpContext.Features.Get<ITrackingConsentFeature>();
+            @if (consentFeature?.CanTrack ?? true)
+            {
+                @if (Model.Is2faEnabled)
+                {
+                    <h6 id="password" class="mt-5">
+                        Generate emergency recovery code
+                    </h6>
+                    <p>
+                        Emergency recovery codes can be utilized to log into your account in cases where your device is lost, and two-factor authentication codes cannot be received.
+                    </p>
+                    if (Model.RecoveryCodesLeft == 0)
+                    {
+                        <div class="alert alert-danger">
+                            <strong>You have no recovery codes left.</strong>
+                            <p class="mb-0">Before you can log in with a recovery code, it is recommended that you generate a new set of recovery codes.</p>
+                        </div>
+                    }
+                    else if (Model.RecoveryCodesLeft <= 3)
+                    {
+                        <div class="alert alert-warning">
+                            <strong>You have @Model.RecoveryCodesLeft recovery codes left.</strong>
+                            <p class="mb-0">It is recommended that you generate a new set of recovery codes.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-success">
+                            <strong>You have @Model.RecoveryCodesLeft recovery codes left.</strong>
+                            <p class="mb-0">It is recommended that you regenerate a new set of recovery codes regularly. Regenerating the codes also helps to keep your account safer, as the old codes can be compromised.</p>
+                        </div>
+                    }
+                    <a asp-page="./GenerateRecoveryCodes" class="btn btn-primary">Generate recovery codes</a>
+                    if (Model.IsMachineRemembered)
+                    {
+                        <hr class="my-5">
+                        <h6 id="password" class="mb-4">
+                            Browser is saved
+                        </h6>
+                        <p>
+                            If you click Forget this browser, you will be prompted for your two-factor authentication code when you login again from this browser.
+                        </p>
+                        <form method="post" style="display: inline-block">
+                            <button type="submit" class="btn btn-primary">Forget this browser</button>
+                        </form>
+                    }
+
+                    <hr class="my-5">
+                    <h6 id="password" class="mb-4">
+                        Disable Two-factor Authentication (2FA)
+                    </h6>
+                    <p>
+                        By disabling Two-factor Authentication (2FA), your account will be no longer protected by a second login step.
+                    </p>
+                    <a asp-page="./Disable2fa" class="btn btn-primary">Disable 2FA</a>
+                }
+                else
+                {
+                    <h6 class="mb-4 mt-5">Setup Two-factor Authentication (2FA)</h6>
+                    <p>
+                        When you enable two-step verification, you will remain logged in to the current device. However, you may be logged out from your other devices.
+                        To log back in, enter your password and complete the second verification step.
+                    </p>
+                    <a id="enable-authenticator" asp-page="./EnableAuthenticator" class="btn btn-primary">Set up authenticator app</a>
+                }
+            }
+            else
+            {
+                <div class="alert alert-danger">
+                    <strong>Privacy and cookie policy have not been accepted.</strong>
+                    <p>You must accept the policy before you can enable two factor authentication.</p>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

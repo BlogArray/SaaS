@@ -1,0 +1,30 @@
+﻿@page
+@model LoginModel
+
+@{
+    ViewData["Title"] = "Login";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+
+<section>
+    <form id="account" method="post">
+        <h6 class="text-center mb-3">
+            Enter your email to continue
+        </h6>
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        <div class="mb-3">
+            <label asp-for="Input.Email" class="form-label">Email</label>
+            <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="Enter your email" />
+            <span asp-validation-for="Input.Email" class="text-danger"></span>
+        </div>
+
+        <p class="small text-secondary">
+            By clicking "Next", you agree to BlogArray <a href="https://help.blogarray.com/docs/site-policy/terms-of-use/" target="_blank">Terms of use</a> and <a href="https://help.blogarray.com/docs/site-policy/privacy-policy/" target="_blank">Privacy Policy</a>.
+        </p>
+        <button id="login-submit" type="submit" class="w-100 btn btn-primary">Next</button>
+    </form>
+</section>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

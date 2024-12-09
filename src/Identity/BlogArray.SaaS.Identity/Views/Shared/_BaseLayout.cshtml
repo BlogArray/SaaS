@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - BlogArray Identity</title>
+    <link rel="stylesheet" href="~/_content/BlogArray.SaaS.Resources/lib/bootstrap-icons/bootstrap-icons.min.css"/>
+    <environment include="Development">
+        <link rel="stylesheet" href="~/_content/BlogArray.SaaS.Resources/css/site.css" asp-append-version="true" />
+    </environment>
+    <environment exclude="Development">
+        <link rel="stylesheet" href="~/_content/BlogArray.SaaS.Resources/css/site.min.css" asp-append-version="true" />
+    </environment>
+</head>
+<body data-bs-theme="light">
+    <script src="~/_content/BlogArray.SaaS.Resources/lib/jquery/dist/jquery.min.js"></script>
+
+    @RenderBody()
+
+    <partial name="_Loader" />
+
+    <div class="modal fade" id="globalErrorModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="Global Error Dialog" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="text-danger h4 mb-0">Error</h1>
+                </div>
+                <div class="modal-body">
+                    <p></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toastContainer" aria-live="polite" aria-atomic="true" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <script src="~/_content/BlogArray.SaaS.Resources/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <environment include="Development">
+        <script src="~/_content/BlogArray.SaaS.Resources/js/site.js" asp-append-version="true"></script>
+        @* <script src="~/js/themer.js" asp-append-version="true"></script> *@
+    </environment>
+    <environment exclude="Development">
+        <script src="~/_content/BlogArray.SaaS.Resources/js/site.min.js" asp-append-version="true"></script>
+        @* <script src="~/js/themer.min.js" asp-append-version="true"></script> *@
+    </environment>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

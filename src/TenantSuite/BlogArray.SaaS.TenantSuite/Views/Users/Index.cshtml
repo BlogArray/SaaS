@@ -1,0 +1,183 @@
+﻿@model IEnumerable<UserViewModel>
+
+@{
+    ViewData["Title"] = "Users";
+    string? searchTerm = ViewBag.SearchTerm;
+    string? currentUser = ViewBag.CurrentUserId;
+}
+
+<h3>Users</h3>
+
+<div class="card">
+    <div class="card-header">
+        <div class="row gx-3">
+            <div class="col">
+                <form asp-action="Index" method="get">
+                    <div class="input-group">
+                        <input type="text" name="term" id="term" value="@searchTerm" class="form-control" placeholder="Search..." aria-label="Search..." aria-describedby="search-addon">
+                        <button class="btn btn-outline-secondary" type="submit" id="search-addon">
+                            <div class="d-flex">
+                                <i class="bi bi-search d-md-none"></i>
+                                <span class="d-none d-md-block">Search</span>
+                            </div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-auto">
+                <a asp-action="Create" class="btn btn-primary">
+                    <div class="d-flex">
+                        <i class="bi bi-person-add"></i>
+                        <span class="d-none d-md-block ms-2">Create new</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body py-0">
+        <div class="list-group list-group-flush">
+            @if (Model.Count() == 0)
+            {
+                <div class="p-5 text-center">
+                    @if (searchTerm?.Length > 0)
+                    {
+                        <i class="state-icon bi bi-search"></i>
+                        <br />
+                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                            No matching results.
+                        </p>
+                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                            Try adjusting your search or create new one.
+                        </p>
+                    }
+                    else
+                    {
+                        <i class="state-icon bi bi-inbox"></i>
+                        <br />
+                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                            It looks a bit empty here!
+                        </p>
+                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                            Start by adding new data or explore other areas.
+                        </p>
+                    }
+                    <div class="d-inline-flex gap-2 mb-5">
+                        <a asp-action="Create" class="d-inline-flex align-items-center btn btn-primary px-4 rounded-pill bi bi-plus-lg bi-mr" type="button">
+                            Create new user
+                        </a>
+                    </div>
+                </div>
+            }
+            @foreach (var item in Model)
+            {
+                <div class="list-group-item d-flex justify-content-between align-items-center p-0" aria-current="true">
+                    <div class="d-flex gap-3 py-3">
+                        @if (currentUser == item.Id)
+                        {
+                            <a asp-action="Manage" asp-controller="Authentication" target="_blank">
+                                <img id="headerProfileViewImage" src="@item.ProfileImage" alt="profile image" width="48" height="48" class="flex-shrink-0">
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-action="Edit" asp-route-id="@item.Id">
+                                <img id="headerProfileViewImage" src="@item.ProfileImage" alt="profile image" width="48" height="48" class="flex-shrink-0">
+                            </a>
+                        }
+                        <div class="d-flex gap-2 w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-0">
+                                    <a asp-action="Edit" asp-route-id="@item.Id">@item.DisplayName</a>
+                                    @if (!item.IsActive)
+                                    {
+                                        <span class="badge text-bg-danger">Disabled</span>
+                                    }
+                                </h6>
+                                <p class="mb-0">
+                                    <span class="opacity-75">@item.Email</span>
+                                    @if (item.Roles?.Length > 0)
+                                    {
+                                        <span>&#x2022;</span>
+                                        @foreach (var role in item.Roles)
+                                        {
+                                            <span class="badge rounded-pill text-bg-light">@role</span>
+                                        }
+                                    }
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        @if (currentUser == item.Id)
+                        {
+                            <a target="_blank" asp-action="Manage" title="Manage your profile" asp-controller="Authentication" asp-area="" class="btn btn-sm btn-light" data-bs-toggle="tooltip" data-bs-title="Manage your profile">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                        }
+                        else
+                        {
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-light dropdown-toggle no-toggle" type="button" title="Show more options" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-three-dots-vertical"></i>
+                                </button>
+                                <ul class="dropdown-menu shadow">
+                                    <li>
+                                        <a asp-action="Edit" class="dropdown-item" asp-route-id="@item.Id">
+                                            Edit
+                                        </a>
+                                    </li>
+                                    <li>
+                                        @if (!item.IsActive)
+                                        {
+                                            <a asp-action="EnableUser" class="dropdown-item"
+                                               data-confirm="true" data-confirm-message="Enabling this user will grant them access to their assigned tenants. Are you sure you want to continue?" asp-route-id="@item.Id">
+                                                Enable user
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <a asp-action="DisableUser" class="dropdown-item"
+                                               data-confirm="true" data-confirm-message="Disabling this user will revoke their access to all assigned tenants. Are you sure you want to continue?" asp-route-id="@item.Id">
+                                                Disable user
+                                            </a>
+                                        }
+                                    </li>
+                                    <li>
+                                        @Html.AjaxActionLink("Reset password", "ResetPassword", new { id = item.Id }, new AjaxOptions
+                           {
+                               UpdateTargetId = "resetPasswordCtr",
+                               OnSuccess = "onUnassignLoaded"
+                           }, new { @class = "dropdown-item", title = "Reset password" })
+                                    </li>
+                                </ul>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="mt-2">
+    @Html.Pager((IPager)Model, page => Url.Action("Index", "Users", new { page, take = ViewBag.Take, term = ViewBag.SearchTerm }), PrePagerOptions.MinimalWithEntriesText)
+</div>
+
+<div id="resetPasswordCtr"></div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+<script>
+    var resetPasswordCanvas;
+    function onUnassignLoaded() {
+        resetPasswordCanvas = new bootstrap.Offcanvas(document.getElementById('resetPasswordOffcanvas'));
+        resetPasswordCanvas.show();
+    }
+
+    function onPasswordChange(e) {
+        resetPasswordCanvas.hide();
+        Toast.success(e.message);
+    }
+
+</script>

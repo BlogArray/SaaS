@@ -1,0 +1,162 @@
+﻿@model IEnumerable<ApplicationListViewModel>
+
+@{
+    ViewData["Title"] = "Tenants";
+    string? searchTerm = ViewBag.SearchTerm;
+}
+<h3>Tenants</h3>
+<div class="card">
+    <div class="card-header">
+        <div class="row gx-3">
+            <div class="col">
+                <form asp-action="Index" method="get">
+                    <div class="input-group">
+                        <input type="text" name="term" id="term" value="@searchTerm" class="form-control" placeholder="Search..." aria-label="Search..." aria-describedby="search-addon">
+                        <button class="btn btn-outline-secondary" type="submit" id="search-addon">
+                            <div class="d-flex">
+                                <i class="bi bi-search d-md-none"></i>
+                                <span class="d-none d-md-block">Search</span>
+                            </div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-auto">
+                <a asp-action="Create" class="btn btn-primary">
+                    <div class="d-flex">
+                        <i class="bi bi-building-add"></i>
+                        <span class="d-none d-md-block ms-2">Create new</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body py-0">
+        <div class="list-group list-group-flush">
+            @if (Model.Count() == 0)
+            {
+                <div class="p-5 text-center">
+                    @if (searchTerm?.Length > 0)
+                    {
+                        <i class="state-icon bi bi-search"></i>
+                        <br />
+                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                            No matching results.
+                        </p>
+                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                            Try adjusting your search or create new one.
+                        </p>
+                    }
+                    else
+                    {
+                        <i class="state-icon bi bi-inbox"></i>
+                        <br />
+                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                            It looks a bit empty here!
+                        </p>
+                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                            Start by adding new data or explore other areas.
+                        </p>
+                    }
+                    <div class="d-inline-flex gap-2 mb-5">
+                        <a asp-action="Create" class="d-inline-flex align-items-center btn btn-primary px-4 rounded-pill bi bi-plus-lg bi-mr" type="button">
+                            Create new tenant
+                        </a>
+                    </div>
+                </div>
+            }
+            @foreach (var item in Model)
+            {
+                <div class="list-group-item d-flex justify-content-between align-items-center p-0" aria-current="true">
+                    <div class="d-flex gap-3 py-3">
+                        <a asp-action="Edit" asp-route-id="@item.Id">
+                            <img id="headerProfileViewImage" src="@item.Icon" alt="profile image" width="48" height="48" class="flex-shrink-0">
+                        </a>
+                        <div class="d-flex gap-2 w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-0">
+                                    <a asp-action="Edit" asp-route-id="@item.Id">
+                                        @item.DisplayName (@item.ClientId)
+                                    </a>
+                                </h6>
+                                <p class="mb-0 opacity-75 d-inline-block text-truncate" title="@item.Description" style="max-width: 250px;">@item.Description</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-light dropdown-toggle no-toggle" title="Show more options" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu shadow">
+                                <li>
+                                    <a asp-action="Edit" class="dropdown-item" asp-route-id="@item.Id">
+                                        Edit
+                                    </a>
+                                </li>
+                                <li>
+                                    @Html.AjaxActionLink("Rotate keys", "RotateKeys", new { id = item.Id }, new AjaxOptions
+                           {
+                               UpdateTargetId = "keysCtr",
+                               Confirm = "Rotating the keys may disrupt access for some applications. Are you sure you want to proceed?",
+                               OnSuccess = "onKeysGenerateSuccess"
+                           }, new { @class = "dropdown-item", title = "Rotate Client Secret and API Key" })
+                                </li>
+                                <li>
+                                    @Html.AjaxActionLink("Assign users", "Assign", new { id = item.Id }, new AjaxOptions
+                           {
+                               UpdateTargetId = "assignCtr",
+                               OnSuccess = "onAssignLoaded"
+                           }, new { @class = "dropdown-item", title = "Assign users" })
+                                </li>
+                                <li>
+                                    @Html.AjaxActionLink("Unassign users", "Unassign", new { id = item.Id }, new AjaxOptions
+                           {
+                               UpdateTargetId = "unassignCtr",
+                               OnSuccess = "onUnassignLoaded"
+                           }, new { @class = "dropdown-item", title = "Unassign users" })
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+<div id="keysCtr"></div>
+<div id="assignCtr"></div>
+<div id="unassignCtr"></div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+<script>
+    var newKeysModal, assignOffCanvas, unassignOffCanvas;
+
+    function onKeysGenerateSuccess() {
+        newKeysModal = new bootstrap.Modal(document.getElementById('keysModal'));
+        newKeysModal.show();
+    }
+
+    function onAssignLoaded() {
+        assignOffCanvas = new bootstrap.Offcanvas(document.getElementById('assignOffcanvas'));
+        assignOffCanvas.show();
+    }
+
+    function onAssignSave(e) {
+        assignOffCanvas.hide();
+        Toast.success(e.message);
+    }
+
+    function onUnassignLoaded() {
+        unassignOffCanvas = new bootstrap.Offcanvas(document.getElementById('unassignOffcanvas'));
+        unassignOffCanvas.show();
+    }
+
+    function onUnassignSave(e) {
+        unassignOffCanvas.hide();
+        Toast.success(e.message);
+    }
+</script>

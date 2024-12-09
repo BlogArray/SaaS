@@ -1,0 +1,46 @@
+﻿@model RotateKeysViewModel
+
+<div class="modal fade" id="keysModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="keysModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="keysModalLabel">Keys for @Model.Name</h1>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="clientSecret" class="form-label">Client Secret</label>
+                    <div class="input-group">
+                        <input type="text" id="clientSecret" class="form-control" value="@Model.ClientSecret" readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="copySecret()">
+                            <i class="bi bi-copy"></i>
+                        </button>
+                    </div>
+                    <small class="form-text text-muted">Please save this securely. You won’t be able to view it again.</small>
+                </div>
+                <div class="mb-3">
+                    <label for="apiKey" class="form-label">API Key</label>
+                    <div class="input-group">
+                        <input type="text" id="apiKey" class="form-control" value="@Model.APIKey" readonly>
+                        <button class="btn btn-outline-secondary" type="button" onclick="copyKey()">
+                            <i class="bi bi-copy"></i>
+                        </button>
+                    </div>
+                    <small class="form-text text-muted">Please save this securely. You won’t be able to view it again.</small>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">I understand and copied the keys</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function copySecret() {
+        ClipboardModule.copyText("clientSecret", 'The client secret has been copied to your clipboard! Make sure to copy your client secret now. You won’t be able to see it again.', 'Failed to copy the client secret.');
+    }
+
+    function copyKey() {
+        ClipboardModule.copyText("apiKey", 'The api key has been copied to your clipboard! Make sure to copy your api key now. You won’t be able to see it again.', 'Failed to copy the api key.');
+    }
+</script>

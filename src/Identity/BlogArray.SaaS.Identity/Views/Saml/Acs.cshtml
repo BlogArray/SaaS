@@ -1,0 +1,17 @@
+﻿@model SamlAuth
+@{
+    ViewData["Title"] = "Logging you in...";
+    Layout = "~/Views/Shared/_BaseLayout.cshtml";
+}
+<form asp-action="Logon" asp-controller="Saml" class="d-none">
+    <input asp-for="RedirectTo" type="hidden" />
+    <div class="mb-3">
+        <input type="submit" id="samlOK" />
+    </div>
+</form>
+
+<script>
+    $(document).ready(function () {
+        $('#samlOK').click()
+    });
+</script>

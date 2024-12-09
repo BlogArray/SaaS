@@ -1,0 +1,38 @@
+﻿@page
+@model LoginWithRecoveryCodeModel
+@{
+    ViewData["Title"] = "Recovery code verification";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+
+<h6 class="text-center mb-3">
+    Continue with two-factor authentication
+</h6>
+
+<span class="d-block text-center mb-3">
+    <i class="state-icon text-primary bi bi-shield-lock"></i>
+</span>
+
+<p>
+    If you can't use Authenticator app, log in with your emergency recovery code.
+</p>
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+    <div class="mb-3">
+        <label asp-for="Input.RecoveryCode" class="form-label"></label>
+        <input asp-for="Input.RecoveryCode" class="form-control" autocomplete="off" placeholder="Emergency recovery code" />
+        <span asp-validation-for="Input.RecoveryCode" class="text-danger"></span>
+    </div>
+    <button type="submit" class="w-100 btn btn-primary">Log in</button>
+</form>
+
+<div class="text-center mt-3">
+    <p>
+        <a id="recovery-code-login" asp-page="./LoginWith2fa" asp-route-next="@Model.Next">Log in with Authenticator code</a>
+    </p>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

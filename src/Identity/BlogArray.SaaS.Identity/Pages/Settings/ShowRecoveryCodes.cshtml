@@ -1,0 +1,43 @@
+﻿@page
+@model ShowRecoveryCodesModel
+@{
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+}
+
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Recovery codes</h3>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning" role="alert">
+            <p>
+                <i class="bi bi-exclamation-triangle"></i>
+                <strong>Put these codes in a safe place.</strong>
+            </p>
+            <p>
+                Emergency recovery codes can be utilized to log into your account in cases where your device is lost, and two-factor authentication codes cannot be received. If you lose your device and don't have the recovery codes you will lose access to your account.
+            </p>
+            <p>
+                When you generate new emergency recovery codes, it is essential to download or copy the new codes.
+                <strong>Your old codes will no longer work.</strong>
+            </p>
+        </div>
+        <div class="row">
+            <div class="col-md-12">
+                @for (var row = 0; row < Model.RecoveryCodes.Length; row++)
+                {
+                    <code class="recovery-code">@Model.RecoveryCodes[row]</code>
+                    <br />
+                }
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <p>
+                <a asp-page="./TwoFactorAuthentication">Go back to settings</a>
+            </p>
+        </div>
+    </div>
+</div>

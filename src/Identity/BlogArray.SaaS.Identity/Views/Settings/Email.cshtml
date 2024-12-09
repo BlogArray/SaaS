@@ -1,0 +1,27 @@
+﻿@{
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+}
+@model ChangeEmailVM
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Email</h3>
+        <p class="mb-0 form-text">
+            Change your email here.
+        </p>
+    </div>
+    <div class="card-body">
+        <div id="email"><partial name="ChangeEmail.cshtml" model="Model" /></div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+<script>
+
+    function loadEmailForm() {
+        $("#email").load('@Url.Action("ChangeEmail", "Settings")');
+    }
+
+</script>

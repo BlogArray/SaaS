@@ -1,0 +1,47 @@
+﻿@{
+    ViewData["Title"] = "Account Settings";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+<main class="app-main" id="app-main">
+    <aside class="d-flex flex-column flex-shrink-0 p-3 bg-body app-sidenav border-end z-1">
+        <ul class="nav nav-pills flex-column mb-auto hoverable-bg">
+            <li class="nav-item pt-1">
+                <a active-class="bg-body-secondary" active-route asp-controller="Settings" asp-action="Index" class="nav-link text-body-emphasis">
+                    <i class="bi bi-person me-2"></i>
+                    <span class="ml-3">Profile</span>
+                </a>
+            </li>
+            <li class="nav-item pt-1">
+                <a active-class="bg-body-secondary" asp-page="/settings/linkedaccounts" class="nav-link text-body-emphasis @ManageNavPages.ExternalLoginsNavClass(ViewContext,"bg-body-secondary")">
+                    <i class="bi bi-link-45deg me-2"></i>
+                    <span class="ml-3">Linked Accounts</span>
+                </a>
+            </li>
+            <li class="nav-item pt-1">
+                <a active-class="bg-body-secondary" active-route asp-controller="Settings" asp-action="Email" class="nav-link text-body-emphasis">
+                    <i class="bi bi-envelope me-2"></i>
+                    <span class="ml-3">Email</span>
+                </a>
+            </li>
+            <li class="nav-item pt-1">
+                <a active-class="bg-body-secondary" active-route asp-controller="Settings" asp-action="Security" class="nav-link text-body-emphasis @ManageNavPages.TwoFactorAuthenticationNavClass(ViewContext,"bg-body-secondary")">
+                    <i class="bi bi-shield-check me-2"></i>
+                    <span class="ml-3">Security</span>
+                </a>
+            </li>
+        </ul>
+    </aside>
+    <div class="d-flex flex-column app-container">
+        <div class="app-body container-fluid mt-2 h-main-app-body">
+            @RenderBody()
+        </div>
+        <footer class="p-2 mt-5">
+            <div class="mx-auto text-center">
+                <p>
+                    © @DateTime.Now.Year - <a href="https://www.blogarray.net/" target="_blank">BlogArray</a>, Crafted with Excellence by Team BlogArray.
+                </p>
+            </div>
+        </footer>
+    </div>
+</main>
+@await RenderSectionAsync("Scripts", required: false)

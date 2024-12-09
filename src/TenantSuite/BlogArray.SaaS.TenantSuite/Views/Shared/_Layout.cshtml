@@ -1,0 +1,84 @@
+﻿@using System.Security.Claims
+
+@{
+    Layout = "~/Views/Shared/_BaseLayout.cshtml";
+}
+
+<div class="app-layout">
+    <nav class="navbar navbar-expand-lg fixed-top bg-body bg-dark app-navbar border-bottom" data-bs-theme="dark">
+        <div class="container-fluid">
+            <button class="navbar-toggler border-0" type="button" aria-label="Toggle navigation"
+                    onclick="toggleMobileMenu()">
+                <i class="bi bi-list"></i>
+            </button>
+            <a class="navbar-brand" style="font-size:1.5rem" asp-controller="Dashboard" asp-action="Index">
+                <img src="~/_content/BlogArray.SaaS.Resources/resources/images/logo-full.png" alt="Logo" height="30"
+                     class="d-inline-block align-text-top">
+                <span class="mx-1 d-none d-md-inline fw-normal">Suite</span>
+            </a>
+            <div class="text-end d-flex align-items-center">
+                @if (User.Identity.IsAuthenticated)
+                {
+                    <partial name="_LoginPartial" />
+                }
+            </div>
+        </div>
+    </nav>
+    <main class="app-main" id="app-main">
+        <aside class="d-flex flex-column flex-shrink-0 p-3 bg-body app-sidenav border-end z-3" data-bs-theme="dark">
+            <ul class="nav nav-pills flex-column mb-auto hoverable-bg">
+                <li class="nav-item pt-1">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Dashboard" class="nav-link text-body-emphasis">
+                        <i class="bi bi-speedometer2 me-2"></i>
+                        <span class="ml-3">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item pt-1">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Tenants" class="nav-link text-body-emphasis">
+                        @* <i class="bi bi-app-indicator me-2"></i> *@
+                        <i class="bi bi-buildings me-2"></i>
+                        <span class="ml-3">Tenants</span>
+                    </a>
+                </li>
+                <li class="nav-item pt-1">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Users" class="nav-link text-body-emphasis">
+                        <i class="bi bi-people me-2"></i>
+                        <span class="ml-3">Users</span>
+                    </a>
+                </li>
+                <li class="nav-item pt-1">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Roles" class="nav-link text-body-emphasis">
+                        <i class="bi bi-lock me-2"></i>
+                        <span class="ml-3">Roles</span>
+                    </a>
+                </li>
+                <li class="nav-item pt-1">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Scopes" class="nav-link text-body-emphasis">
+                        <i class="bi bi-key me-2"></i>
+                        <span class="ml-3">Scopes</span>
+                    </a>
+                </li>
+            </ul>
+        </aside>
+        <div class="d-flex flex-column app-container">
+            <div class="app-body container-fluid mt-2 h-main-app-body">
+                <partial name="_AlertPartial" />
+                @RenderBody()
+            </div>
+            <footer class="p-2 mt-5">
+                <div class="mx-auto text-center">
+                    <p>
+                        © @DateTime.Now.Year - <a href="https://www.blogarray.net/" target="_blank">BlogArray</a>, Crafted with Excellence by Team BlogArray.
+                    </p>
+                </div>
+            </footer>
+        </div>
+    </main>
+</div>
+@await RenderSectionAsync("Scripts", required: false)
+
+<script>
+    function toggleMobileMenu() {
+        $('#app-main').toggleClass('open');
+    }
+</script>

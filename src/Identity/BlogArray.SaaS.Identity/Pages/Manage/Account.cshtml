@@ -1,0 +1,43 @@
+﻿@page
+@model AccountModel
+@{
+    ViewData["Title"] = "Account";
+    ViewData["ActivePage"] = ManageNavPages.Account;
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<h3 class="mb-4">@ViewData["Title"]</h3>
+
+<h6 id="email">Email</h6>
+
+<partial name="_StatusMessage" for="StatusMessage" />
+<form id="email-form" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+    @if (Model.IsEmailConfirmed)
+    {
+        <div class="mb-3">
+            Your current email address is <strong>@Model.Email</strong>
+        </div>
+    }
+    else
+    {
+        <div class="mb-3">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" class="form-control" placeholder="Please enter your email." disabled />
+            <button id="email-verification" type="submit" asp-page-handler="SendVerificationEmail" class="btn hr coderons">Send verification email</button>
+        </div>
+    }
+    <div class="mb-3">
+        <label asp-for="Input.NewEmail" class="form-label">New email address</label>
+        <input asp-for="Input.NewEmail" class="form-control" autocomplete="email" aria-required="true" placeholder="Please enter new email." />
+        <span asp-validation-for="Input.NewEmail" class="text-danger"></span>
+    </div>
+    <button id="change-email-button" type="submit" asp-page-handler="ChangeEmail" class="btn hr coderons">Change email</button>
+</form>
+
+
+<h6 class="mb-4 mt-4" id="Username">Username</h6>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

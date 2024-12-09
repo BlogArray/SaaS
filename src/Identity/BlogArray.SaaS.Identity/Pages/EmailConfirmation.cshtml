@@ -1,0 +1,22 @@
+﻿@page
+@model ForgotPasswordConfirmation
+@{
+    ViewData["Title"] = "Thank you for confirming your email";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+
+<h6 class="text-center mb-3">
+    Email verification
+</h6>
+<span class="d-block text-center">
+    <i class="state-icon text-primary bi bi-envelope-open"></i>
+</span>
+<p class="text-center mt-3">
+    Thank you for confirming your email.
+</p>
+
+<div class="text-center mt-3">
+    <p>
+        <a asp-page="./Login">Go back to login</a>
+    </p>
+</div>

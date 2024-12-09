@@ -1,0 +1,40 @@
+﻿@model RoleViewModel
+
+@{
+    ViewData["Title"] = $"Edit role {Model.Name}";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-1">@ViewData["Title"]</h3>
+        <nav aria-label="breadcrumb mb-0 mbe-0 form-text">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a asp-action="Index">
+                        All roles
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Edit role @Model.Name</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="card-body">
+        <form asp-action="Edit">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input asp-for="Id" type="hidden" />
+            <div class="mb-3">
+                <label asp-for="Name" class="form-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <input type="submit" value="Update role" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

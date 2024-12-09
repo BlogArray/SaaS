@@ -1,0 +1,15 @@
+﻿@page
+@model LogoutModel
+@{
+    ViewData["Title"] = "Are you sure you want to Logout?";
+}
+
+<div class="container my-5">
+    <div class="position-relative p-5 text-center">
+        <i class="state-icon text-primary bi bi-box-arrow-right"></i>
+        <h3 class="mt-5 mb-3">@ViewData["Title"]</h3><br />
+        <form class="form-inline" asp-page="/Logout" method="post">
+            <button type="submit" class="btn btn-primary">Yes, Logout</button>
+        </form>
+    </div>
+</div>

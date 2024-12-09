@@ -1,0 +1,55 @@
+﻿@page
+@model LinkedAccountsModel
+@{
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+}
+
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Linked Accounts</h3>
+        <p class="mb-0 form-text">
+            You can log in to BlogArray using your social account once your account has been connected.
+        </p>
+    </div>
+    <div class="card-body">
+        <div class="list-group list-group-flush">
+            @foreach (var provider in Model.AllLogins)
+            {
+                <div href="#" class="list-group-item d-flex gap-3 py-3" aria-current="true">
+                    <i class="rounded-circle flex-shrink-0 fs-3 bi-@provider.DisplayName.ToLower() @provider.DisplayName.ToLower()-color"></i>
+                    <div class="d-flex gap-2 w-100 justify-content-between">
+                        <div>
+                            <h6 class="mb-0">@provider.Name</h6>
+                            @* <p class="mb-0 opacity-75">Some placeholder content in a paragraph.</p> *@
+                        </div>
+                        @{
+                            var currentProvider = Model.CurrentLogins.FirstOrDefault(auth => string.Equals(auth.LoginProvider, provider.Name, StringComparison.OrdinalIgnoreCase));
+                        }
+                        @if (currentProvider != null)
+                        {
+                            <form id="@($"remove-login-{currentProvider.LoginProvider}")" asp-page-handler="RemoveLogin" method="post">
+                                <div>
+                                    <input asp-for="@currentProvider.LoginProvider" name="LoginProvider" type="hidden" />
+                                    <input asp-for="@currentProvider.ProviderKey" name="ProviderKey" type="hidden" />
+                                    <button type="submit" class="btn" title="Remove this @provider.Name login from your account">Remove</button>
+                                </div>
+                            </form>
+                        }
+                        else
+                        {
+                            <form id="link-login-form" asp-page-handler="LinkLogin" method="post" class="form-horizontal">
+                                <button id="@($"link-login-button-{provider.Name}")" type="submit" class="btn btn-primary" name="provider" value="@provider.Name" title="Log in using your @provider.DisplayName account">Connect</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+        @if (Model.AllLogins.Count == 0)
+        {
+            <p>No accounts are currently configured. Please visit after some time.</p>
+        }
+    </div>
+</div>

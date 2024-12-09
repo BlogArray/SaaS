@@ -1,0 +1,24 @@
+﻿@using Microsoft.Extensions.Primitives
+@model BlogArray.SaaS.Identity.Controllers.AuthorizeViewModel
+@{
+    ViewData["Title"] = "Authorization";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+<h6 class="text-center mb-3">
+    Authorization
+</h6>
+
+<p>Do you want to grant <strong>@Model.ApplicationName</strong> access to your data? (scopes requested: @Model.Scope)</p>
+
+<form asp-controller="Authorization" asp-action="Authorize" method="post">
+    @* Flow the request parameters so they can be received by the Accept/Reject actions: *@
+    @foreach (var parameter in Context.Request.HasFormContentType ?
+    (IEnumerable<KeyValuePair<string, StringValues>>)Context.Request.Form : Context.Request.Query)
+    {
+        <input type="hidden" name="@parameter.Key" value="@parameter.Value" />
+    }
+    <div class="d-flex">
+        <input class="btn btn-success w-50 mx-1" name="submit.Accept" type="submit" value="Yes" />
+        <input class="btn btn-danger w-50 mx-1" name="submit.Deny" type="submit" value="No" />
+    </div>
+</form>

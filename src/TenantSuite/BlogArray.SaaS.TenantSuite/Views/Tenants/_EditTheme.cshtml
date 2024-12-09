@@ -1,0 +1,94 @@
+﻿@model ThemeViewModel
+<h6 id="looknfeel">Look and feel</h6>
+<p>
+    Change look and feel of the tenant
+</p>
+
+@using (Html.AjaxBeginForm(new AjaxOptions
+ {
+     Url = @Url.ActionLink("Theme"),
+     HttpMethod = "post",
+     OnSuccess = "onThemeChangeSuccess",
+     OnFailure = "handleAjaxError"
+ }, new { id = "saveThemeForm" }))
+{
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <input type="hidden" asp-for="Id" />
+    <div class="mb-3">
+        <label asp-for="Favicon" class="form-label">Favicon image</label>
+        <div class="d-flex text-body-secondary pb-3">
+            <img height="34" alt="profile icon" class="flex-shrink-0 me-2 rounded" loading="lazy" id="faviconImage" src="@Model.Favicon" />
+            <input type="file" asp-for="Favicon" accept="image/png,image/jpeg,image/jpg,image/webp" class="form-control" />
+        </div>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Logo" class="form-label">Logo image</label>
+        <div class="d-flex text-body-secondary pb-3">
+            <img height="34" alt="profile icon" class="flex-shrink-0 me-2 rounded" loading="lazy" id="iconImage" src="@Model.Logo" />
+            <input type="file" asp-for="Logo" accept="image/png,image/jpeg,image/jpg,image/webp" class="form-control" />
+        </div>
+    </div>
+    <div class="mb-3">
+        <label asp-for="NavbarColor" class="form-label">Navbar color</label>
+        <input asp-for="NavbarColor" type="color" class="form-control form-control-color" title="Choose your color">
+        @* <div class="input-group mb-3">
+            <input asp-for="NavbarColor" class="form-control" title="Pick a color" readonly placeholder="Pick a color" aria-label="Pick a color">
+            <input asp-for="NavbarColor" type="color" class="form-control form-control-color bg-body-secondary" style="max-width:42px" title="Choose your color">
+        </div> *@
+        <span asp-validation-for="NavbarColor" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="NavbarTextAndIconColor" class="form-label">Navbar text and icon color</label>
+        <input asp-for="NavbarTextAndIconColor" type="color" class="form-control form-control-color" title="Choose your color">
+        <span asp-validation-for="NavbarTextAndIconColor" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="PrimaryColor" class="form-label">Primary color</label>
+        <input asp-for="PrimaryColor" type="color" class="form-control form-control-color" title="Choose your color">
+        <span asp-validation-for="PrimaryColor" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <input type="submit" value="Update theme" class="btn btn-primary" />
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+<script>
+
+    $(document).ready(function () {
+        Unobtrusive.reInit($("#saveThemeForm"));
+    });
+
+    function readFile(input, type) {
+        if (input.files && input.files[0]) {
+            var formData = new FormData();
+            formData.append('file', input.files[0]);
+
+            $.ajax({
+                url: '@Url.Action("UpdateImage")?type='+type+'&id=@Model.Id',
+                type: "POST",
+                data: formData,
+                enctype: 'multipart/form-data',
+                processData: false,
+                contentType: false
+            }).done(function (data) {
+                if(type=='logo'){
+                    setImage('iconImage', data.message);
+                }else{
+                    setImage('faviconImage', data.message);
+                }
+                Toast.success('Image updated successfully.');
+            });
+        }
+    }
+
+    $('#Favicon').on('change', function () { readFile(this, 'favicon'); });
+    $('#Logo').on('change', function () { readFile(this, 'logo'); });
+
+    function onThemeChangeSuccess(e) {
+        Toast.success(e.message);
+    }
+</script>

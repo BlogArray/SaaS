@@ -1,0 +1,30 @@
+﻿@page
+@model RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Register confirmation";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+<h6 class="text-center mb-3">
+    Register confirmation
+</h6>
+
+<span class="d-block text-center">
+    <i class="state-icon text-primary bi bi-envelope-open"></i>
+</span>
+<p class="text-center mt-3">
+    We sent a verification link to you at<br />
+    <strong>@Model.Email</strong>
+</p>
+
+<p class="small text-secondary">
+    If you don't see our email in your inbox, check your spam folder.
+</p>
+
+<div class="text-center mt-3">
+    <p>
+        <a asp-page="./Login">Go back to login</a>
+    </p>
+    <p>
+        <a id="resend-confirmation" asp-page="./ResendEmailConfirmation">Didn't receive the verification link?</a>
+    </p>
+</div>

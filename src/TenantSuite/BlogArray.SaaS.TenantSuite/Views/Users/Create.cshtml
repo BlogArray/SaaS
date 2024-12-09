@@ -1,0 +1,172 @@
+﻿@using System.Security.Claims
+@{
+    ViewData["Title"] = "Create a new user";
+}
+
+@model CreateUserViewModel
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-1">Create a new user</h3>
+        <nav aria-label="breadcrumb mb-0 mbe-0 form-text">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a asp-action="Index">
+                        All users
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">Create</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="card-body">
+        <form asp-action="Create">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="row">
+                <div class="col col-12 col-lg-6 mb-3">
+                    <label asp-for="FirstName" class="form-label">First name</label>
+                    <input asp-for="FirstName" class="form-control" placeholder="First name" />
+                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                </div>
+                <div class="col col-12 col-lg-6 mb-3">
+                    <label asp-for="LastName" class="form-label">Last name</label>
+                    <input asp-for="LastName" class="form-control" placeholder="Last name" />
+                    <span asp-validation-for="LastName" class="text-danger"></span>
+                </div>
+                <div class="col col-12 mb-3">
+                    <label asp-for="DisplayName" class="form-label">Display name</label>
+                    <input asp-for="DisplayName" class="form-control" placeholder="Display name" />
+                    <span asp-validation-for="DisplayName" class="text-danger"></span>
+                </div>
+                <div class="col col-12 mb-3">
+                    <label asp-for="Email" class="form-label">Email/Username</label>
+                    <input asp-for="Email" class="form-control" placeholder="Display name" />
+                    <span asp-validation-for="Email" class="text-danger"></span>
+                </div>
+            </div>
+
+            <p class="form-text">Please note: A secure password setup link will be sent to the user's email. Ensure they follow the link promptly, as it will expire soon for security purposes.</p>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" asp-for="SendLinkToMe">
+                <label class="form-check-label" hide-indicator="true" asp-for="SendLinkToMe">
+                    Email me the password setup link
+                </label>
+            </div>
+            <div class="mb-3">
+                <input type="submit" value="Create user" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal" id="profileCroppieModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">
+                    Change profile photo
+                </h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="main-cropper">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="uploadFile">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css" integrity="sha512-zxBiDORGDEAYDdKLuYU9X/JaJo/DPzE42UubfBw9yg8Qvb2YRRIQ8v4KsGHOx2H1/+sdSXyXxLXv5r7tHc9ygg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js" integrity="sha512-Gs+PsXsGkmr+15rqObPJbenQ2wB3qYvTHuJO6YJzPe/dTLvhy0fmae2BcnaozxDo5iaF8emzmCZWbQ1XXiX2Ig==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script>
+    var profileCroppieModal, profileCropper, screenWidth, viewport, boundary;
+
+    $(document).ready(function () {
+        screenWidth = screen.width ?? window.outerWidth;
+
+        profileCroppieModal = new bootstrap.Modal('#profileCroppieModal');
+
+        viewport = {
+            width: 256,
+            height: 256,
+            type: 'square'
+        };
+
+        boundary = {
+            width: screenWidth < 768 ? 320 : 768,
+            height: screenWidth < 768 ? 336 : screenWidth <= 1366 ? 265 : 336,
+        };
+
+        profileCropper = getCroppie();
+    });
+
+    function getCroppie() {
+        var el = document.getElementById('main-cropper');
+        return new Croppie(el, {
+            viewport: viewport,
+            boundary: boundary,
+            showZoomer: true,
+            mouseWheelZoom: 'ctrl',
+            enforceBoundary: true,
+            enableZoom: true,
+        });
+    }
+
+    function readFile(input) {
+        if (input.files && input.files[0]) {
+            profileCroppieModal.show();
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                profileCropper.bind({
+                    url: e.target.result,
+                    zoom: 0,
+                });
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    $('#ProfileFile').on('change', function () { readFile(this); });
+
+    $('#uploadFile').on('click', function () {
+        profileCropper.result({
+            type: 'blob',
+            format: 'webp',
+            circle: false,
+            quality: 0.9,
+            size: {
+                height: 256,
+                width: 256
+            }
+        }).then(function (blob) {
+
+            var formData = new FormData();
+            formData.append('blob', blob);
+
+            $.ajax({
+                url: '@Url.Action("UpdateProfile")',
+                type: "POST",
+                data: formData,
+                enctype: 'multipart/form-data',
+                processData: false,
+                contentType: false
+            }).done(function (data) {
+                setImage('headerProfileImage', data.message);
+                setImage('headerProfileViewImage', data.message);
+                setImage('profilePageImage', data.message);
+                profileCroppieModal.hide();
+            });
+        });
+    });
+
+    function onProfileSave(e) {
+        Toast.success(e.message);
+    }
+</script>

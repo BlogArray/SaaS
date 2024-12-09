@@ -1,0 +1,49 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using System.Security.Claims
+
+@{
+    ViewData["Title"] = "Home Page";
+}
+
+@if (User.Identity.IsAuthenticated)
+{
+    <div class="alert alert-success p-5">
+        <div class="d-flex align-items-center mb-3">
+            <img src="@User.FindFirst("image").Value" alt="Profile" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+            <div>
+                <h5 class="mb-0">Welcome back, @User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value!</h5>
+                <p class="mb-0">
+                    <strong>Email:</strong> @User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                </p>
+            </div>
+        </div>
+        <p>
+            <strong>Authentication Type:</strong> @User.Identity.AuthenticationType
+        </p>
+        <p><strong>Your Claims:</strong></p>
+        <ul>
+            @foreach (var claim in User.Claims)
+            {
+                <li><strong>@claim.Type:</strong> @claim.Value</li>
+            }
+        </ul>
+        <a asp-action="LogOut" asp-controller="Authentication" class="btn btn-danger">
+            <i class="bi bi-box-arrow-right"></i> Logout
+        </a>
+    </div>
+}
+else
+{
+    <div class="alert alert-info p-5">
+        <h5>Hello, Guest!</h5>
+        <p>You are currently not logged in. Please log in to access your account and additional features. Here’s what you can do:</p>
+        <ul>
+            <li><strong>Access Personalized Features:</strong> Log in to view and manage your account.</li>
+            <li><strong>Secure Your Account:</strong> Advanced security options like MFA and SSO.</li>
+            <li><strong>Explore:</strong> Log in to unlock more features.</li>
+        </ul>
+        <a asp-action="LogIn" asp-controller="Authentication" class="btn btn-primary">
+            <i class="bi bi-box-arrow-in-right"></i> Login
+        </a>
+    </div>
+}

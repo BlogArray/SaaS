@@ -1,0 +1,87 @@
+﻿@model EditViewApplicationViewModel
+
+<h6 id="basic">Basic info</h6>
+<p>
+    Change basic info of tenant.
+</p>
+
+@using (Html.AjaxBeginForm(new AjaxOptions
+ {
+     Url = @Url.ActionLink("Edit"),
+     HttpMethod = "post",
+     OnSuccess = "onTenantChangeSuccess",
+     OnFailure = "handleAjaxError"
+ }, new { id = "saveTenantForm" }))
+{
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <input type="hidden" asp-for="Id" />
+    <input type="hidden" asp-for="ClientId" />
+    <div class="mb-3">
+        <label asp-for="DisplayName" class="form-label">Display name</label>
+        <input asp-for="DisplayName" class="form-control" />
+        <span asp-validation-for="DisplayName" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Legalname" class="form-label">Legal name</label>
+        <input asp-for="Legalname" class="form-control" />
+        <span asp-validation-for="Legalname" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="ConnectionString" class="form-label">Connection string</label>
+        <textarea asp-for="ConnectionString" aria-describedby="secretCS" class="form-control"></textarea>
+        <div id="secretCS" class="form-text">
+            The connection string to your database instance, e.g. Server=localhost;Database=Orchard;User Id=username;Password=password.
+        </div>
+        <span asp-validation-for="ConnectionString" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Website" class="form-label"></label>
+        <input asp-for="Website" class="form-control" />
+        <span asp-validation-for="Website" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="RedirectUri" class="form-label">Redirect Uri</label>
+        <input asp-for="RedirectUri" class="form-control" />
+        <span asp-validation-for="RedirectUri" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="PostLogoutRedirectUri" class="form-label">Post Logout Redirect Uri</label>
+        <input asp-for="PostLogoutRedirectUri" class="form-control" />
+        <span asp-validation-for="PostLogoutRedirectUri" class="text-danger"></span>
+    </div>
+   @*  <div class="mb-3">
+        <label asp-for="Permissions" class="form-label"></label>
+        <select multiple class="form-select" asp-for="Permissions" asp-items="ViewBag.Permissions">
+        </select>
+        <span asp-validation-for="Permissions" class="text-danger"></span>
+    </div> *@
+    <div class="mb-3">
+        <input type="submit" value="Update tenant" class="btn btn-primary" />
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+<script>
+    var permissionsChoice;
+
+    $(document).ready(function () {
+        Unobtrusive.reInit($("#saveTenantForm"));
+        permissionsChoice = new Choices('#Permissions', {
+            searchPlaceholderValue: 'Please search',
+            placeholderValue: 'Please select',
+            shouldSort: false,
+        });
+    });
+
+    function onTenantChangeSuccess(e) {
+        Toast.success(e.message);
+    }
+</script>

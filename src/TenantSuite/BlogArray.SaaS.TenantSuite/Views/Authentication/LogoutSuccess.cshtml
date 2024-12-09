@@ -1,0 +1,15 @@
+﻿@{
+    ViewData["Title"] = "Logout Completed";
+    Layout = "~/Views/Shared/_LoginLayout.cshtml";
+}
+
+<span class="d-block text-center">
+    <i class="state-icon text-primary bi bi-box-arrow-right"></i>
+</span>
+<h1 class="h4 text-center mb-3">
+    You're Logged Out
+</h1>
+<p class="text-muted mb-4">You have successfully logged out. What would you like to do next?</p>
+<div class="d-grid gap-2">
+    <a asp-action="LogIn" asp-controller="Authentication" class="btn btn-primary">Login Again</a>
+</div>

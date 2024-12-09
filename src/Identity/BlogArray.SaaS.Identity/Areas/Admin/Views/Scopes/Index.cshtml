@@ -1,0 +1,96 @@
+﻿@model IEnumerable<ScopeViewModel>
+
+@{
+    ViewData["Title"] = "Scopes";
+    string? searchTerm = ViewBag.SearchTerm;
+}
+<h3>Scopes</h3>
+
+<div class="card">
+    <div class="card-header">
+        <div class="row gx-3">
+            <div class="col">
+                <form asp-action="Index" method="get">
+                    <div class="input-group">
+                        <input type="text" name="term" id="term" value="@searchTerm" class="form-control" placeholder="Search..." aria-label="Search..." aria-describedby="search-addon">
+                        <button class="btn btn-outline-secondary" type="submit" id="search-addon">
+                            <div class="d-flex">
+                                <i class="bi bi-search d-md-none"></i>
+                                <span class="d-none d-md-block">Search</span>
+                            </div>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <div class="col-auto">
+                <a asp-action="Create" class="btn btn-primary">
+                    <div class="d-flex">
+                        <i class="bi bi-plus-lg"></i>
+                        <span class="d-none d-md-block ms-2">Create new</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+    <div class="card-body py-0">
+        <div class="list-group list-group-flush">
+            @if (Model.Count() == 0)
+            {
+                <div class="p-5 text-center">
+                    @if (searchTerm?.Length > 0)
+                    {
+                        <i class="state-icon bi bi-search"></i>
+                        <br />
+                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                            No matching results.
+                        </p>
+                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                            Try adjusting your search or create new one.
+                        </p>
+                    }
+                    else
+                    {
+                        <i class="state-icon bi bi-inbox"></i>
+                        <br />
+                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                            It looks a bit empty here!
+                        </p>
+                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                            Start by adding new data or explore other areas.
+                        </p>
+                    }
+                    <div class="d-inline-flex gap-2 mb-5">
+                        <a asp-action="Create" class="d-inline-flex align-items-center btn btn-primary px-4 rounded-pill bi bi-plus-lg bi-mr" type="button">
+                            Create new scope
+                        </a>
+                    </div>
+                </div>
+            }
+            @foreach (var item in Model)
+            {
+                <div class="list-group-item d-flex justify-content-between align-items-center p-0" aria-current="true">
+                    <div class="d-flex gap-3 py-3">
+                        <div class="d-flex gap-2 w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-0">
+                                    <a asp-action="Edit" asp-route-id="@item.Id">
+                                        @item.DisplayName (@item.Name)
+                                    </a>
+                                </h6>
+                                <p class="mb-0 opacity-75 d-inline-block text-truncate" title="@item.Description" style="max-width: 250px;">@item.Description</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <a asp-action="Edit" class="btn btn-sm btn-light" asp-route-id="@item.Id" data-bs-toggle="tooltip" data-bs-title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </a>
+                        <a asp-action="Delete" class="btn btn-sm btn-danger" asp-route-id="@item.Id" data-bs-toggle="tooltip" data-bs-title="Delete">
+                            <i class="bi bi-trash3"></i>
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>

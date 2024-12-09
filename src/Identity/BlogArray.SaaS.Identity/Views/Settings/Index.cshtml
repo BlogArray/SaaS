@@ -1,0 +1,241 @@
+﻿@using System.Security.Claims
+@{
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+    string givenName = User.FindFirst(ClaimTypes.GivenName)?.Value ?? User.Identity?.Name;
+    string email = User.FindFirst(ClaimTypes.Email).Value;
+    string profileIcon = User.FindFirst("Icon").Value;
+    string[] genderList = ["Male", "Female", "I'd prefer not to say", "Non binary"];
+
+    var genders = genderList
+    .Select(gender => new SelectListItem
+            {
+                Text = gender,
+                Value = gender
+            });
+
+    var timeZones = TimeZoneInfo.GetSystemTimeZones()
+    .Select(tz => new SelectListItem
+            {
+                Value = tz.Id,
+                Text = $"{tz.DisplayName}"
+            }).ToList();
+
+    var languages = new List<SelectListItem>()
+    {
+        new SelectListItem
+        {
+            Text="English - India",
+            Value="en-IN"
+        }
+    };
+}
+
+@model AppUserBaseVM
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Profile</h3>
+        <p class="mb-0 form-text">You have full control to manage your own account setting.</p>
+    </div>
+    <div class="card-body">
+        <div class="d-flex gap-3 py-3">
+            <div class="profile-container position-relative">
+                <img width="40" height="40" alt="profile icon" class="flex-shrink-0 me-2 rounded-circle" loading="lazy" id="profilePageImage" src="@profileIcon" />
+                <div id="changeImage" title="Change image" class="change-icon d-flex align-items-center rounded-circle justify-content-center">
+                    <i class="bi bi-camera"></i>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2 w-100 justify-content-between">
+                <div>
+                    <h6 class="mb-0">@givenName</h6>
+                    <p class="mb-0 opacity-75">@email</p>
+                </div>
+            </div>
+        </div>
+
+        <input type="file" id="ProfileFile" accept="image/png,image/jpeg,image/jpg,image/webp" class="d-none" />
+
+        @using (Html.AjaxBeginForm(new AjaxOptions
+         {
+             Url = @Url.ActionLink("Index"),
+             HttpMethod = "post",
+             OnSuccess = "onProfileSave",
+             OnFailure = "handleAjaxError"
+         }))
+        {
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            @* <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input value="@email" disabled class="form-control" />
+        <div class="form-text">You can change your email <a asp-action="account" asp-controller="settings" asp-fragment="email">here</a></div>
+        </div> *@
+            <div class="row">
+                <div class="col col-12 col-lg-6 mb-3">
+                    <label asp-for="FirstName" class="form-label">First name</label>
+                    <input asp-for="FirstName" class="form-control" placeholder="First name" />
+                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                </div>
+                <div class="col col-12 col-lg-6 mb-3">
+                    <label asp-for="LastName" class="form-label">Last name</label>
+                    <input asp-for="LastName" class="form-control" placeholder="Last name" />
+                    <span asp-validation-for="LastName" class="text-danger"></span>
+                </div>
+                <div class="col col-12 col-lg-6 mb-3">
+                    <label asp-for="DisplayName" class="form-label">Display name</label>
+                    <input asp-for="DisplayName" class="form-control" placeholder="Display name" />
+                    <span asp-validation-for="DisplayName" class="text-danger"></span>
+                </div>
+                <div class="col col-12 col-lg-6 mb-3">
+                    <label asp-for="Gender" class="form-label">Gender</label>
+                    <select class="form-select" asp-for="Gender" asp-items="genders">
+                    </select>
+                    <span asp-validation-for="Gender" class="text-danger"></span>
+                </div>
+                <div class="col col-12 col-lg-6 mb-3">
+                    <label asp-for="TimeZone" class="form-label"></label>
+                    <select class="form-select" asp-for="TimeZone" asp-items="timeZones">
+                    </select>
+                    <span asp-validation-for="TimeZone" class="text-danger"></span>
+                </div>
+                <div class="col col-12 col-lg-6 mb-3">
+                    <label asp-for="LocaleCode" class="form-label"></label>
+                    <select class="form-select" asp-for="LocaleCode" asp-items="languages">
+                    </select>
+                    <span asp-validation-for="LocaleCode" class="text-danger"></span>
+                </div>
+            </div>
+            <div class="mb-3">
+                <input type="submit" value="Update profile" class="btn btn-primary" />
+            </div>
+        }
+    </div>
+</div>
+
+<div class="modal" id="profileCroppieModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5">
+                    Change profile photo
+                </h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="main-cropper">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="uploadFile">Save changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css" integrity="sha512-zxBiDORGDEAYDdKLuYU9X/JaJo/DPzE42UubfBw9yg8Qvb2YRRIQ8v4KsGHOx2H1/+sdSXyXxLXv5r7tHc9ygg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js" integrity="sha512-Gs+PsXsGkmr+15rqObPJbenQ2wB3qYvTHuJO6YJzPe/dTLvhy0fmae2BcnaozxDo5iaF8emzmCZWbQ1XXiX2Ig==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+<script>
+    var profileCroppieModal, profileCropper, screenWidth, viewport, boundary, genderChoice, timeZoneChoice, localeChoice;
+
+    $(document).ready(function () {
+        screenWidth = screen.width ?? window.outerWidth;
+
+        profileCroppieModal = new bootstrap.Modal('#profileCroppieModal');
+
+        viewport = {
+            width: 256,
+            height: 256,
+            type: 'square'
+        };
+
+        boundary = {
+            width: screenWidth < 768 ? 320 : 768,
+            height: screenWidth < 768 ? 336 : screenWidth <= 1366 ? 265 : 336,
+        };
+
+        profileCropper = getCroppie();
+
+        genderChoice = new Choices('#Gender', {
+            searchPlaceholderValue: 'Please search',
+            placeholderValue: 'Please select a gender',
+            shouldSort: false,
+        });
+        timeZoneChoice = new Choices('#TimeZone', {
+            searchPlaceholderValue: 'Please search',
+            placeholderValue: 'Please select a timezone',
+            shouldSort: false
+        });
+
+        localeChoice = new Choices('#LocaleCode', {
+            searchPlaceholderValue: 'Please search',
+            placeholderValue: 'Please select a language',
+            shouldSort: false
+        });
+    });
+
+    function getCroppie() {
+        var el = document.getElementById('main-cropper');
+        return new Croppie(el, {
+            viewport: viewport,
+            boundary: boundary,
+            showZoomer: true,
+            mouseWheelZoom: 'ctrl',
+            enforceBoundary: true,
+            enableZoom: true,
+        });
+    }
+
+    function readFile(input) {
+        if (input.files && input.files[0]) {
+            profileCroppieModal.show();
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                profileCropper.bind({
+                    url: e.target.result,
+                    zoom: 0,
+                });
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    $('#changeImage').on('click', function () { document.getElementById('ProfileFile').click(); });
+    $('#ProfileFile').on('change', function () { readFile(this); });
+
+    $('#uploadFile').on('click', function () {
+        profileCropper.result({
+            type: 'blob',
+            format: 'webp',
+            circle: false,
+            quality: 0.9,
+            size: {
+                height: 256,
+                width: 256
+            }
+        }).then(function (blob) {
+
+            var formData = new FormData();
+            formData.append('blob', blob);
+
+            $.ajax({
+                url: '@Url.Action("UpdateProfile")',
+                type: "POST",
+                data: formData,
+                enctype: 'multipart/form-data',
+                processData: false,
+                contentType: false
+            }).done(function (data) {
+                setImage('headerProfileImage', data.message);
+                setImage('headerProfileViewImage', data.message);
+                setImage('profilePageImage', data.message);
+                profileCroppieModal.hide();
+            });
+        });
+    });
+
+    function onProfileSave(e) {
+        Toast.success(e.message);
+    }
+</script>

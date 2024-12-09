@@ -1,0 +1,83 @@
+﻿@{
+    AppTenantInfo? tenantInfo = Context.GetMultiTenantContext<AppTenantInfo>()?.TenantInfo;
+    if (tenantInfo is null)
+    {
+        tenantInfo = new AppTenantInfo();
+    }
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - @tenantInfo.Name</title>
+    <link rel="icon" href="@tenantInfo.Favicon">
+    <link rel="stylesheet" href="~/_content/BlogArray.SaaS.Resources/lib/bootstrap-icons/bootstrap-icons.min.css" />
+    <environment include="Development">
+        <link rel="stylesheet" href="~/_content/BlogArray.SaaS.Resources/css/site.css" asp-append-version="true" />
+    </environment>
+    <environment exclude="Development">
+        <link rel="stylesheet" href="~/_content/BlogArray.SaaS.Resources/css/site.min.css" asp-append-version="true" />
+    </environment>
+</head>
+<body>
+    <script src="~/_content/BlogArray.SaaS.Resources/lib/jquery/dist/jquery.min.js"></script>
+
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" style="font-size:1.5rem" asp-area="" asp-controller="Home" asp-action="Index">
+                    <img src="@tenantInfo.Logo" alt="Logo" height="30"
+                         class="d-inline-block align-text-top">
+                    <span class="mx-1 d-none d-md-inline fw-normal">@tenantInfo.Name</span>
+                    <div class="vr"></div>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Users" asp-action="Index">Users</a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="text-end d-flex align-items-center">
+                    @if (User.Identity.IsAuthenticated)
+                    {
+                        <partial name="_LoginPartial" />
+                    }
+                </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; @DateTime.Now.Year - <a href="@tenantInfo.Website" rel="external" target="_blank">@tenantInfo.Legalname</a>
+        </div>
+    </footer>
+
+    <div id="toastContainer" aria-live="polite" aria-atomic="true" class="toast-container position-fixed top-0 end-0 p-3"></div>
+
+    <script src="~/_content/BlogArray.SaaS.Resources/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <environment include="Development">
+        <script src="~/_content/BlogArray.SaaS.Resources/js/site.js" asp-append-version="true"></script>
+        @* <script src="~/js/themer.js" asp-append-version="true"></script> *@
+    </environment>
+    <environment exclude="Development">
+        <script src="~/_content/BlogArray.SaaS.Resources/js/site.min.js" asp-append-version="true"></script>
+        @* <script src="~/js/themer.min.js" asp-append-version="true"></script> *@
+    </environment>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

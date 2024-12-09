@@ -1,0 +1,76 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <CopyRefAssembliesToPublishDirectory>true</CopyRefAssembliesToPublishDirectory>
+    <UserSecretsId>139840ff-ab72-4802-981a-70ec6fb215e7</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Areas\**" />
+    <Compile Remove="Pages\Manage\**" />
+    <Content Remove="Areas\**" />
+    <Content Remove="Pages\Manage\**" />
+    <EmbeddedResource Remove="Areas\**" />
+    <EmbeddedResource Remove="Pages\Manage\**" />
+    <None Remove="Areas\**" />
+    <None Remove="Pages\Manage\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Pages\Error.cshtml.cs" />
+    <Compile Remove="Pages\Register.cshtml.cs" />
+    <Compile Remove="Pages\RegisterConfirmation.cshtml.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Remove="Pages\Error.cshtml" />
+    <Content Remove="Pages\Register.cshtml" />
+    <Content Remove="Pages\RegisterConfirmation.cshtml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AspNet.Security.OAuth.Apple" Version="9.0.0" />
+    <PackageReference Include="AspNet.Security.OAuth.GitHub" Version="9.0.0" />
+    <PackageReference Include="AspNetCore.Unobtrusive.Ajax" Version="3.0.0" />
+    <PackageReference Include="AspNetSaml" Version="2.1.2" />
+    <PackageReference Include="Azure.Data.Tables" Version="12.9.1" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
+    <PackageReference Include="Azure.Storage.Files.Shares" Version="12.20.1" />
+    <PackageReference Include="Azure.Storage.Queues" Version="12.20.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Azure" Version="1.7.6" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.0" />
+    <PackageReference Include="OpenIddict" Version="5.8.0" />
+    <PackageReference Include="OpenIddict.AspNetCore" Version="5.8.0" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="5.8.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.3" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <!--https://github.com/dotnet/aspnetcore/issues/38892#issuecomment-988926919-->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.0" GeneratePathProperty="true" />
+    <PackageReference Include="UoN.ExpressiveAnnotations.NetCore" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
+    <ProjectReference Include="..\..\Shared\BlogArray.SaaS.Resources\BlogArray.SaaS.Resources.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
+  </ItemGroup>
+
+  <Target Name="CopySystemSecurityCryptographyPkcs" AfterTargets="Build">
+    <Copy SourceFiles="$(PkgSystem_Security_Cryptography_Pkcs)\lib\net9.0\System.Security.Cryptography.Pkcs.dll" DestinationFolder="$(OutDir)" />
+  </Target>
+
+</Project>
