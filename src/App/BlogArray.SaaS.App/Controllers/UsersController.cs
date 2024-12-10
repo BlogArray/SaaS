@@ -1,7 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using BlogArray.SaaS.App.Models;
+﻿using BlogArray.SaaS.App.Models;
 using BlogArray.SaaS.TenantStore.App;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace BlogArray.SaaS.App.Controllers;
 
@@ -10,7 +10,7 @@ public class UsersController(SaasAppDbContext context) : Controller
 {
     public async Task<IActionResult> Index()
     {
-        var users = await context.AppUsers.Select(s => new UserVM
+        List<UserVM> users = await context.AppUsers.Select(s => new UserVM
         {
             Id = s.Id,
             Email = s.Email,

@@ -1,6 +1,6 @@
-﻿using Finbuckle.MultiTenant.EntityFrameworkCore.Stores.EFCoreStore;
+﻿using BlogArray.SaaS.TenantStore.Entities;
+using Finbuckle.MultiTenant.EntityFrameworkCore.Stores.EFCoreStore;
 using Microsoft.EntityFrameworkCore;
-using BlogArray.SaaS.TenantStore.Entities;
 
 namespace BlogArray.SaaS.TenantStore;
 

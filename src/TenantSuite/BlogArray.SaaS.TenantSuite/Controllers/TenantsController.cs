@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
@@ -498,7 +497,7 @@ public class TenantsController(OpenIdDbContext context,
     {
         try
         {
-            using SqlConnection connection = new SqlConnection(connectionString);
+            using SqlConnection connection = new(connectionString);
             connection.Open();
             return true; // Connection succeeded
         }

@@ -1,6 +1,6 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using BlogArray.SaaS.OpenId.Entities;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using BlogArray.SaaS.OpenId.Entities;
 
 namespace BlogArray.SaaS.OpenId;
 

@@ -1,8 +1,8 @@
-﻿using Finbuckle.MultiTenant.Abstractions;
+﻿using BlogArray.SaaS.OpenId;
+using BlogArray.SaaS.TenantStore.Entities;
+using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using BlogArray.SaaS.OpenId;
-using BlogArray.SaaS.TenantStore.Entities;
 
 namespace BlogArray.SaaS.TenantStore;
 

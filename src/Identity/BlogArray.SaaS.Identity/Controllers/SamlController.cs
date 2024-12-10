@@ -11,7 +11,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Login(string tenant, string next)
     {
-        var client = await appManager.FindByClientIdAsync(tenant);
+        OpenIdApplication? client = await appManager.FindByClientIdAsync(tenant);
 
         if (client == null || !client.Security.IsSsoEnabled)
         {
@@ -20,7 +20,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         string samlConsumer = $"{Request.Scheme}://{Request.Host}/saml/{tenant}/acs";
 
-        var request = new AuthRequest(client.Security.SsoEntityId, samlConsumer);
+        AuthRequest request = new(client.Security.SsoEntityId, samlConsumer);
 
         return Redirect(request.GetRedirectUrl(client.Security.SsoSignInUrl));
     }
@@ -28,21 +28,21 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     [HttpGet("{tenant}/acs"), HttpPost("{tenant}/acs"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Acs(string tenant)
     {
-        var client = await appManager.FindByClientIdAsync(tenant);
+        OpenIdApplication? client = await appManager.FindByClientIdAsync(tenant);
 
         if (client == null || !client.Security.IsSsoEnabled)
         {
             return RedirectToAction("Index", "Error", new { message = "The specified tenant is not configured to use Single Sign-On (SSO). Please verify the tenant's configuration or contact your system administrator for assistance." });
         }
 
-        var samlResponse = new Response(client.Security.SsoX509Certificate, Request.Form["SAMLResponse"]);
+        Response samlResponse = new(client.Security.SsoX509Certificate, Request.Form["SAMLResponse"]);
 
         if (!samlResponse.IsValid())
         {
             return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
         }
 
-        var email = samlResponse.GetEmail();
+        string email = samlResponse.GetEmail();
 
         ApplicationUser? user = await userManager.FindByEmailAsync(email);
 
@@ -68,9 +68,9 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         await signInManager.SignInAsync(user, true, customClaims, IdentityConstants.ApplicationScheme);
 
-        var relayState = Request.Form["RelayState"];
+        Microsoft.Extensions.Primitives.StringValues relayState = Request.Form["RelayState"];
 
-        var returnUrl = ExtractReturnUrl(relayState);
+        string returnUrl = ExtractReturnUrl(relayState);
 
         return View(new SamlAuth
         {
@@ -87,9 +87,9 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     [HttpGet("{tenant}/logout"), HttpPost("{tenant}/logout"), IgnoreAntiforgeryToken]
     public IActionResult Logout(string tenant)
     {
-        var samlEndpoint = "https://login.microsoftonline.com/76ad4116-d61a-49e3-a27f-c0ed764e945e/saml2";
+        string samlEndpoint = "https://login.microsoftonline.com/76ad4116-d61a-49e3-a27f-c0ed764e945e/saml2";
 
-        var request = new SignoutRequest(
+        SignoutRequest request = new(
             "https://www.id.blogarray.dev",
             "https://www.id.blogarray.dev/saml/mvcc/acs"
         );
@@ -99,7 +99,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
     private string ExtractReturnUrl(string relayState)
     {
-        var queryParams = HttpUtility.ParseQueryString(relayState);
+        System.Collections.Specialized.NameValueCollection queryParams = HttpUtility.ParseQueryString(relayState);
         return queryParams["next"] ?? Url.Content("~/");
     }
 }

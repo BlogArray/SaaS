@@ -53,10 +53,10 @@ public static class StringExtensions
             return null; // No query string part to parse
 
         // Extract the actual query string
-        string actualQueryString = queryString.Substring(questionMarkIndex + 1);
+        string actualQueryString = queryString[(questionMarkIndex + 1)..];
 
         // Parse the query string
-        var queryParams = HttpUtility.ParseQueryString(actualQueryString);
+        System.Collections.Specialized.NameValueCollection queryParams = HttpUtility.ParseQueryString(actualQueryString);
 
         // Retrieve the value for the given key
         return queryParams[key];

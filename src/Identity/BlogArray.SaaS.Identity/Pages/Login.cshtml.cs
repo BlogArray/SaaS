@@ -63,18 +63,18 @@ public class LoginModel(
             return LocalRedirect(next);
         }
 
-        var clientId = StringExtensions.GetParam(next, "client_id");
+        string clientId = StringExtensions.GetParam(next, "client_id");
 
         if (!string.IsNullOrEmpty(clientId))
         {
-            var client = await appManager.FindByClientIdAsync(clientId);
+            OpenIdApplication client = await appManager.FindByClientIdAsync(clientId);
 
             if (client != null && client.Security.IsSsoEnabled)
             {
                 string samlConsumer = $"{Request.Scheme}://{Request.Host}/saml/{clientId}/acs";
 
-                var request = new AuthRequest(client.Security.SsoEntityId, samlConsumer);
-                var relayState = $"next={HttpUtility.UrlEncode(next)}";
+                AuthRequest request = new(client.Security.SsoEntityId, samlConsumer);
+                string relayState = $"next={HttpUtility.UrlEncode(next)}";
                 return Redirect(request.GetRedirectUrl(client.Security.SsoSignInUrl, relayState));
             }
         }

@@ -1,6 +1,6 @@
+using BlogArray.SaaS.Identity.HostedServices;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Serilog;
-using BlogArray.SaaS.Identity.HostedServices;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -25,7 +25,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizeFolder("/Settings");
 }).AddRazorRuntimeCompilation();
 
-var authBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme);
+AuthenticationBuilder authBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme);
 
 // Add Microsoft authentication if enabled
 if (Configuration.GetValue<bool>("Authentication:Microsoft:Enabled"))

@@ -1,7 +1,7 @@
 ﻿using Azure.Storage.Blobs;
+using BlogArray.SaaS.Mvc.ViewModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
-using BlogArray.SaaS.Mvc.ViewModels;
 
 namespace BlogArray.SaaS.Mvc.Services;
 

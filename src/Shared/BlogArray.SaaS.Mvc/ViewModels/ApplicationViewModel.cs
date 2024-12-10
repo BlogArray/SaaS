@@ -1,6 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
-using System.ComponentModel.DataAnnotations;
-using BlogArray.SaaS.OpenId.Entities;
+﻿using System.ComponentModel.DataAnnotations;
 using UoN.ExpressiveAnnotations.NetCore.Attributes;
 
 namespace BlogArray.SaaS.Mvc.ViewModels;

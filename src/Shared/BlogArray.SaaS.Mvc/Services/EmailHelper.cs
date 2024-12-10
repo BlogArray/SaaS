@@ -1,7 +1,7 @@
-﻿using Microsoft.Extensions.Options;
+﻿using BlogArray.SaaS.Mvc.ViewModels;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
-using BlogArray.SaaS.Mvc.ViewModels;
 
 namespace BlogArray.SaaS.Mvc.Services;
 

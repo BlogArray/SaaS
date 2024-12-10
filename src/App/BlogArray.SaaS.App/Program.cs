@@ -1,7 +1,7 @@
 using AspNetCore.Unobtrusive.Ajax;
-using Finbuckle.MultiTenant;
 using BlogArray.SaaS.Mvc.Extensions;
 using BlogArray.SaaS.TenantStore.App;
+using Finbuckle.MultiTenant;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 

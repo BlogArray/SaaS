@@ -1,6 +1,6 @@
-﻿using OpenIddict.Core;
+﻿using BlogArray.SaaS.Identity.Models;
+using OpenIddict.Core;
 using System.Text.Json;
-using BlogArray.SaaS.Identity.Models;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BlogArray.SaaS.Identity.HostedServices;

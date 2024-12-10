@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using BlogArray.SaaS.Mvc.Extensions;
+using Microsoft.Extensions.Configuration;
 using System.Text.Encodings.Web;
-using BlogArray.SaaS.Mvc.Extensions;
 
 namespace BlogArray.SaaS.Mvc.Services;
 

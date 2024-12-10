@@ -1,4 +1,7 @@
-﻿using Finbuckle.MultiTenant;
+﻿using BlogArray.SaaS.Mvc.Extensions;
+using BlogArray.SaaS.TenantStore.App;
+using BlogArray.SaaS.TenantStore.Entities;
+using Finbuckle.MultiTenant;
 using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -9,9 +12,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System.Security.Claims;
-using BlogArray.SaaS.Mvc.Extensions;
-using BlogArray.SaaS.TenantStore.App;
-using BlogArray.SaaS.TenantStore.Entities;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BlogArray.SaaS.TenantStore;
