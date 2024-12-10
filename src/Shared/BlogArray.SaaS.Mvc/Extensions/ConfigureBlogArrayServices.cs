@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using BlogArray.SaaS.Mvc.Services;
 using BlogArray.SaaS.Mvc.ViewModels;
 using UoN.ExpressiveAnnotations.NetCore.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 
 namespace BlogArray.SaaS.Mvc.Extensions;
 
@@ -40,6 +41,9 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddRazorPages().AddRazorRuntimeCompilation();
 
         builder.Services.AddRouting(options => options.LowercaseUrls = true);
+
+        BlogArrayConstants.DefaultLogoUrl = builder.Configuration.GetValue<string>("Defaults:DefaultLogoUrl");
+        BlogArrayConstants.DefaultFaviconUrl = builder.Configuration.GetValue<string>("Defaults:DefaultFaviconUrl");
 
         builder.Services.Configure<CookiePolicyOptions>(options =>
         {

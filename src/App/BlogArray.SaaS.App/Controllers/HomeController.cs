@@ -3,7 +3,7 @@ using System.Diagnostics;
 
 namespace BlogArray.SaaS.App.Controllers
 {
-    public class HomeController(IMultiTenantStore<AppTenantInfo> tenantStore, ILogger<HomeController> logger) : Controller
+    public class HomeController() : Controller
     {
         public IActionResult Index()
         {

@@ -201,7 +201,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         html += "<body>";
         html += "<div class=\"container\">";
         html += "<div class=\"logo-container\">";
-        html += "<img src=\"https://images.squarespace-cdn.com/content/v1/61493a3c7c4fdf33418ba896/1632359080364-6UJ2FMYWC8U7I7PUWN2D/AusFleetlogo+Large+CMYK+cropped.png?format=150w\" alt=\"App Logo\" class=\"logo\" />";
+        html += $"<img src=\"{BlogArrayConstants.DefaultLogoUrl}\" alt=\"App Logo\" class=\"logo\" />";
         html += "</div>";
         html += body;
         html += footer;

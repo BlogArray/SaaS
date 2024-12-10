@@ -1,4 +1,5 @@
-﻿using Finbuckle.MultiTenant.Abstractions;
+﻿using BlogArray.SaaS.Mvc;
+using Finbuckle.MultiTenant.Abstractions;
 
 namespace BlogArray.SaaS.TenantStore.Entities;
 
@@ -46,8 +47,8 @@ public class AppTenantInfo : ITenantInfo
     /// </summary>
     public string? Logo
     {
-        get => logo ?? TenantStoreConstants.DefaultLogoUrl;
-        set => logo = string.IsNullOrEmpty(value) ? TenantStoreConstants.DefaultLogoUrl : value;
+        get => logo ?? BlogArrayConstants.DefaultLogoUrl;
+        set => logo = string.IsNullOrEmpty(value) ? BlogArrayConstants.DefaultLogoUrl : value;
     }
 
     private string? favicon;
@@ -57,8 +58,8 @@ public class AppTenantInfo : ITenantInfo
     /// </summary>
     public string? Favicon
     {
-        get => favicon ?? TenantStoreConstants.DefaultFaviconUrl;
-        set => favicon = string.IsNullOrEmpty(value) ? TenantStoreConstants.DefaultFaviconUrl : value;
+        get => favicon ?? BlogArrayConstants.DefaultFaviconUrl;
+        set => favicon = string.IsNullOrEmpty(value) ? BlogArrayConstants.DefaultFaviconUrl : value;
     }
 
     /// <summary>
