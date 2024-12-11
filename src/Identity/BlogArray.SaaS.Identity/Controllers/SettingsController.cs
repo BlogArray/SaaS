@@ -82,57 +82,57 @@ namespace BlogArray.SaaS.Identity.Controllers
 
         #region Email
 
-        public async Task<IActionResult> Email()
-        {
-            ApplicationUser? user = await userManager.GetUserAsync(User);
-            if (user == null)
-            {
-                return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
-            }
-            ChangeEmailVM model = new()
-            {
-                Email = user.Email
-            };
+        //public async Task<IActionResult> Email()
+        //{
+        //    ApplicationUser? user = await userManager.GetUserAsync(User);
+        //    if (user == null)
+        //    {
+        //        return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+        //    }
+        //    ChangeEmailVM model = new()
+        //    {
+        //        Email = user.Email
+        //    };
 
-            return View(model);
-        }
+        //    return View(model);
+        //}
 
-        public async Task<IActionResult> ChangeEmail()
-        {
-            ApplicationUser? user = await userManager.GetUserAsync(User);
-            if (user == null)
-            {
-                return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
-            }
-            ChangeEmailVM model = new()
-            {
-                Email = user.Email
-            };
-            return PartialView(model);
-        }
+        //public async Task<IActionResult> ChangeEmail()
+        //{
+        //    ApplicationUser? user = await userManager.GetUserAsync(User);
+        //    if (user == null)
+        //    {
+        //        return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+        //    }
+        //    ChangeEmailVM model = new()
+        //    {
+        //        Email = user.Email
+        //    };
+        //    return PartialView(model);
+        //}
 
-        [HttpPost]
-        public async Task<IActionResult> ChangeEmail(ChangeEmailVM model)
-        {
-            ApplicationUser? user = await userManager.GetUserAsync(User);
-            string? email = await userManager.GetEmailAsync(user);
+        //[HttpPost]
+        //public async Task<IActionResult> ChangeEmail(ChangeEmailVM model)
+        //{
+        //    ApplicationUser? user = await userManager.GetUserAsync(User);
+        //    string? email = await userManager.GetEmailAsync(user);
 
-            if (model.NewEmail != email)
-            {
-                string userId = await userManager.GetUserIdAsync(user);
-                string code = await userManager.GenerateChangeEmailTokenAsync(user, model.NewEmail);
-                code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        //    if (model.NewEmail != email)
+        //    {
+        //        string userId = await userManager.GetUserIdAsync(user);
+        //        string code = await userManager.GenerateChangeEmailTokenAsync(user, model.NewEmail);
+        //        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-                string? callbackUrl = Url.Page(
-                "/ConfirmEmailChange",
-                    pageHandler: null,
-                    values: new { userId, email = model.NewEmail, code },
-                protocol: Request.Scheme);
-                emailTemplate.ChangeEmail(model.NewEmail, user.DisplayName, callbackUrl, model.NewEmail);
+        //        string? callbackUrl = Url.Page(
+        //        "/ConfirmEmailChange",
+        //            pageHandler: null,
+        //            values: new { userId, email = model.NewEmail, code },
+        //        protocol: Request.Scheme);
+        //        emailTemplate.ChangeEmail(model.NewEmail, user.DisplayName, callbackUrl, model.NewEmail);
 
-            }
-            return JsonSuccess("Verification link sent to your new mail. If you don't see our email in your inbox, check your spam folder");
-        }
+        //    }
+        //    return JsonSuccess("Verification link sent to your new mail. If you don't see our email in your inbox, check your spam folder");
+        //}
 
         #endregion Email
 

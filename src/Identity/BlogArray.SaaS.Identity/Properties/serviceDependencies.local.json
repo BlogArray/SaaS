@@ -10,7 +10,7 @@
     "storage1": {
       "secretStore": "LocalSecretsFile",
       "type": "storage.emulator",
-      "connectionId": "StorageConnection",
+      "connectionId": "StorageConnectionString",
       "dynamicId": null
     }
   }
