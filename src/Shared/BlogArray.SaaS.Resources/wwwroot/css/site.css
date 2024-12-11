@@ -12453,4 +12453,10 @@ mbe-0 {
   opacity: 1;
 }
 
+.state-img {
+  max-width: 350px;
+  width: 100%;
+  height: auto;
+}
+
 /*# sourceMappingURL=site.css.map */

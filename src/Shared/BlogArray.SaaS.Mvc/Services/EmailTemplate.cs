@@ -177,13 +177,13 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         html += ".btn {";
         html += "display: inline-block;";
         html += "padding: .4rem 1rem;";
-        html += "background-color: #0067b1 !important;";
+        html += "background-color: #6A42C2 !important;";
         html += "color: #ffffff !important;";
         html += "text-decoration: none;";
         html += "border-radius: 6px;";
         html += "}";
         html += "";
-        html += "a, a:hover {color: #0067b1;}";
+        html += "a, a:hover {color: #6A42C2;}";
         html += "";
         html += ".logo-container {";
         html += "text-align: center;";
