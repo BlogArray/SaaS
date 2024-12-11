@@ -70,15 +70,13 @@
 }
 
 <script>
-    var permissionsChoice;
-
     $(document).ready(function () {
         Unobtrusive.reInit($("#saveTenantForm"));
-        permissionsChoice = new Choices('#Permissions', {
-            searchPlaceholderValue: 'Please search',
-            placeholderValue: 'Please select',
-            shouldSort: false,
-        });
+        // permissionsChoice = new Choices('#Permissions', {
+        //     searchPlaceholderValue: 'Please search',
+        //     placeholderValue: 'Please select',
+        //     shouldSort: false,
+        // });
     });
 
     function onTenantChangeSuccess(e) {
