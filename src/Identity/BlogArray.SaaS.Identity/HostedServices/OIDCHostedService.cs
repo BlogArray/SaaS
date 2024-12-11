@@ -1,4 +1,5 @@
 ﻿using BlogArray.SaaS.Identity.Models;
+using BlogArray.SaaS.Mvc;
 using OpenIddict.Core;
 using System.Text.Json;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -31,7 +32,11 @@ public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedServic
                 {
                     ClientId = app.ClientId,
                     DisplayName = app.DisplayName,
-                    Theme = new ThemeConfiguration { Logo = "/_content/BlogArray.SaaS.Resources/resources/images/org.png" },
+                    Theme = new ThemeConfiguration
+                    {
+                        Logo = BlogArrayConstants.DefaultLogoUrl,
+                        Favicon = BlogArrayConstants.DefaultFaviconUrl
+                    },
                     Description = app.DisplayName,
                     CreatedOn = new DateTime(2024, 11, 8, 7, 23, 2, 837, DateTimeKind.Utc).AddTicks(2866),
                     Legalname = app.DisplayName,
