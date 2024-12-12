@@ -21,9 +21,9 @@
     </div>
     <div class="card-body">
         @Html.DynamicContentLoader("basicInfo", Url.Action("BasicInfo", "Tenants", new { @id = Model.Id }))
-        <hr class="my-5">
+        <hr class="my-3">
         @Html.DynamicContentLoader("securityInfo", Url.Action("Security", "Tenants", new { @id = Model.Id }))
-        <hr class="my-5">
+        <hr class="my-3">
         @Html.DynamicContentLoader("themeInfo", Url.Action("Theme", "Tenants", new { @id = Model.Id }))
     </div>
 </div>
