@@ -43,7 +43,9 @@ function handleAjaxError(e) {
 }
 
 function setImage(id, url) {
-    $('#' + id).attr('src', url);
+    document.querySelectorAll('#' + id).forEach(img => {
+        img.src = url;
+    });
 }
 
 function reloadPage() {

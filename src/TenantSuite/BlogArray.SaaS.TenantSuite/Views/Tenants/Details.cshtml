@@ -46,4 +46,16 @@
         DynamicContentLoader.load('basicInfo');
         Toast.success(e.message);
     }
+
+    function onSecurityChangeSuccess(e) {
+        basicInfoCanvas.hide();
+        DynamicContentLoader.load('securityInfo');
+        Toast.success(e.message);
+    }
+
+    function onThemeChangeSuccess(e) {
+        basicInfoCanvas.hide();
+        DynamicContentLoader.load('themeInfo');
+        Toast.success(e.message);
+    }
 </script>

@@ -174,7 +174,7 @@ public class TenantsController(OpenIdDbContext context,
 
         OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
 
-        return openIdApplication == null ? NotFound() : PartialView("_Theme", new ThemeViewModel
+        return openIdApplication == null ? NotFound() : PartialView("_EditTheme", new ThemeViewModel
         {
             Id = openIdApplication.Id,
             Logo = openIdApplication.Theme.Logo,
@@ -242,7 +242,7 @@ public class TenantsController(OpenIdDbContext context,
 
         OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
 
-        return openIdApplication == null ? NotFound() : PartialView("_Security", new TenantSecurityViewModel
+        return openIdApplication == null ? NotFound() : PartialView("_EditSecurity", new TenantSecurityViewModel
         {
             Id = openIdApplication.Id,
             IsSocialAuthEnabled = openIdApplication.Security.IsSocialAuthEnabled,

@@ -2,10 +2,10 @@
 <div class="d-flex align-items-center justify-content-between">
     <h5 class="mb-0">Look and feel</h5>
     <div class="ms-auto">
-        @Html.AjaxActionLink("Edit", "SkillsCreate", "Settings", new { }, new AjaxOptions
+        @Html.AjaxActionLink("Edit", "EditTheme", "Tenants", new { @id = Model.Id }, new AjaxOptions
    {
-       UpdateTargetId = "createSkillCtr",
-       OnSuccess = "createSkillFormLoaded"
+       UpdateTargetId = "changeTenantInfo",
+       OnSuccess = "tenantEditFormLoaded"
    }, new { @class = "bi-mr bi bi-pencil btn btn-primary btn-sm" })
     </div>
 </div>
