@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using BlogArray.SaaS.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
@@ -38,6 +39,7 @@ public class TenantsController(OpenIdDbContext context,
         return View(await filteredApps.ToPagerListAsync(page, take));
     }
 
+    #region Create
     public IActionResult Create()
     {
         return View();
@@ -72,10 +74,12 @@ public class TenantsController(OpenIdDbContext context,
         return RedirectToAction(nameof(Index));
     }
 
-    public async Task<IActionResult> Edit(string id)
-    {
-        SetOptions();
+    #endregion Create
 
+    #region Detais/edit
+
+    public async Task<IActionResult> Details(string id)
+    {
         if (id == null)
         {
             return NotFound();
@@ -85,9 +89,31 @@ public class TenantsController(OpenIdDbContext context,
         return openIdApplication == null ? NotFound() : View(ToEdit(openIdApplication));
     }
 
+    public async Task<IActionResult> BasicInfo(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+        return openIdApplication == null ? NotFound() : PartialView("_BasicInfo", ToEdit(openIdApplication));
+    }
+
+    public async Task<IActionResult> EditBasicInfo(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+        return openIdApplication == null ? NotFound() : PartialView("_EditBasicInfo", ToEdit(openIdApplication));
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(EditApplicationViewModel openIdApplication)
+    public async Task<IActionResult> EditBasicInfo(EditApplicationViewModel openIdApplication)
     {
         if (!ModelState.IsValid)
         {
@@ -119,9 +145,49 @@ public class TenantsController(OpenIdDbContext context,
         return JsonSuccess("Tenant information updated successfuly");
     }
 
+    public async Task<IActionResult> Theme(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+        return openIdApplication == null ? NotFound() : PartialView("_Theme", new ThemeViewModel
+        {
+            Id = openIdApplication.Id,
+            Logo = openIdApplication.Theme.Logo,
+            Favicon = openIdApplication.Theme.Favicon,
+            NavbarColor = openIdApplication.Theme.NavbarColor,
+            NavbarTextAndIconColor = openIdApplication.Theme.NavbarTextAndIconColor,
+            PrimaryColor = openIdApplication.Theme.PrimaryColor
+        });
+    }
+
+    public async Task<IActionResult> EditTheme(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+        return openIdApplication == null ? NotFound() : PartialView("_Theme", new ThemeViewModel
+        {
+            Id = openIdApplication.Id,
+            Logo = openIdApplication.Theme.Logo,
+            Favicon = openIdApplication.Theme.Favicon,
+            NavbarColor = openIdApplication.Theme.NavbarColor,
+            NavbarTextAndIconColor = openIdApplication.Theme.NavbarTextAndIconColor,
+            PrimaryColor = openIdApplication.Theme.PrimaryColor
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Theme(ThemeViewModel themeViewModel)
+    public async Task<IActionResult> EditTheme(ThemeViewModel themeViewModel)
     {
         if (!ModelState.IsValid)
         {
@@ -143,6 +209,86 @@ public class TenantsController(OpenIdDbContext context,
 
         return JsonSuccess("Tenant theme information updated successfuly");
     }
+
+    public async Task<IActionResult> Security(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+        return openIdApplication == null ? NotFound() : PartialView("_Security", new TenantSecurityViewModel
+        {
+            Id = openIdApplication.Id,
+            IsSocialAuthEnabled = openIdApplication.Security.IsSocialAuthEnabled,
+            IsMfaEnforced = openIdApplication.Security.IsMfaEnforced,
+            IsSsoEnabled = openIdApplication.Security.IsSsoEnabled,
+            SsoEntityId = openIdApplication.Security.SsoEntityId,
+            SsoSignInUrl = openIdApplication.Security.SsoSignInUrl,
+            SsoSignOutUrl = openIdApplication.Security.SsoSignOutUrl,
+            SsoX509Certificate = openIdApplication.Security.SsoX509Certificate,
+            IsSingleSignOutEnabled = openIdApplication.Security.IsSingleSignOutEnabled
+        });
+    }
+
+    public async Task<IActionResult> EditSecurity(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+        return openIdApplication == null ? NotFound() : PartialView("_Security", new TenantSecurityViewModel
+        {
+            Id = openIdApplication.Id,
+            IsSocialAuthEnabled = openIdApplication.Security.IsSocialAuthEnabled,
+            IsMfaEnforced = openIdApplication.Security.IsMfaEnforced,
+            IsSsoEnabled = openIdApplication.Security.IsSsoEnabled,
+            SsoEntityId = openIdApplication.Security.SsoEntityId,
+            SsoSignInUrl = openIdApplication.Security.SsoSignInUrl,
+            SsoSignOutUrl = openIdApplication.Security.SsoSignOutUrl,
+            SsoX509Certificate = openIdApplication.Security.SsoX509Certificate,
+            IsSingleSignOutEnabled = openIdApplication.Security.IsSingleSignOutEnabled
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditSecurity(TenantSecurityViewModel securityViewModel)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ModelStateError(ModelState);
+        }
+
+        OpenIdApplication? entity = await manager.FindByIdAsync(securityViewModel.Id);
+
+        if (entity is null)
+        {
+            return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        entity.Security.IsSocialAuthEnabled = securityViewModel.IsSocialAuthEnabled;
+        entity.Security.IsMfaEnforced = securityViewModel.IsMfaEnforced;
+        entity.Security.IsSsoEnabled = securityViewModel.IsSsoEnabled;
+        entity.Security.SsoSignInUrl = securityViewModel.SsoSignInUrl;
+        entity.Security.SsoSignOutUrl = securityViewModel.SsoSignOutUrl;
+        entity.Security.SsoX509Certificate = securityViewModel.SsoX509Certificate;
+        entity.Security.SsoEntityId = securityViewModel.SsoEntityId;
+        entity.Security.IsSingleSignOutEnabled = securityViewModel.IsSingleSignOutEnabled;
+
+        await manager.UpdateAsync(entity);
+
+        return JsonSuccess("Tenant security information updated successfuly");
+    }
+
+    #endregion Detais/edit
+
+    #region Actions
 
     [HttpPost, RequestSizeLimit(5242880)]
     public async Task<IActionResult> UpdateImage(string id, string type)
@@ -186,36 +332,6 @@ public class TenantsController(OpenIdDbContext context,
         await manager.UpdateAsync(openIdApplication);
 
         return result.Status ? JsonSuccess(result.Result) : JsonError("An error occurred while saving your information.");
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Security(TenantSecurityViewModel securityViewModel)
-    {
-        if (!ModelState.IsValid)
-        {
-            return ModelStateError(ModelState);
-        }
-
-        OpenIdApplication? entity = await manager.FindByIdAsync(securityViewModel.Id);
-
-        if (entity is null)
-        {
-            return JsonError("The operation could not be completed. Please refresh the page and try again.");
-        }
-
-        entity.Security.IsSocialAuthEnabled = securityViewModel.IsSocialAuthEnabled;
-        entity.Security.IsMfaEnforced = securityViewModel.IsMfaEnforced;
-        entity.Security.IsSsoEnabled = securityViewModel.IsSsoEnabled;
-        entity.Security.SsoSignInUrl = securityViewModel.SsoSignInUrl;
-        entity.Security.SsoSignOutUrl = securityViewModel.SsoSignOutUrl;
-        entity.Security.SsoX509Certificate = securityViewModel.SsoX509Certificate;
-        entity.Security.SsoEntityId = securityViewModel.SsoEntityId;
-        entity.Security.IsSingleSignOutEnabled = securityViewModel.IsSingleSignOutEnabled;
-
-        await manager.UpdateAsync(entity);
-
-        return JsonSuccess("Tenant security information updated successfuly");
     }
 
     public async Task<IActionResult> RotateKeys(string id)
@@ -395,6 +511,10 @@ public class TenantsController(OpenIdDbContext context,
         return JsonSuccess(successMessage);
     }
 
+    #endregion Actions
+
+    #region Private
+
     private bool OpenIdApplicationExists(string id)
     {
         return context.Applications.Any(e => e.Id == id);
@@ -448,8 +568,18 @@ public class TenantsController(OpenIdDbContext context,
         entity.ClientSecretPlain = model.ClientSecret;
         entity.ConnectionString = model.ConnectionString;
         entity.APIKey = model.APIKey;
-        entity.Theme.Logo = "/_content/BlogArray.SaaS.Resources/resources/images/org.png";
-
+        entity.Theme = new ThemeConfiguration
+        {
+            Logo = BlogArrayConstants.DefaultLogoUrl,
+            Favicon = BlogArrayConstants.DefaultFaviconUrl
+        };
+        entity.Security = new TenantSecurityConfiguration
+        {
+            IsMfaEnforced = false,
+            IsSingleSignOutEnabled = false,
+            IsSocialAuthEnabled = false,
+            IsSsoEnabled = false
+        };
         entity.ClientType = ClientTypes.Confidential;
         entity.ConsentType = ConsentTypes.External;
         entity.Permissions = JsonSerializer.Serialize(OpenIdConstants.OpenIdPermissions());
@@ -493,7 +623,7 @@ public class TenantsController(OpenIdDbContext context,
         ViewBag.Permissions = AppServices.MapHashSetToSelectList(OpenIdConstants.OpenIdPermissions());
     }
 
-    public static bool TestConnection(string connectionString)
+    private static bool TestConnection(string connectionString)
     {
         try
         {
@@ -510,4 +640,6 @@ public class TenantsController(OpenIdDbContext context,
             return false; // General issue (e.g., invalid string format)
         }
     }
+
+    #endregion Private
 }

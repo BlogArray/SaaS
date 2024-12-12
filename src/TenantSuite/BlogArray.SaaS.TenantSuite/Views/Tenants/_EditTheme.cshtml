@@ -6,7 +6,7 @@
 
 @using (Html.AjaxBeginForm(new AjaxOptions
  {
-     Url = @Url.ActionLink("Theme"),
+     Url = @Url.ActionLink("EditTheme"),
      HttpMethod = "post",
      OnSuccess = "onThemeChangeSuccess",
      OnFailure = "handleAjaxError"

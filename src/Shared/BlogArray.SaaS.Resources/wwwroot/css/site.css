@@ -12183,7 +12183,7 @@ textarea.form-control-lg {
 }
 
 html {
-  overflow-y: scroll;
+  /*overflow-y: scroll;*/
   font-size: 14px;
   position: relative;
   min-height: 100%;

@@ -1,0 +1,49 @@
+﻿@model EditViewApplicationViewModel
+
+@{
+    string title = $"{Model.ClientId}";
+    ViewData["Title"] = title + " tenant details";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-1">@title</h3>
+        <nav aria-label="breadcrumb mb-0 mbe-0 form-text">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a asp-action="Index">
+                        All tenants
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">@title</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="card-body">
+        @Html.DynamicContentLoader("basicInfo", Url.Action("BasicInfo", "Tenants", new { @id = Model.Id }))
+        <hr class="my-5">
+        @Html.DynamicContentLoader("securityInfo", Url.Action("Security", "Tenants", new { @id = Model.Id }))
+        <hr class="my-5">
+        @Html.DynamicContentLoader("themeInfo", Url.Action("Theme", "Tenants", new { @id = Model.Id }))
+    </div>
+</div>
+
+<div id="changeTenantInfo"></div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+<script>
+    var basicInfoCanvas;
+
+    function tenantEditFormLoaded() {
+        basicInfoCanvas = new bootstrap.Offcanvas(document.getElementById('tenantEditOffcanvas'));
+        basicInfoCanvas.show();
+    }
+
+    function onTenantChangeSuccess(e) {
+        basicInfoCanvas.hide();
+        DynamicContentLoader.load('basicInfo');
+        Toast.success(e.message);
+    }
+</script>

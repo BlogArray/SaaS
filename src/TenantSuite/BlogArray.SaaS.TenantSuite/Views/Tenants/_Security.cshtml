@@ -1,0 +1,34 @@
+﻿@model TenantSecurityViewModel
+
+<div class="d-flex align-items-center justify-content-between">
+    <h5 class="mb-0">Security</h5>
+    <div class="ms-auto">
+        @Html.AjaxActionLink("Edit", "SkillsCreate", "Settings", new { }, new AjaxOptions
+   {
+       UpdateTargetId = "createSkillCtr",
+       OnSuccess = "createSkillFormLoaded"
+   }, new { @class = "bi-mr bi bi-pencil btn btn-primary btn-sm" })
+    </div>
+</div>
+<p>
+    Configure security options for the tenant
+</p>
+<dl class="row">
+    <dt class="col-md-3">Social login @* Users can able to login using social accounts like microsoft, google, etc. *@</dt>
+    <dd class="col-md-9">@Model.IsSocialAuthEnabled</dd>
+    <dt class="col-md-3">Enforce MFA @* Enforce MFA for users for enhanced security *@</dt>
+    <dd class="col-md-9">@Model.IsMfaEnforced</dd>
+    <dt class="col-md-3">Enable SSO using SAML</dt>
+    <dd class="col-md-9">@Model.IsSsoEnabled</dd>
+    @if (Model.IsSsoEnabled)
+    {
+        <dt class="col-md-3">Sign-in URL</dt>
+        <dd class="col-md-9">@Model.SsoSignInUrl</dd>
+        <dt class="col-md-3">Sign-out URL</dt>
+        <dd class="col-md-9">@Model.SsoSignOutUrl</dd>
+        <dt class="col-md-3">Entity Id</dt>
+        <dd class="col-md-9">@Model.SsoEntityId</dd>
+        <dt class="col-md-3">X.509 Certificate</dt>
+        <dd class="col-md-9">@Model.SsoX509Certificate</dd>
+    }
+</dl>

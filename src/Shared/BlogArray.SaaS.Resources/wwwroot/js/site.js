@@ -291,3 +291,36 @@ function updateTooltip(tooltipElement, message) {
     // Reinitialize the tooltip with the updated message
     new bootstrap.Tooltip(tooltipElement);
 }
+
+let DynamicContentLoader = (function () {
+    /**
+     * Loads content dynamically into an element
+     * @param {string} id - The ID of the element to load content into
+     */
+    function load(id) {
+        const $element = $('#' + id);
+
+        if ($element.length === 0) {
+            console.error(`Unable to find element with id: ${id}`);
+            return;
+        }
+
+        const url = $element.data('url');
+
+        if (!url) {
+            console.error(`No data-url found for element with id: ${id}`);
+            return;
+        }
+
+        $element.load(url, function (response, status, xhr) {
+            if (status === "error") {
+                console.error('Error loading content:', xhr.status, xhr.statusText);
+                $element.html(`<div class="error">Failed to load content</div>`);
+            }
+        });
+    }
+
+    return {
+        load: load
+    };
+})();

@@ -1,0 +1,38 @@
+﻿@model ThemeViewModel
+<div class="d-flex align-items-center justify-content-between">
+    <h5 class="mb-0">Look and feel</h5>
+    <div class="ms-auto">
+        @Html.AjaxActionLink("Edit", "SkillsCreate", "Settings", new { }, new AjaxOptions
+   {
+       UpdateTargetId = "createSkillCtr",
+       OnSuccess = "createSkillFormLoaded"
+   }, new { @class = "bi-mr bi bi-pencil btn btn-primary btn-sm" })
+    </div>
+</div>
+<p>
+    Change look and feel of the tenant
+</p>
+<dl class="row">
+    <dt class="col-md-3">Favicon image</dt>
+    <dd class="col-md-9">
+        <img height="34" alt="profile icon" class="flex-shrink-0 me-2 rounded" loading="lazy" id="faviconImage" src="@Model.Favicon" />
+    </dd>
+    <dt class="col-md-3">Logo image</dt>
+    <dd class="col-md-9">
+        <img height="34" alt="profile icon" class="flex-shrink-0 me-2 rounded" loading="lazy" id="iconImage" src="@Model.Logo" />
+    </dd>
+    <dt class="col-md-3">Navbar color</dt>
+    <dd class="col-md-9">
+        <input value="@Model.NavbarColor" type="color" class="form-control form-control-color" disabled>
+    </dd>
+
+    <dt class="col-md-3">Navbar text and icon color</dt>
+    <dd class="col-md-9">
+        <input value="@Model.NavbarTextAndIconColor" type="color" class="form-control form-control-color" disabled>
+    </dd>
+
+    <dt class="col-md-3">Primary color</dt>
+    <dd class="col-md-9">
+        <input value="@Model.PrimaryColor" type="color" class="form-control form-control-color" disabled>
+    </dd>
+</dl>
