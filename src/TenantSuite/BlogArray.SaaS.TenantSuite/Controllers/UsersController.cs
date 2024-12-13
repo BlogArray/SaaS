@@ -160,7 +160,7 @@ public class UsersController(OpenIdDbContext context,
 
     public async Task<IActionResult> Search(string term)
     {
-        IQueryable<ApplicationUser> users = context.Users;
+        IQueryable<ApplicationUser> users = context.Users.Where(u => u.IsActive == true);
 
         if (!string.IsNullOrEmpty(term))
         {

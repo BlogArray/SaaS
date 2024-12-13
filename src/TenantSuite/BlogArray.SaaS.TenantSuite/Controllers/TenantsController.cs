@@ -84,9 +84,22 @@ public class TenantsController(OpenIdDbContext context,
         {
             return NotFound();
         }
-
         OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
-        return openIdApplication == null ? NotFound() : View(ToEdit(openIdApplication));
+
+        if (openIdApplication is null)
+        {
+            return NotFound();
+        }
+
+        return View(new ApplicationListViewModel
+        {
+            Id = id,
+            ClientId = openIdApplication.ClientId,
+            DisplayName = openIdApplication.DisplayName,
+            Icon = openIdApplication.Theme.Favicon,
+            Description = openIdApplication.Description,
+            UsersCount = await context.Authorizations.CountAsync(a => a.Application.Id == id)
+        });
     }
 
     public async Task<IActionResult> BasicInfo(string id)
@@ -270,6 +283,12 @@ public class TenantsController(OpenIdDbContext context,
         if (entity is null)
         {
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        if (!securityViewModel.IsSsoEnabled)
+        {
+            securityViewModel.IsSocialAuthEnabled = false;
+            securityViewModel.IsMfaEnforced = false;
         }
 
         entity.Security.IsSocialAuthEnabled = securityViewModel.IsSocialAuthEnabled;
@@ -520,9 +539,9 @@ public class TenantsController(OpenIdDbContext context,
         return context.Applications.Any(e => e.Id == id);
     }
 
-    private static EditViewApplicationViewModel ToEdit(OpenIdApplication entity)
+    private static EditApplicationViewModel ToEdit(OpenIdApplication entity)
     {
-        return new EditViewApplicationViewModel
+        return new EditApplicationViewModel
         {
             Id = entity.Id,
             ClientId = entity.ClientId,
@@ -533,28 +552,7 @@ public class TenantsController(OpenIdDbContext context,
             Description = entity.Description,
             //Permissions = entity.Permissions != null ? JsonSerializer.Deserialize<List<string>>(entity.Permissions) : [],
             RedirectUri = entity.RedirectUris != null ? JsonSerializer.Deserialize<List<string>>(entity.RedirectUris)[0] : "",
-            PostLogoutRedirectUri = entity.PostLogoutRedirectUris != null ? JsonSerializer.Deserialize<List<string>>(entity.PostLogoutRedirectUris)[0] : "",
-            Theme = new ThemeViewModel
-            {
-                Id = entity.Id,
-                Logo = entity.Theme.Logo,
-                Favicon = entity.Theme.Favicon,
-                NavbarColor = entity.Theme.NavbarColor,
-                NavbarTextAndIconColor = entity.Theme.NavbarTextAndIconColor,
-                PrimaryColor = entity.Theme.PrimaryColor
-            },
-            Security = new TenantSecurityViewModel
-            {
-                Id = entity.Id,
-                IsSocialAuthEnabled = entity.Security.IsSocialAuthEnabled,
-                IsMfaEnforced = entity.Security.IsMfaEnforced,
-                IsSsoEnabled = entity.Security.IsSsoEnabled,
-                SsoEntityId = entity.Security.SsoEntityId,
-                SsoSignInUrl = entity.Security.SsoSignInUrl,
-                SsoSignOutUrl = entity.Security.SsoSignOutUrl,
-                SsoX509Certificate = entity.Security.SsoX509Certificate,
-                IsSingleSignOutEnabled = entity.Security.IsSingleSignOutEnabled
-            }
+            PostLogoutRedirectUri = entity.PostLogoutRedirectUris != null ? JsonSerializer.Deserialize<List<string>>(entity.PostLogoutRedirectUris)[0] : ""
         };
     }
 

@@ -4,11 +4,11 @@
  {
      Url = @Url.ActionLink("Assign"),
      HttpMethod = "post",
-     OnSuccess = "onAssignSave",
+	 OnSuccess = "onAssignUnAssignSave",
      OnFailure = "handleAjaxError"
  }, new { id = "saveAssignForm" }))
 {
-    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="assignOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+	<div class="offcanvas offcanvas-end medium" tabindex="-1" id="tenantEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="offcanvas-header border-bottom">
             <h5 id="offcanvasRightLabel">
                 Add users to @Model.Name

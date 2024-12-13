@@ -14,6 +14,8 @@ public class ApplicationListViewModel
     public string Description { get; set; } = default!;
 
     public string Icon { get; set; } = default!;
+
+    public int UsersCount { get; set; } = default!;
 }
 
 public class ApplicationViewModel

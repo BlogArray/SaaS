@@ -97,7 +97,7 @@
                                 <li>
                                     @Html.AjaxActionLink("Rotate keys", "RotateKeys", new { id = item.Id }, new AjaxOptions
                            {
-                               UpdateTargetId = "keysCtr",
+                               UpdateTargetId = "changeTenantInfo",
                                Confirm = "Rotating the keys may disrupt access for some applications. Are you sure you want to proceed?",
                                OnSuccess = "onKeysGenerateSuccess"
                            }, new { @class = "dropdown-item", title = "Rotate Client Secret and API Key" })
@@ -105,15 +105,15 @@
                                 <li>
                                     @Html.AjaxActionLink("Assign users", "Assign", new { id = item.Id }, new AjaxOptions
                            {
-                               UpdateTargetId = "assignCtr",
-                               OnSuccess = "onAssignLoaded"
+                               UpdateTargetId = "changeTenantInfo",
+                               OnSuccess = "onAssignUnAssignLoaded"
                            }, new { @class = "dropdown-item", title = "Assign users" })
                                 </li>
                                 <li>
                                     @Html.AjaxActionLink("Unassign users", "Unassign", new { id = item.Id }, new AjaxOptions
                            {
-                               UpdateTargetId = "unassignCtr",
-                               OnSuccess = "onUnassignLoaded"
+                               UpdateTargetId = "changeTenantInfo",
+                               OnSuccess = "onAssignUnAssignLoaded"
                            }, new { @class = "dropdown-item", title = "Unassign users" })
                                 </li>
                             </ul>
@@ -131,39 +131,28 @@
     </div>
 }
 
-<div id="keysCtr"></div>
-<div id="assignCtr"></div>
-<div id="unassignCtr"></div>
+<div id="changeTenantInfo"></div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
 
 <script>
-    var newKeysModal, assignOffCanvas, unassignOffCanvas;
+    var newKeysModal, tenantChangeOffCanvas;
 
     function onKeysGenerateSuccess() {
         newKeysModal = new bootstrap.Modal(document.getElementById('keysModal'));
         newKeysModal.show();
     }
 
-    function onAssignLoaded() {
-        assignOffCanvas = new bootstrap.Offcanvas(document.getElementById('assignOffcanvas'));
-        assignOffCanvas.show();
+    function onAssignUnAssignLoaded() {
+        tenantChangeOffCanvas = new bootstrap.Offcanvas(document.getElementById('tenantEditOffcanvas'));
+        tenantChangeOffCanvas.show();
     }
 
-    function onAssignSave(e) {
-        assignOffCanvas.hide();
+    function onAssignUnAssignSave(e) {
+        tenantChangeOffCanvas.hide();
         Toast.success(e.message);
     }
 
-    function onUnassignLoaded() {
-        unassignOffCanvas = new bootstrap.Offcanvas(document.getElementById('unassignOffcanvas'));
-        unassignOffCanvas.show();
-    }
-
-    function onUnassignSave(e) {
-        unassignOffCanvas.hide();
-        Toast.success(e.message);
-    }
 </script>

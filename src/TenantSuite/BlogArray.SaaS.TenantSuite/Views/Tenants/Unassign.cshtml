@@ -4,11 +4,11 @@
  {
      Url = @Url.ActionLink("Unassign"),
      HttpMethod = "post",
-     OnSuccess = "onUnassignSave",
+     OnSuccess = "onAssignUnAssignSave",
      OnFailure = "handleAjaxError"
  }, new { id = "saveUnassignForm" }))
 {
-    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="unassignOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="tenantEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="offcanvas-header border-bottom">
             <h5 id="offcanvasRightLabel">
                 Remove users from @Model.Name
@@ -16,6 +16,9 @@
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
+            <span class="form-text">
+                Select users to remove
+            </span>
             <input type="hidden" asp-for="ApplicationId" />
             <div class="list-group list-group-flush">
                 @if (Model.Users?.Count() == 0)

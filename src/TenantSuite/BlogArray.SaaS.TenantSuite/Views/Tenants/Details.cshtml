@@ -1,4 +1,4 @@
-﻿@model EditViewApplicationViewModel
+﻿@model ApplicationListViewModel
 
 @{
     string title = $"{Model.DisplayName} ({Model.ClientId})";
@@ -8,7 +8,7 @@
 <div class="card">
     <div class="card-header">
         <h3 class="mb-1">
-            <img height="34" alt="profile icon" class="flex-shrink-0 me-1 rounded" loading="lazy" id="faviconImage" src="@Model.Theme.Favicon" />
+            <img height="34" alt="profile icon" class="flex-shrink-0 me-1 rounded" loading="lazy" id="faviconImage" src="@Model.Icon" />
             @title
         </h3>
         <nav aria-label="breadcrumb mb-0 mbe-0 form-text">
@@ -23,6 +23,30 @@
         </nav>
     </div>
     <div class="card-body">
+        <ul class="nav">
+            <li class="nav-item">
+                @Html.AjaxActionLink("Rotate keys", "RotateKeys", new { id = Model.Id }, new AjaxOptions
+           {
+               UpdateTargetId = "changeTenantInfo",
+               Confirm = "Rotating the keys may disrupt access for some applications. Are you sure you want to proceed?",
+               OnSuccess = "onKeysGenerateSuccess"
+           }, new { @class = "nav-link", title = "Rotate Client Secret and API Key" })
+            </li>
+            <li class="nav-item">
+                @Html.AjaxActionLink($"Users ({Model.UsersCount})", "Unassign", new { id = Model.Id }, new AjaxOptions
+           {
+               UpdateTargetId = "changeTenantInfo",
+               OnSuccess = "onAssignUnAssignLoaded"
+           }, new { @class = "nav-link", title = "Unassign users" })
+            </li>
+            <li class="nav-item">
+                @Html.AjaxActionLink("Assign users", "Assign", new { id = Model.Id }, new AjaxOptions
+           {
+               UpdateTargetId = "changeTenantInfo",
+               OnSuccess = "onAssignUnAssignLoaded"
+           }, new { @class = "nav-link", title = "Assign users" })
+            </li>
+        </ul>
         @Html.DynamicContentLoader("basicInfo", Url.Action("BasicInfo", "Tenants", new { @id = Model.Id }))
         <hr class="my-3">
         @Html.DynamicContentLoader("securityInfo", Url.Action("Security", "Tenants", new { @id = Model.Id }))
@@ -37,7 +61,7 @@
     <partial name="_ValidationScriptsPartial" />
 }
 <script>
-    var tenantEditCanvas;
+    var tenantEditCanvas, newKeysModal;
 
     function tenantEditFormLoaded() {
         tenantEditCanvas = new bootstrap.Offcanvas(document.getElementById('tenantEditOffcanvas'));
@@ -63,4 +87,20 @@
         tenantEditCanvas.hide();
         Toast.success(e.message);
     }
+
+    function onKeysGenerateSuccess() {
+        newKeysModal = new bootstrap.Modal(document.getElementById('keysModal'));
+        newKeysModal.show();
+    }
+
+    function onAssignUnAssignLoaded() {
+        tenantChangeOffCanvas = new bootstrap.Offcanvas(document.getElementById('tenantEditOffcanvas'));
+        tenantChangeOffCanvas.show();
+    }
+
+    function onAssignUnAssignSave(e) {
+        tenantChangeOffCanvas.hide();
+        Toast.success(e.message);
+    }
+
 </script>

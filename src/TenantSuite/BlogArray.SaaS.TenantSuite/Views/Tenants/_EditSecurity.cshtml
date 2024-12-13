@@ -78,5 +78,20 @@
 <script>
     $(document).ready(function () {
         Unobtrusive.reInit($("#saveSecurityForm"));
+        changeState($('#IsSsoEnabled').is(':checked'));
     });
+
+    $('#IsSsoEnabled').change(function() {
+        changeState(this.checked);
+    });
+
+    function changeState(state){
+        if(state) {
+            $('#IsSocialAuthEnabled').attr("disabled", true);
+            $('#IsMfaEnforced').attr("disabled", true);
+        }else{
+            $('#IsSocialAuthEnabled').removeAttr("disabled");
+            $('#IsMfaEnforced').removeAttr("disabled");
+        }
+    }
 </script>
