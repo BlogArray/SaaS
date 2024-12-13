@@ -19,7 +19,17 @@
     <dt class="col-md-3">Display name</dt>
     <dd class="col-md-9">@Model.DisplayName</dd>
     <dt class="col-md-3">Connection string</dt>
-    <dd class="col-md-9">Secret</dd>
+    <dd class="col-md-9">
+        @if (Model.ConnectionString?.Length > 0)
+        {
+            <span>Configured</span>
+        }
+        else
+        {
+            <span>Not configured</span>
+        }
+    </dd>
+
     <dt class="col-md-3">Website</dt>
     <dd class="col-md-9">@Model.Website</dd>
     <dt class="col-md-3">Description</dt>
