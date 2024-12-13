@@ -158,11 +158,12 @@
         </div>
     </div>
 </div>
-
-<div class="mt-2">
-    @Html.Pager((IPager)Model, page => Url.Action("Index", "Users", new { page, take = ViewBag.Take, term = ViewBag.SearchTerm }), PrePagerOptions.MinimalWithEntriesText)
-</div>
-
+@if (Model.Count() > 0)
+{
+    <div class="mt-2">
+        @Html.Pager((IPager)Model, page => Url.Action("Index", "Users", new { page, take = ViewBag.Take, term = ViewBag.SearchTerm }), PrePagerOptions.MinimalWithEntriesText)
+    </div>
+}
 <div id="resetPasswordCtr"></div>
 
 @section Scripts {
