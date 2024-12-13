@@ -16,9 +16,6 @@
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
-            <span class="form-text">
-                Select users to remove
-            </span>
             <input type="hidden" asp-for="ApplicationId" />
             <div class="list-group list-group-flush">
                 @if (Model.Users?.Count() == 0)
@@ -36,6 +33,9 @@
                 }
                 else
                 {
+                    <span class="form-text">
+                        Select users to remove
+                    </span>
                     @foreach (var user in Model.Users)
                     {
                         <label class="list-group-item d-flex gap-3">
