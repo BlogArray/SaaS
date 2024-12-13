@@ -1,13 +1,16 @@
 ﻿@model EditViewApplicationViewModel
 
 @{
-    string title = $"{Model.ClientId}";
+    string title = $"{Model.DisplayName} ({Model.ClientId})";
     ViewData["Title"] = title + " tenant details";
 }
 
 <div class="card">
     <div class="card-header">
-        <h3 class="mb-1">@title</h3>
+        <h3 class="mb-1">
+            <img height="34" alt="profile icon" class="flex-shrink-0 me-1 rounded" loading="lazy" id="faviconImage" src="@Model.Theme.Favicon" />
+            @title
+        </h3>
         <nav aria-label="breadcrumb mb-0 mbe-0 form-text">
             <ol class="breadcrumb mb-0">
                 <li class="breadcrumb-item">
@@ -34,28 +37,30 @@
     <partial name="_ValidationScriptsPartial" />
 }
 <script>
-    var basicInfoCanvas;
+    var tenantEditCanvas;
 
     function tenantEditFormLoaded() {
-        basicInfoCanvas = new bootstrap.Offcanvas(document.getElementById('tenantEditOffcanvas'));
-        basicInfoCanvas.show();
+        tenantEditCanvas = new bootstrap.Offcanvas(document.getElementById('tenantEditOffcanvas'));
+        tenantEditCanvas.show();
     }
 
     function onTenantChangeSuccess(e) {
-        basicInfoCanvas.hide();
         DynamicContentLoader.load('basicInfo');
-        Toast.success(e.message);
+        onTenantChange(e);
     }
 
     function onSecurityChangeSuccess(e) {
-        basicInfoCanvas.hide();
         DynamicContentLoader.load('securityInfo');
-        Toast.success(e.message);
+        onTenantChange(e);
     }
 
     function onThemeChangeSuccess(e) {
-        basicInfoCanvas.hide();
         DynamicContentLoader.load('themeInfo');
+        onTenantChange(e);
+    }
+
+    function onTenantChange(e){
+        tenantEditCanvas.hide();
         Toast.success(e.message);
     }
 </script>

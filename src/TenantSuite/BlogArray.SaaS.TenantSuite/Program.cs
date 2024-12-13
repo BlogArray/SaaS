@@ -51,7 +51,7 @@ builder.Services.AddAuthentication(o =>
             if (identity != null && !identity.IsAuthenticated)
             {
                 context?.HandleResponse();
-                context?.Response.Redirect("/Home/Error?message=User is not authenticated.");
+                context?.Response.Redirect("/error?message=User is not authenticated.");
             }
             else
             {
@@ -88,7 +88,7 @@ builder.Services.AddAuthentication(o =>
             //Use Cases:
             //Logging authentication errors.
             //Redirecting users to a custom error page.
-            context.Response.Redirect("/Home/Error?message=" + context.Exception.Message);
+            context.Response.Redirect("/error?message=" + context.Exception.Message);
             context.HandleResponse(); // Prevent further processing
             return Task.CompletedTask;
         },
@@ -98,7 +98,7 @@ builder.Services.AddAuthentication(o =>
             //Use Cases:
             //Logging errors related to remote authentication.
             //Redirecting users to a fallback page.
-            context.Response.Redirect("/Home/ExternalError?message=" + context.Failure?.Message);
+            context.Response.Redirect("/error?message=" + context.Failure?.Message);
             context.HandleResponse();
             return Task.CompletedTask;
         }
