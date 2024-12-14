@@ -4,7 +4,7 @@
  {
      Url = @Url.ActionLink("Assign"),
      HttpMethod = "post",
-	 OnSuccess = "onAssignUnAssignSave",
+	 OnSuccess = "onTenantChange",
      OnFailure = "handleAjaxError"
  }, new { id = "saveAssignForm" }))
 {

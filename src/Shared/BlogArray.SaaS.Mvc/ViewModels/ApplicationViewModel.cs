@@ -71,11 +71,11 @@ public class RotateKeysViewModel
 {
     public string ApplicationId { get; set; } = default!;
 
+    public string Type { get; set; } = default!;
+
     public string Name { get; set; } = default!;
 
-    public string ClientSecret { get; set; } = default!;
-
-    public string APIKey { get; set; } = default!;
+    public string Key { get; set; } = default!;
 }
 
 public class AssignViewModel

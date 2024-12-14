@@ -79,44 +79,8 @@
                                         @item.DisplayName (@item.ClientId)
                                     </a>
                                 </h6>
-                                <p class="mb-0 opacity-75 d-inline-block text-truncate" title="@item.Description" style="max-width: 250px;">@item.Description</p>
+                                <p class="mb-0 opacity-75 d-inline-block text-truncate" title="@item.Description" style="max-width: 300px;">@item.Description</p>
                             </div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-light dropdown-toggle no-toggle" title="Show more options" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-three-dots-vertical"></i>
-                            </button>
-                            <ul class="dropdown-menu shadow">
-                                <li>
-                                    <a asp-action="Details" class="dropdown-item" asp-route-id="@item.Id">
-                                        Details
-                                    </a>
-                                </li>
-                                <li>
-                                    @Html.AjaxActionLink("Rotate keys", "RotateKeys", new { id = item.Id }, new AjaxOptions
-                           {
-                               UpdateTargetId = "changeTenantInfo",
-                               Confirm = "Rotating the keys may disrupt access for some applications. Are you sure you want to proceed?",
-                               OnSuccess = "onKeysGenerateSuccess"
-                           }, new { @class = "dropdown-item", title = "Rotate Client Secret and API Key" })
-                                </li>
-                                <li>
-                                    @Html.AjaxActionLink("Assign users", "Assign", new { id = item.Id }, new AjaxOptions
-                           {
-                               UpdateTargetId = "changeTenantInfo",
-                               OnSuccess = "onAssignUnAssignLoaded"
-                           }, new { @class = "dropdown-item", title = "Assign users" })
-                                </li>
-                                <li>
-                                    @Html.AjaxActionLink("Unassign users", "Unassign", new { id = item.Id }, new AjaxOptions
-                           {
-                               UpdateTargetId = "changeTenantInfo",
-                               OnSuccess = "onAssignUnAssignLoaded"
-                           }, new { @class = "dropdown-item", title = "Unassign users" })
-                                </li>
-                            </ul>
                         </div>
                     </div>
                 </div>
@@ -131,28 +95,6 @@
     </div>
 }
 
-<div id="changeTenantInfo"></div>
-
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
-
-<script>
-    var newKeysModal, tenantChangeOffCanvas;
-
-    function onKeysGenerateSuccess() {
-        newKeysModal = new bootstrap.Modal(document.getElementById('keysModal'));
-        newKeysModal.show();
-    }
-
-    function onAssignUnAssignLoaded() {
-        tenantChangeOffCanvas = new bootstrap.Offcanvas(document.getElementById('tenantEditOffcanvas'));
-        tenantChangeOffCanvas.show();
-    }
-
-    function onAssignUnAssignSave(e) {
-        tenantChangeOffCanvas.hide();
-        Toast.success(e.message);
-    }
-
-</script>

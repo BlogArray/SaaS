@@ -7,26 +7,32 @@
                 <h1 class="modal-title fs-5" id="keysModalLabel">Keys for @Model.Name</h1>
             </div>
             <div class="modal-body">
-                <div class="mb-3">
-                    <label for="clientSecret" class="form-label">Client Secret</label>
-                    <div class="input-group">
-                        <input type="text" id="clientSecret" class="form-control" value="@Model.ClientSecret" readonly>
-                        <button class="btn btn-outline-secondary" type="button" onclick="copySecret()">
-                            <i class="bi bi-copy"></i>
-                        </button>
+                @if (Model.Type == "secret")
+                {
+                    <div class="mb-3">
+                        <label for="clientSecret" class="form-label">Client Secret</label>
+                        <div class="input-group">
+                            <input type="text" id="clientSecret" class="form-control" value="@Model.Key" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copySecret()">
+                                <i class="bi bi-copy"></i>
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">Please save this securely. You won’t be able to view it again.</small>
                     </div>
-                    <small class="form-text text-muted">Please save this securely. You won’t be able to view it again.</small>
-                </div>
-                <div class="mb-3">
-                    <label for="apiKey" class="form-label">API Key</label>
-                    <div class="input-group">
-                        <input type="text" id="apiKey" class="form-control" value="@Model.APIKey" readonly>
-                        <button class="btn btn-outline-secondary" type="button" onclick="copyKey()">
-                            <i class="bi bi-copy"></i>
-                        </button>
+                }
+                @if (Model.Type == "apikey")
+                {
+                    <div class="mb-3">
+                        <label for="apiKey" class="form-label">API Key</label>
+                        <div class="input-group">
+                            <input type="text" id="apiKey" class="form-control" value="@Model.Key" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyKey()">
+                                <i class="bi bi-copy"></i>
+                            </button>
+                        </div>
+                        <small class="form-text text-muted">Please save this securely. You won’t be able to view it again.</small>
                     </div>
-                    <small class="form-text text-muted">Please save this securely. You won’t be able to view it again.</small>
-                </div>
+                }
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-primary" data-bs-dismiss="modal">I understand and copied the keys</button>

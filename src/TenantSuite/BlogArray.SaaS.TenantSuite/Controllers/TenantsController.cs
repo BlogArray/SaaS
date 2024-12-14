@@ -353,9 +353,9 @@ public class TenantsController(OpenIdDbContext context,
         return result.Status ? JsonSuccess(result.Result) : JsonError("An error occurred while saving your information.");
     }
 
-    public async Task<IActionResult> RotateKeys(string id)
+    public async Task<IActionResult> RotateKeys(string id, string type)
     {
-        if (id == null)
+        if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(type))
         {
             return NotFound();
         }
@@ -371,14 +371,21 @@ public class TenantsController(OpenIdDbContext context,
         {
             ApplicationId = id,
             Name = openIdApplication.DisplayName,
-            ClientSecret = Guid.NewGuid().ToString("N"),
-            APIKey = Guid.NewGuid().ToString("N"),
+            Key = Guid.NewGuid().ToString("N"),
+            Type = type
         };
 
-        openIdApplication.ClientSecretPlain = rotateKeys.ClientSecret;
-        openIdApplication.APIKey = rotateKeys.APIKey;
+        if (type == "secret")
+        {
+            openIdApplication.ClientSecretPlain = rotateKeys.Key;
 
-        await manager.UpdateAsync(openIdApplication, rotateKeys.ClientSecret);
+            await manager.UpdateAsync(openIdApplication, rotateKeys.Key);
+        }
+        else if (type == "apikey")
+        {
+            openIdApplication.APIKey = rotateKeys.Key;
+            await manager.UpdateAsync(openIdApplication);
+        }
 
         return PartialView(rotateKeys);
     }

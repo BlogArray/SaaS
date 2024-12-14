@@ -23,30 +23,35 @@
         </nav>
     </div>
     <div class="card-body">
-        <ul class="nav">
-            <li class="nav-item">
-                @Html.AjaxActionLink("Rotate keys", "RotateKeys", new { id = Model.Id }, new AjaxOptions
+        <div class="btn-toolbar mb-2" role="toolbar" aria-label="Toolbar with button groups">
+            <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
+                @Html.AjaxActionLink("Rotate client secret", "RotateKeys", new { id = Model.Id, @type = "secret" }, new AjaxOptions
            {
                UpdateTargetId = "changeTenantInfo",
-               Confirm = "Rotating the keys may disrupt access for some applications. Are you sure you want to proceed?",
+               Confirm = "Rotating the client secret may disrupt access for some applications. Are you sure you want to proceed?",
                OnSuccess = "onKeysGenerateSuccess"
-           }, new { @class = "nav-link", title = "Rotate Client Secret and API Key" })
-            </li>
-            <li class="nav-item">
+           }, new { @class = "btn btn-outline-secondary", title = "Rotate client secret" })
+                @Html.AjaxActionLink("Rotate api key", "RotateKeys", new { id = Model.Id, @type = "apikey" }, new AjaxOptions
+           {
+               UpdateTargetId = "changeTenantInfo",
+               Confirm = "Rotating the api key may disrupt access for some applications. Are you sure you want to proceed?",
+               OnSuccess = "onKeysGenerateSuccess"
+           }, new { @class = "btn btn-outline-secondary", title = "Rotate api key" })
+            </div>
+            <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
                 @Html.AjaxActionLink($"Users ({Model.UsersCount})", "Unassign", new { id = Model.Id }, new AjaxOptions
            {
                UpdateTargetId = "changeTenantInfo",
-               OnSuccess = "onAssignUnAssignLoaded"
-           }, new { @class = "nav-link", title = "Unassign users" })
-            </li>
-            <li class="nav-item">
-                @Html.AjaxActionLink("Assign users", "Assign", new { id = Model.Id }, new AjaxOptions
+               OnSuccess = "tenantEditFormLoaded"
+           }, new { @class = "btn btn-outline-secondary", title = "View all users" })
+                @Html.AjaxActionLink("Add users", "Assign", new { id = Model.Id }, new AjaxOptions
            {
                UpdateTargetId = "changeTenantInfo",
-               OnSuccess = "onAssignUnAssignLoaded"
-           }, new { @class = "nav-link", title = "Assign users" })
-            </li>
-        </ul>
+               OnSuccess = "tenantEditFormLoaded"
+           }, new { @class = "btn btn-outline-secondary", title = "Add users" })
+            </div>
+        </div>
+
         @Html.DynamicContentLoader("basicInfo", Url.Action("BasicInfo", "Tenants", new { @id = Model.Id }))
         <hr class="my-3">
         @Html.DynamicContentLoader("securityInfo", Url.Action("Security", "Tenants", new { @id = Model.Id }))
@@ -91,16 +96,6 @@
     function onKeysGenerateSuccess() {
         newKeysModal = new bootstrap.Modal(document.getElementById('keysModal'));
         newKeysModal.show();
-    }
-
-    function onAssignUnAssignLoaded() {
-        tenantChangeOffCanvas = new bootstrap.Offcanvas(document.getElementById('tenantEditOffcanvas'));
-        tenantChangeOffCanvas.show();
-    }
-
-    function onAssignUnAssignSave(e) {
-        tenantChangeOffCanvas.hide();
-        Toast.success(e.message);
     }
 
 </script>
