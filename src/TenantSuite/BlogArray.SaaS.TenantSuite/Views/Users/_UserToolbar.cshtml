@@ -1,0 +1,58 @@
+﻿@model UserToolbar
+@{
+    string? currentUser = ViewBag.CurrentUserId;
+}
+<div class="btn-toolbar mb-2" role="toolbar" aria-label="Toolbar with button groups">
+    @if (currentUser == Model.Id)
+    {
+        <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
+            <a target="_blank" asp-action="Manage" title="Manage your profile" asp-controller="Authentication" asp-area=""
+               class="btn btn-outline-secondary" data-bs-toggle="tooltip" data-bs-title="Manage your profile">
+                View profile
+                <i class="ms-1 bi bi-box-arrow-up-right"></i>
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
+            @if (!Model.IsActive)
+            {
+                @Html.AjaxActionLink("Enable user", "EnableUser", new { id = Model.Id }, new AjaxOptions
+   {
+       OnSuccess = "changeState",
+       Confirm = "Enabling this user will grant them access to their assigned tenants. Are you sure you want to continue?"
+   }, new { @class = "btn btn-outline-secondary bi-mr bi bi-check-lg", title = "Enable user" })
+            }
+            else
+            {
+                @Html.AjaxActionLink("Disable user", "DisableUser", new { id = Model.Id }, new AjaxOptions
+   {
+       OnSuccess = "changeState",
+       Confirm = "Disabling this user will revoke their access to all assigned tenants. Are you sure you want to continue?"
+   }, new { @class = "btn btn-outline-secondary bi-mr bi bi-ban", title = "Disable user" })
+            }
+
+            @Html.AjaxActionLink("Reset password", "ResetPassword", new { id = Model.Id }, new AjaxOptions
+   {
+       UpdateTargetId = "changeUserInfo",
+       OnSuccess = "userEditFormLoaded"
+   }, new { @class = "btn btn-outline-secondary", title = "Reset password" })
+        </div>
+    }
+    <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
+        @Html.AjaxActionLink($"Tenants ({Model.TenantsCount})", "Unassign", new { id = Model.Id }, new AjaxOptions
+   {
+       UpdateTargetId = "changeUserInfo",
+       OnSuccess = "userEditFormLoaded"
+   }, new { @class = "btn btn-outline-secondary", title = "View all tenants" })
+        @Html.AjaxActionLink("Add tenants", "Assign", new { id = Model.Id }, new AjaxOptions
+   {
+       UpdateTargetId = "changeUserInfo",
+       OnSuccess = "userEditFormLoaded"
+   }, new { @class = "btn btn-outline-secondary", title = "Add tenants" })
+    </div>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

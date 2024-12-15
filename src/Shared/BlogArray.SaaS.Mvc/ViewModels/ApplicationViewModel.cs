@@ -191,4 +191,6 @@ public class TenantToolbar
     public string Id { get; set; } = default!;
 
     public int UsersCount { get; set; } = default!;
+
+    public bool IsActive { get; set; }
 }

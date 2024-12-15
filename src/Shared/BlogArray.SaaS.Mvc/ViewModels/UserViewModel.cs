@@ -94,3 +94,12 @@ public class ResetPasswordViewModel
     [DataType(DataType.Password)]
     public string? Password { get; set; } = default!;
 }
+
+public class UserToolbar
+{
+    public string Id { get; set; } = default!;
+
+    public int TenantsCount { get; set; } = default!;
+
+    public bool IsActive { get; set; }
+}

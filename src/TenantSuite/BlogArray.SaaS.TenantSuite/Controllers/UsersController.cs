@@ -125,6 +125,18 @@ public class UsersController(OpenIdDbContext context,
         });
     }
 
+    public async Task<IActionResult> Toolbar(string id)
+    {
+        ApplicationUser? appUser = await userManager.FindByIdAsync(id);
+        ViewBag.CurrentUserId = LoggedInUserID;
+        return PartialView("_UserToolbar", new UserToolbar
+        {
+            Id = id,
+            IsActive = appUser.IsActive,
+            TenantsCount = await context.Authorizations.CountAsync(a => a.Subject == id)
+        });
+    }
+
     public async Task<IActionResult> BasicInfo(string id)
     {
         if (id == null)
@@ -233,7 +245,7 @@ public class UsersController(OpenIdDbContext context,
 
         if (id == LoggedInUserID)
         {
-            return RedirectToAction("Index", "Settings", new { area = "" });
+            return JsonError("You cannot enable or disable yourself.");
         }
 
         ApplicationUser? entity = await userManager.FindByIdAsync(id);
@@ -249,9 +261,7 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        AddSuccessMessage($"User {entity.Email} has been enabled successfully.");
-
-        return RedirectToAction(nameof(Index));
+        return JsonSuccess($"User {entity.Email} has been enabled successfully.");
     }
 
     public async Task<IActionResult> DisableUser(string id)
@@ -263,7 +273,7 @@ public class UsersController(OpenIdDbContext context,
 
         if (id == LoggedInUserID)
         {
-            return RedirectToAction("Index", "Settings", new { area = "" });
+            return JsonError("You cannot enable or disable yourself.");
         }
 
         ApplicationUser? entity = await userManager.FindByIdAsync(id);
@@ -279,9 +289,7 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        AddSuccessMessage($"User {entity.Email} has been disabled successfully.");
-
-        return RedirectToAction(nameof(Index));
+        return JsonSuccess($"User {entity.Email} has been disabled successfully.");
     }
 
     public async Task<IActionResult> ResetPassword(string id)
@@ -293,14 +301,14 @@ public class UsersController(OpenIdDbContext context,
 
         if (id == LoggedInUserID)
         {
-            return RedirectToAction("Index", "Settings", new { area = "" });
+            return JsonError("You are attempting to reset your own password. Please navigate to your profile to change it or use the Forgot Password feature.");
         }
 
         ApplicationUser? entity = await userManager.FindByIdAsync(id);
 
         return entity is null
             ? NotFound()
-            : PartialView(new ResetPasswordViewModel
+            : PartialView("_ResetPassword", new ResetPasswordViewModel
             {
                 Id = id,
                 DisplayName = entity.DisplayName
@@ -314,6 +322,11 @@ public class UsersController(OpenIdDbContext context,
         if (!ModelState.IsValid)
         {
             return ModelStateError(ModelState);
+        }
+
+        if (resetPassword.Id == LoggedInUserID)
+        {
+            return JsonError("You are attempting to reset your own password. Please navigate to your profile to change it or use the Forgot Password feature.");
         }
 
         ApplicationUser? entity = await userManager.FindByIdAsync(resetPassword.Id);

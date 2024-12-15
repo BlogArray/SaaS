@@ -5,6 +5,7 @@ var specialCharacters = '-._~';
 var alphabets = lowerAlphabets + upperAlphabets;
 var alphabetNumbers = alphabets + numbers;
 var allCharset = alphabetNumbers + specialCharacters;
+var activeAjaxRequests = 0;
 
 var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
 var tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
@@ -14,16 +15,24 @@ document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((dropdownToggle
 });
 
 $(document).ajaxSend(function (event, xhr, options) {
+    activeAjaxRequests++;
     $('.global-loader').fadeIn(250);
 }).ajaxComplete(function (event, xhr, options) {
-    $('.global-loader').fadeOut(250);
+    activeAjaxRequests--;
+    if (activeAjaxRequests <= 0) {
+        activeAjaxRequests = 0;
+        $('.global-loader').fadeOut(250);
+        resetTooltips();
+    }
 }).ajaxError(function (event, jqxhr, settings, exception) {
-    $('.global-loader').fadeOut(250);
+    activeAjaxRequests--;
+    if (activeAjaxRequests <= 0) {
+        activeAjaxRequests = 0;
+        $('.global-loader').fadeOut(250);
+    }
     if (jqxhr.status === 401) {
         location.reload();
     }
-}).ajaxComplete(function () {
-    resetTooltips();
 });
 
 function resetTooltips() {
