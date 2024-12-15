@@ -148,21 +148,16 @@ public class UsersController(OpenIdDbContext context,
         });
     }
 
-    public async Task<IActionResult> Edit(string id)
+    public async Task<IActionResult> EditBasicInfo(string id)
     {
         if (id == null)
         {
             return NotFound();
         }
 
-        if (id == LoggedInUserID)
-        {
-            return RedirectPermanent(configuration["Links:Identity"]);
-        }
-
         ApplicationUser? appUser = await userManager.FindByIdAsync(id);
 
-        return appUser == null ? NotFound() : View(new EditUserViewModel
+        return appUser == null ? NotFound() : PartialView("_EditBasicUserInfo", new EditUserViewModel
         {
             Id = appUser.Id,
             DisplayName = appUser.DisplayName,
@@ -178,11 +173,11 @@ public class UsersController(OpenIdDbContext context,
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(EditUserViewModel editUserViewModel)
+    public async Task<IActionResult> EditBasicInfo(EditUserViewModel editUserViewModel)
     {
         if (!ModelState.IsValid)
         {
-            return View(editUserViewModel);
+            return ModelStateError(ModelState);
         }
 
         ApplicationUser? entity = await userManager.FindByIdAsync(editUserViewModel.Id);
@@ -203,9 +198,7 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        AddSuccessMessage("User information has been successfully saved.");
-
-        return RedirectToAction(nameof(Index));
+        return JsonSuccess("User information has been successfully saved.");
     }
 
     #endregion Detais/edit

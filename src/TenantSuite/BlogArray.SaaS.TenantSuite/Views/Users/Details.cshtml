@@ -23,14 +23,33 @@
         </nav>
     </div>
     <div class="card-body">
+        @* @Html.DynamicContentLoader("toolbar", Url.Action("Toolbar", "Users", new { @id = Model.Id })) *@
         @Html.DynamicContentLoader("basicInfo", Url.Action("BasicInfo", "Users", new { @id = Model.Id }))
         <hr class="my-3">
     </div>
 </div>
+
+<div id="changeUserInfo"></div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
 
 <script>
+    var userEditCanvas;
+
+    function userEditFormLoaded() {
+        userEditCanvas = new bootstrap.Offcanvas(document.getElementById('userEditOffcanvas'));
+        userEditCanvas.show();
+    }
+
+     function onUserChangeSuccess(e) {
+        DynamicContentLoader.load('basicInfo');
+        onUserChange(e);
+    }
+
+    function onUserChange(e){
+        userEditCanvas.hide();
+        Toast.success(e.message);
+    }
 </script>

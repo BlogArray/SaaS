@@ -1,0 +1,119 @@
+﻿@model EditUserViewModel
+
+@{
+    string[] genderList = ["Male", "Female", "I'd prefer not to say", "Non binary"];
+
+    var genders = genderList
+    .Select(gender => new SelectListItem
+            {
+                Text = gender,
+                Value = gender
+            });
+
+    var timeZones = TimeZoneInfo.GetSystemTimeZones()
+    .Select(tz => new SelectListItem
+            {
+                Value = tz.Id,
+                Text = $"{tz.DisplayName}"
+            }).ToList();
+
+    var languages = new List<SelectListItem>()
+    {
+        new SelectListItem
+        {
+            Text="English - India",
+            Value="en-IN"
+        }
+    };
+}
+
+@using (Html.AjaxBeginForm(new AjaxOptions
+ {
+     Url = @Url.ActionLink("EditBasicInfo"),
+     HttpMethod = "post",
+     OnSuccess = "onUserChangeSuccess",
+     OnFailure = "handleAjaxError"
+ }, new { id = "saveUserForm" }))
+{
+    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="userEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="offcanvas-header border-bottom">
+            <h5 id="offcanvasRightLabel">
+                Change basic info
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input asp-for="Id" type="hidden" />
+            <input asp-for="Email" type="hidden" />
+            <div class="mb-3">
+                <label asp-for="FirstName" class="form-label">First name</label>
+                <input asp-for="FirstName" class="form-control" placeholder="First name" />
+                <span asp-validation-for="FirstName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="LastName" class="form-label">Last name</label>
+                <input asp-for="LastName" class="form-control" placeholder="Last name" />
+                <span asp-validation-for="LastName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="DisplayName" class="form-label">Display name</label>
+                <input asp-for="DisplayName" class="form-control" placeholder="Display name" />
+                <span asp-validation-for="DisplayName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Gender" class="form-label">Gender</label>
+                <select class="form-select" asp-for="Gender" asp-items="genders">
+                </select>
+                <span asp-validation-for="Gender" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="TimeZone" class="form-label"></label>
+                <select class="form-select" asp-for="TimeZone" asp-items="timeZones">
+                </select>
+                <span asp-validation-for="TimeZone" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="LocaleCode" class="form-label"></label>
+                <select class="form-select" asp-for="LocaleCode" asp-items="languages">
+                </select>
+                <span asp-validation-for="LocaleCode" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="offcanvas-header border-top">
+            <div>
+                <input type="submit" value="Update user" class="btn btn-primary" />
+                <input type="button" value="Cancel" class="btn btn-secondary" data-bs-dismiss="offcanvas" aria-label="Close" />
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+<script>
+    var genderChoice, timeZoneChoice, localeChoice;
+
+    $(document).ready(function () {
+        Unobtrusive.reInit($("#saveUserForm"));
+
+        genderChoice = new Choices('#Gender', {
+            searchPlaceholderValue: 'Please search',
+            placeholderValue: 'Please select a gender',
+            shouldSort: false,
+        });
+        timeZoneChoice = new Choices('#TimeZone', {
+            searchPlaceholderValue: 'Please search',
+            placeholderValue: 'Please select a timezone',
+            shouldSort: false
+        });
+
+        localeChoice = new Choices('#LocaleCode', {
+            searchPlaceholderValue: 'Please search',
+            placeholderValue: 'Please select a language',
+            shouldSort: false
+        });
+    });
+</script>
