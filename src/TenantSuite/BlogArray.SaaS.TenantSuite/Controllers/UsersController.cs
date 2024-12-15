@@ -18,7 +18,6 @@ public class UsersController(OpenIdDbContext context,
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
         ViewBag.SearchTerm = term;
-        ViewBag.CurrentUserId = LoggedInUserID;
         ViewBag.Take = take;
 
         IQueryable<ApplicationUser> users = context.Users;
@@ -45,6 +44,7 @@ public class UsersController(OpenIdDbContext context,
         return View(await filteredUsers.ToPagerListAsync(page, take));
     }
 
+    #region Create
     public IActionResult Create()
     {
         return View();
@@ -96,6 +96,56 @@ public class UsersController(OpenIdDbContext context,
         emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl);
 
         return RedirectToAction(nameof(Index));
+    }
+
+    #endregion Create
+
+    #region Detais/edit
+
+    public async Task<IActionResult> Details(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? appUser = await userManager.FindByIdAsync(id);
+
+        return appUser == null ? NotFound() : View(new EditUserViewModel
+        {
+            Id = appUser.Id,
+            DisplayName = appUser.DisplayName,
+            FirstName = appUser.FirstName,
+            LastName = appUser.LastName,
+            Email = appUser.Email,
+            Gender = appUser.Gender,
+            ProfileImage = appUser.ProfileImage,
+            LocaleCode = appUser.LocaleCode,
+            TimeZone = appUser.TimeZone
+        });
+    }
+
+    public async Task<IActionResult> BasicInfo(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? appUser = await userManager.FindByIdAsync(id);
+
+        return appUser == null ? NotFound() : PartialView("_BasicUserInfo", new EditUserViewModel
+        {
+            Id = appUser.Id,
+            DisplayName = appUser.DisplayName,
+            FirstName = appUser.FirstName,
+            LastName = appUser.LastName,
+            Email = appUser.Email,
+            Gender = appUser.Gender,
+            ProfileImage = appUser.ProfileImage,
+            LocaleCode = appUser.LocaleCode,
+            TimeZone = appUser.TimeZone
+        });
     }
 
     public async Task<IActionResult> Edit(string id)
@@ -158,6 +208,9 @@ public class UsersController(OpenIdDbContext context,
         return RedirectToAction(nameof(Index));
     }
 
+    #endregion Detais/edit
+
+    #region Actions
     public async Task<IActionResult> Search(string term)
     {
         IQueryable<ApplicationUser> users = context.Users.Where(u => u.IsActive == true);
@@ -308,4 +361,11 @@ public class UsersController(OpenIdDbContext context,
             return JsonSuccess($"The password setup link has been sent to {entity.Email}. Please ask them to check their email.");
         }
     }
+
+    public IActionResult IsCurrentuser(string id)
+    {
+        return Ok(id == LoggedInUserID);
+    }
+
+    #endregion Actions
 }

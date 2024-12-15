@@ -14,8 +14,6 @@ public class ApplicationListViewModel
     public string Description { get; set; } = default!;
 
     public string Icon { get; set; } = default!;
-
-    public int UsersCount { get; set; } = default!;
 }
 
 public class ApplicationViewModel
@@ -186,4 +184,11 @@ public class TenantSecurityViewModel
     /// Indicates whether Single Sign-Out is enabled for SAML
     /// </summary>
     public bool IsSingleSignOutEnabled { get; set; }
+}
+
+public class TenantToolbar
+{
+    public string Id { get; set; } = default!;
+
+    public int UsersCount { get; set; } = default!;
 }

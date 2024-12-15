@@ -1,4 +1,5 @@
 ﻿using BlogArray.SaaS.Mvc;
+using BlogArray.SaaS.OpenId.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -98,6 +99,16 @@ public class TenantsController(OpenIdDbContext context,
             DisplayName = openIdApplication.DisplayName,
             Icon = openIdApplication.Theme.Favicon,
             Description = openIdApplication.Description,
+        });
+    }
+
+    public async Task<IActionResult> Toolbar(string id)
+    {
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+        return PartialView("_TenantToolbar", new TenantToolbar
+        {
+            Id = id,
             UsersCount = await context.Authorizations.CountAsync(a => a.Application.Id == id)
         });
     }
@@ -387,7 +398,7 @@ public class TenantsController(OpenIdDbContext context,
             await manager.UpdateAsync(openIdApplication);
         }
 
-        return PartialView(rotateKeys);
+        return PartialView("_RotateKeys", rotateKeys);
     }
 
     [HttpGet]
@@ -411,7 +422,7 @@ public class TenantsController(OpenIdDbContext context,
             Name = openIdApplication.DisplayName,
         };
 
-        return PartialView(assignViewModel);
+        return PartialView("_AssignUser", assignViewModel);
     }
 
     [HttpPost, ActionName("Assign")]
@@ -493,7 +504,7 @@ public class TenantsController(OpenIdDbContext context,
             Users = users
         };
 
-        return PartialView(unAssignViewModel);
+        return PartialView("_UnassignUser", unAssignViewModel);
     }
 
     [HttpPost, ActionName("Unassign")]

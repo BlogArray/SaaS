@@ -1,0 +1,34 @@
+﻿@model TenantToolbar
+
+<div class="btn-toolbar mb-2" role="toolbar" aria-label="Toolbar with button groups">
+    <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
+        @Html.AjaxActionLink("Rotate client secret", "RotateKeys", new { id = Model.Id, @type = "secret" }, new AjaxOptions
+   {
+       UpdateTargetId = "changeTenantInfo",
+       Confirm = "Rotating the client secret may disrupt access for some applications. Are you sure you want to proceed?",
+       OnSuccess = "onKeysGenerateSuccess"
+   }, new { @class = "btn btn-outline-secondary", title = "Rotate client secret" })
+        @Html.AjaxActionLink("Rotate api key", "RotateKeys", new { id = Model.Id, @type = "apikey" }, new AjaxOptions
+   {
+       UpdateTargetId = "changeTenantInfo",
+       Confirm = "Rotating the api key may disrupt access for some applications. Are you sure you want to proceed?",
+       OnSuccess = "onKeysGenerateSuccess"
+   }, new { @class = "btn btn-outline-secondary", title = "Rotate api key" })
+    </div>
+    <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
+        @Html.AjaxActionLink($"Users ({Model.UsersCount})", "Unassign", new { id = Model.Id }, new AjaxOptions
+   {
+       UpdateTargetId = "changeTenantInfo",
+       OnSuccess = "tenantEditFormLoaded"
+   }, new { @class = "btn btn-outline-secondary", title = "View all users" })
+        @Html.AjaxActionLink("Add users", "Assign", new { id = Model.Id }, new AjaxOptions
+   {
+       UpdateTargetId = "changeTenantInfo",
+       OnSuccess = "tenantEditFormLoaded"
+   }, new { @class = "btn btn-outline-secondary", title = "Add users" })
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

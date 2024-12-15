@@ -1,0 +1,36 @@
+﻿@using System.Security.Claims
+@{
+    ViewData["Title"] = $"User > {Model.DisplayName}";
+}
+
+@model EditUserViewModel
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-1">
+            <img height="34" alt="profile icon" class="flex-shrink-0 me-1 rounded" loading="lazy" id="faviconImage" src="@Model.ProfileImage" />
+            @Model.DisplayName
+        </h3>
+        <nav aria-label="breadcrumb mb-0 mbe-0 form-text">
+            <ol class="breadcrumb mb-0">
+                <li class="breadcrumb-item">
+                    <a asp-action="Index">
+                        All users
+                    </a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">@Model.DisplayName</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="card-body">
+        @Html.DynamicContentLoader("basicInfo", Url.Action("BasicInfo", "Users", new { @id = Model.Id }))
+        <hr class="my-3">
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+<script>
+</script>
