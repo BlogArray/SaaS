@@ -14,11 +14,11 @@
     Basic info of tenant
 </p>
 <dl class="row">
-    <dt class="col-md-3">Legal name</dt>
+    <dt class="col-md-3 fw-medium">Legal name</dt>
     <dd class="col-md-9">@Model.Legalname</dd>
-    <dt class="col-md-3">Display name</dt>
+    <dt class="col-md-3 fw-medium">Display name</dt>
     <dd class="col-md-9">@Model.DisplayName</dd>
-    <dt class="col-md-3">Connection string</dt>
+    <dt class="col-md-3 fw-medium">Connection string</dt>
     <dd class="col-md-9">
         @if (Model.ConnectionString?.Length > 0)
         {
@@ -30,12 +30,12 @@
         }
     </dd>
 
-    <dt class="col-md-3">Website</dt>
+    <dt class="col-md-3 fw-medium">Website</dt>
     <dd class="col-md-9">@Model.Website</dd>
-    <dt class="col-md-3">Description</dt>
+    <dt class="col-md-3 fw-medium">Description</dt>
     <dd class="col-md-9">@Model.Description</dd>
-    <dt class="col-md-3">Redirect Uri</dt>
+    <dt class="col-md-3 fw-medium">Redirect Uri</dt>
     <dd class="col-md-9">@Model.RedirectUri</dd>
-    <dt class="col-md-3">Post Logout Redirect Uri</dt>
+    <dt class="col-md-3 fw-medium">Post Logout Redirect Uri</dt>
     <dd class="col-md-9">@Model.PostLogoutRedirectUri</dd>
 </dl>

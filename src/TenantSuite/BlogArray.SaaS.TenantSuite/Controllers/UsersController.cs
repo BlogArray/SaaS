@@ -146,18 +146,7 @@ public class UsersController(OpenIdDbContext context,
 
         ApplicationUser? appUser = await userManager.FindByIdAsync(id);
 
-        return appUser == null ? NotFound() : PartialView("_BasicUserInfo", new EditUserViewModel
-        {
-            Id = appUser.Id,
-            DisplayName = appUser.DisplayName,
-            FirstName = appUser.FirstName,
-            LastName = appUser.LastName,
-            Email = appUser.Email,
-            Gender = appUser.Gender,
-            ProfileImage = appUser.ProfileImage,
-            LocaleCode = appUser.LocaleCode,
-            TimeZone = appUser.TimeZone
-        });
+        return appUser == null ? NotFound() : PartialView("_BasicUserInfo", appUser);
     }
 
     public async Task<IActionResult> EditBasicInfo(string id)

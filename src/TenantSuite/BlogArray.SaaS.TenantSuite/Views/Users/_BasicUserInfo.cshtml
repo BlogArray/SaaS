@@ -1,4 +1,4 @@
-﻿@model EditUserViewModel
+﻿@model ApplicationUser
 
 <div class="d-flex align-items-center justify-content-between">
     <h5 class="mb-0">Basic info</h5>
@@ -13,17 +13,50 @@
 <p>
     Basic info of user
 </p>
+
+<h6 class="fw-bolder">Personal Details</h6>
 <dl class="row">
-    <dt class="col-md-3">First name</dt>
+    <dt class="col-md-3 fw-medium">First name</dt>
     <dd class="col-md-9">@Model.FirstName</dd>
-    <dt class="col-md-3">Last name</dt>
+    <dt class="col-md-3 fw-medium">Last name</dt>
     <dd class="col-md-9">@Model.LastName</dd>
-    <dt class="col-md-3">Display name</dt>
+    <dt class="col-md-3 fw-medium">Display name</dt>
     <dd class="col-md-9">@Model.DisplayName</dd>
-    <dt class="col-md-3">Gender</dt>
+    <dt class="col-md-3 fw-medium">Gender</dt>
     <dd class="col-md-9">@Model.Gender</dd>
-    <dt class="col-md-3">Time zone</dt>
+    <dt class="col-md-3 fw-medium">Time zone</dt>
     <dd class="col-md-9">@Model.TimeZone</dd>
-    <dt class="col-md-3">Language</dt>
+    <dt class="col-md-3 fw-medium">Language</dt>
     <dd class="col-md-9">@Model.LocaleCode</dd>
+</dl>
+
+<h6 class="fw-bolder">Contact Information</h6>
+<dl class="row">
+    <dt class="col-md-3 fw-medium">Email</dt>
+    <dd class="col-md-9">@Model.Email</dd>
+    <dt class="col-md-3 fw-medium">Email confirmed</dt>
+    <dd class="col-md-9">@Model.EmailConfirmed</dd>
+    <dt class="col-md-3 fw-medium">Phone number</dt>
+    <dd class="col-md-9">@Model.PhoneNumber</dd>
+    <dt class="col-md-3 fw-medium">Phone number confirmed</dt>
+    <dd class="col-md-9">@Model.PhoneNumberConfirmed</dd>
+</dl>
+
+<h6 class="fw-bolder">Account Details</h6>
+<dl class="row">
+    <dt class="col-md-3 fw-medium">Enabled</dt>
+    <dd class="col-md-9">@Model.IsActive</dd>
+    <dt class="col-md-3 fw-medium">Username</dt>
+    <dd class="col-md-9">@Model.UserName</dd>
+    <dt class="col-md-3 fw-medium">MFA enabled</dt>
+    <dd class="col-md-9">@Model.TwoFactorEnabled</dd>
+    <dt class="col-md-3 fw-medium">Access failed count</dt>
+    <dd class="col-md-9">@Model.AccessFailedCount</dd>
+    <dt class="col-md-3 fw-medium">Lockout enabled</dt>
+    <dd class="col-md-9">@Model.LockoutEnabled</dd>
+    @if (Model.LockoutEnabled)
+    {
+        <dt class="col-md-3 fw-medium">Lockout end</dt>
+        <dd class="col-md-9">@Model.LockoutEnd</dd>
+    }
 </dl>
