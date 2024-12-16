@@ -99,7 +99,13 @@ public class UserToolbar
 {
     public string Id { get; set; } = default!;
 
-    public int TenantsCount { get; set; } = default!;
-
     public bool IsActive { get; set; }
+
+    public bool IsEmailPhoneConfirmed { get; set; }
+    
+    public bool LockoutEnabled { get; set; }
+    
+    public DateTimeOffset? LockoutEnd { get; set; }
+
+    public int TenantsCount { get; set; } = default!;
 }

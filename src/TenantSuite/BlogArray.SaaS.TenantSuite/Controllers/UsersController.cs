@@ -133,6 +133,9 @@ public class UsersController(OpenIdDbContext context,
         {
             Id = id,
             IsActive = appUser.IsActive,
+            IsEmailPhoneConfirmed = appUser.EmailConfirmed && appUser.PhoneNumberConfirmed,
+            LockoutEnabled = appUser.LockoutEnabled,
+            LockoutEnd = appUser.LockoutEnd,
             TenantsCount = await context.Authorizations.CountAsync(a => a.Subject == id)
         });
     }
