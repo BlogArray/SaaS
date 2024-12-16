@@ -44,8 +44,17 @@
 
 <h6 class="fw-bolder">Account Details</h6>
 <dl class="row">
-    <dt class="col-md-3 fw-medium">Enabled</dt>
-    <dd class="col-md-9">@Model.IsActive</dd>
+    <dt class="col-md-3 fw-medium">Account status</dt>
+    <dd class="col-md-9">
+        @if (Model.IsActive)
+        {
+            <span>Active</span>
+        }
+        else
+        {
+            <span class="badge text-bg-danger">Disabled</span>
+        }
+    </dd>
     <dt class="col-md-3 fw-medium">Username</dt>
     <dd class="col-md-9">@Model.UserName</dd>
     <dt class="col-md-3 fw-medium">MFA enabled</dt>
