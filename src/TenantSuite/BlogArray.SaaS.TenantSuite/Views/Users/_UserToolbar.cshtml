@@ -54,7 +54,7 @@
    {
        OnSuccess = "changeState",
        Confirm = "This action will prevent the user to log in again. Are you sure you want to lock this user?"
-   }, new { @class = "btn btn-outline-secondary", title = "Prevent the user from logging in by locking their account for certain period." })
+   }, new { @class = "btn btn-outline-secondary", title = "Prevent the user from logging in by locking their account." })
             }
 
             @Html.AjaxActionLink("Reset password", "ResetPassword", new { id = Model.Id }, new AjaxOptions

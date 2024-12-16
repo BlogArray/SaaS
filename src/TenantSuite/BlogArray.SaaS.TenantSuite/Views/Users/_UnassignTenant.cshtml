@@ -1,30 +1,30 @@
-﻿@model UnAssignViewModel
+﻿@model AssignTenantViewModel
 
 @using (Html.AjaxBeginForm(new AjaxOptions
  {
      Url = @Url.ActionLink("Unassign"),
      HttpMethod = "post",
-     OnSuccess = "onTenantAssignUnassignChange",
+     OnSuccess = "onUserChangeSuccess",
      OnFailure = "handleAjaxError"
  }, new { id = "saveUnassignForm" }))
 {
-    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="tenantEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="userEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
         <div class="offcanvas-header border-bottom">
             <h5 id="offcanvasRightLabel">
-                Remove users from @Model.Name
+                Remove tenants from @Model.Name
             </h5>
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
         </div>
         <div class="offcanvas-body">
-            <input type="hidden" asp-for="ApplicationId" />
+            <input type="hidden" asp-for="UserId" />
             <div class="list-group list-group-flush">
-                @if (Model.Users?.Count() == 0)
+                @if (Model.Tenants?.Count() == 0)
                 {
                     <div class="p-5 text-center">
                         <i class="state-icon bi bi-inbox"></i>
                         <br />
                         <p class="text-body-emphasis fs-4 fw-semibold mb-0">
-                            No users assigned to this tenant yet.
+                            No tenants assigned to this user yet.
                         </p>
                         <p class="col-lg-8 mx-auto fs-6 text-muted">
                             To grant access click on <i class="bi bi-person-add"></i> icon.
@@ -34,16 +34,16 @@
                 else
                 {
                     <span class="form-text">
-                        Select users to remove
+                        Select tenants to remove
                     </span>
-                    @foreach (var user in Model.Users)
+                    @foreach (var tenant in Model.Tenants)
                     {
                         <label class="list-group-item d-flex gap-3">
-                            <input class="form-check-input flex-shrink-0" type="checkbox" value="@user.Id" name="Users" id="@user.Id" style="font-size: 1.375em;">
+                            <input class="form-check-input flex-shrink-0" type="checkbox" value="@tenant.Id" name="Tenants" id="@tenant.Id" style="font-size: 1.375em;">
                             <span class="form-checked-content">
-                                <strong>@user.DisplayName</strong>
+                                <strong>@tenant.DisplayName</strong>
                                 <small class="d-block text-body-secondary">
-                                    @user.Email
+                                    @tenant.ClientId
                                 </small>
                             </span>
                         </label>
@@ -53,9 +53,9 @@
         </div>
         <div class="offcanvas-header border-top">
             <div>
-                @if (Model.Users?.Count() > 0)
+                @if (Model.Tenants?.Count() > 0)
                 {
-                    <input type="submit" value="Remove selected users" class="btn btn-primary" />
+                    <input type="submit" value="Remove selected tenants" class="btn btn-primary" />
                 }
                 <input type="button" value="Cancel" class="btn btn-secondary" data-bs-dismiss="offcanvas" aria-label="Close" />
             </div>

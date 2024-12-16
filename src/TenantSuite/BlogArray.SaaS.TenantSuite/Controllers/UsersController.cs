@@ -544,29 +544,28 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
-        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+        ApplicationUser? user = await context.Users.FindAsync(id);
 
-        if (openIdApplication is null)
+        if (user is null)
         {
             return NotFound();
         }
 
-        // Retrieve distinct users associated with the application
-        List<BasicUserViewModel> users = await context.Authorizations
-            .Where(a => a.Application.Id == id)
-            .Select(s => new BasicUserViewModel
+        List<BasicApplicationViewModel> tenants = await context.Authorizations
+            .Where(a => a.Subject == id)
+            .Select(s => new BasicApplicationViewModel
             {
-                Id = s.Subject,
-                DisplayName = s.SubjectUser.DisplayName,
-                Email = s.SubjectUser.Email,
-                ProfileImage = s.SubjectUser.ProfileImage
+                Id = s.Application.Id,
+                ClientId = s.Application.ClientId,
+                DisplayName = s.Application.DisplayName,
+                Icon = s.Application.Theme.Favicon
             }).Distinct().ToListAsync();
 
-        UnAssignViewModel unAssignViewModel = new()
+        AssignTenantViewModel unAssignViewModel = new()
         {
-            ApplicationId = openIdApplication.Id,
-            Name = openIdApplication.DisplayName,
-            Users = users
+            UserId = user.Id,
+            Name = user.DisplayName,
+            Tenants = tenants
         };
 
         return PartialView("_UnassignTenant", unAssignViewModel);
@@ -574,35 +573,35 @@ public class UsersController(OpenIdDbContext context,
 
     [HttpPost, ActionName("Unassign")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UnassignConfirm(UnAssignViewModelRequest unAssignViewModel)
+    public async Task<IActionResult> UnassignConfirm(UnAssignTenantRequestViewModel unAssignViewModel)
     {
-        if (string.IsNullOrEmpty(unAssignViewModel.ApplicationId))
+        if (string.IsNullOrEmpty(unAssignViewModel.UserId))
         {
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
-        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(unAssignViewModel.ApplicationId);
+        ApplicationUser? user = await context.Users.FindAsync(unAssignViewModel.UserId);
 
-        if (openIdApplication is null)
+        if (user is null)
         {
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
-        if (unAssignViewModel.Users is null || unAssignViewModel.Users.Count is 0)
+        if (unAssignViewModel.Tenants is null || unAssignViewModel.Tenants.Count is 0)
         {
             return JsonError("Please select at least one user to unassign.");
         }
 
         // Remove selected users from tokens and authorizations
         await context.Tokens
-            .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
+            .Where(a => unAssignViewModel.Tenants.Contains(a.Application.Id) && a.Subject == unAssignViewModel.UserId)
             .ExecuteDeleteAsync();
 
         int unassignedCount = await context.Authorizations
-            .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
+            .Where(a => unAssignViewModel.Tenants.Contains(a.Application.Id) && a.Subject == unAssignViewModel.UserId)
             .ExecuteDeleteAsync();
 
-        string successMessage = $"{unassignedCount} user(s) have been successfully unassigned from the tenant.";
+        string successMessage = $"{unassignedCount} tenant(s) have been successfully unassigned from the user.";
 
         //TODO: Remove Admins from the list of unassign
         // if (adminInAssign)
