@@ -1,5 +1,4 @@
 ﻿using BlogArray.SaaS.Mvc;
-using BlogArray.SaaS.OpenId.Entities;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;

@@ -1,7 +1,6 @@
 using BlogArray.SaaS.Identity.HostedServices;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Serilog;
-using Microsoft.Extensions.Azure;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
