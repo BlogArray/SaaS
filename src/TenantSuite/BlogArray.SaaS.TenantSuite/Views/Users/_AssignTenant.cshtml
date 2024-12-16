@@ -1,0 +1,130 @@
+﻿@model AssignTenantViewModel
+
+@using (Html.AjaxBeginForm(new AjaxOptions
+ {
+     Url = @Url.ActionLink("Assign"),
+     HttpMethod = "post",
+	 OnSuccess = "onUserChangeSuccess",
+     OnFailure = "handleAjaxError"
+ }, new { id = "saveAssignForm" }))
+{
+	<div class="offcanvas offcanvas-end medium" tabindex="-1" id="userEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="offcanvas-header border-bottom">
+            <h5 id="offcanvasRightLabel">
+                Add tenants to @Model.Name
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <input type="hidden" asp-for="UserId" />
+            <select id="tenantSearch" data-placeholder="Start typing to search..."></select>
+			<select asp-for="Tenants" multiple class="d-none"></select>
+            <div class="list-group list-group-flush mt-2" id="tenantsList">
+            </div>
+        </div>
+        <div class="offcanvas-header border-top">
+            <div>
+				<input type="submit" value="Assign tenants" class="btn btn-primary" />
+                <input type="button" value="Cancel" class="btn btn-secondary" data-bs-dismiss="offcanvas" aria-label="Close" />
+            </div>
+        </div>
+    </div>
+}
+
+<script>
+	$(document).ready(function() {
+		Unobtrusive.reInit($("#saveAssignForm"));
+
+		const choices = new Choices('#tenantSearch', {
+			placeholderValue: 'Search for tenants...',
+			searchEnabled: true,
+			searchResultLimit: 10,
+			noResultsText: 'No tenants found',
+			noChoicesText: 'Start typing to search...',
+			shouldSort: false,
+			removeItemButton: true,
+			callbackOnCreateTemplates: function(template) {
+				return {
+					item: (classNames, data) => {
+						return template(`
+				<div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}" data-item data-id="${data.id}" data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''}>
+				  ${data.label}
+				</div>
+			  `);
+					},
+					choice: (classNames, data) => {
+						return template(`
+				<div class="d-flex gap-3 p-3 ${classNames.item} ${classNames.itemChoice}" data-select-text="${this.config.itemSelectText}" data-choice data-id="${data.id}" data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''} ${data.disabled ? 'aria-disabled="true"' : ''}>
+				<img alt="profile icon" src="${data.customProperties?.profileUrl || '/default-profile.png'}" alt="${data.label}" width="32" height="32" class="rounded-circle flex-shrink-0">
+				  <div class="d-flex gap-2 w-100 justify-content-between">
+					<div>
+					  <h6 class="mb-0">${data.label}</h6>
+					  <p class="mb-0 opacity-75">${data.customProperties?.clientId}</p>
+					</div>
+				  </div>
+				</div>
+			  `);
+					}
+				};
+			}
+		});
+
+		choices.passedElement.element.addEventListener('search', async function(event) {
+			const searchTerm = event.detail.value;
+			if (searchTerm) {
+				const response = await fetch(`/Tenants/Search?term=${encodeURIComponent(searchTerm)}`);
+				const tenants = await response.json();
+				choices.clearChoices();
+				tenants.forEach(tenant => {
+					choices.setChoices([{
+						value: tenant.id,
+						label: tenant.displayName,
+						customProperties: {
+							clientId: tenant.clientId,
+							profileUrl: tenant.icon
+						}
+					}], 'value', 'label', false);
+				});
+			}
+		});
+		const tenantsList = document.getElementById('tenantsList');
+
+		const tenantsSelect = document.querySelector('select[multiple][name="Tenants"]');
+
+		choices.passedElement.element.addEventListener('choice', function(event) {
+			const selectedUser = event.detail;
+
+			const option = document.createElement('option');
+			option.value = selectedUser.value;
+			option.selected = true;
+			option.textContent = selectedUser.label;
+			tenantsSelect.appendChild(option);
+
+			const tenantDiv = document.createElement('div');
+			tenantDiv.classList.add('list-group-item', 'list-group-item-action', 'd-flex', 'gap-3', 'py-3');
+
+			tenantDiv.innerHTML = `
+				<img alt="profile icon" src="${selectedUser.customProperties?.profileUrl || '/default-profile.png'}" alt="${selectedUser.label}" width="32" height="32" class="rounded-circle flex-shrink-0">
+				<div class="d-flex gap-2 w-100 justify-content-between">
+				  <div>
+					<h6 class="mb-0">${selectedUser.label}</h6>
+					<p class="mb-0 opacity-75">${selectedUser.customProperties?.clientId}</p>
+				  </div>
+				  <button type="button" class="btn-close remove-tenant" aria-label="Remove"></button>
+				</div>
+			  `;
+
+			tenantsList.appendChild(tenantDiv);
+			tenantDiv.querySelector('.remove-tenant').addEventListener('click', function() {
+				// Remove the div from tenantsList
+				tenantDiv.remove();
+				// Remove the corresponding option from tenantsSelect
+				Array.from(tenantsSelect.options).forEach(option => {
+					if (option.value === selectedUser.value) {
+						option.remove();
+					}
+				});
+			});
+		});
+	});
+</script>

@@ -102,10 +102,34 @@ public class UserToolbar
     public bool IsActive { get; set; }
 
     public bool IsEmailPhoneConfirmed { get; set; }
-    
+
     public bool LockoutEnabled { get; set; }
-    
+
     public DateTimeOffset? LockoutEnd { get; set; }
 
     public int TenantsCount { get; set; } = default!;
+}
+
+public class AssignTenantViewModel
+{
+    public string UserId { get; set; } = default!;
+
+    public string Name { get; set; } = default!;
+
+    public List<BasicApplicationViewModel> Tenants { get; set; } = default!;
+}
+
+public class AssignTenantRequestViewModel
+{
+    public string UserId { get; set; } = default!;
+
+    public List<string>? Tenants { get; set; } = default!;
+}
+
+public class UnAssignTenantViewModel : AssignTenantViewModel
+{
+}
+
+public class UnAssignTenantRequestViewModel : AssignTenantRequestViewModel
+{
 }

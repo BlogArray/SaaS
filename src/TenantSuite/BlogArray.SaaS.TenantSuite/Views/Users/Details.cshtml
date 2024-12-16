@@ -57,6 +57,7 @@
     }
 
      function onUserChangeSuccess(e) {
+        DynamicContentLoader.load('toolbar');
         DynamicContentLoader.load('basicInfo');
         onUserChange(e);
     }

@@ -548,6 +548,26 @@ public class TenantsController(OpenIdDbContext context,
         return JsonSuccess(successMessage);
     }
 
+    public async Task<IActionResult> Search(string term)
+    {
+        IQueryable<OpenIdApplication> tenants = context.Applications;
+
+        if (!string.IsNullOrEmpty(term))
+        {
+            tenants = tenants.Where(a => a.DisplayName.Contains(term) || a.ClientId.Contains(term) || a.Description.Contains(term));
+        }
+
+        List<BasicApplicationViewModel> basicUserViews = await tenants.Select(u => new BasicApplicationViewModel
+        {
+            Id = u.Id,
+            ClientId = u.ClientId,
+            DisplayName = u.DisplayName,
+            Icon = u.Theme.Favicon
+        }).Take(5).ToListAsync();
+
+        return Ok(basicUserViews);
+    }
+
     #endregion Actions
 
     #region Private

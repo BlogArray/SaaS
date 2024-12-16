@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using OpenIddict.Core;
 using P.Pager;
 using System.Text;
 
@@ -11,7 +12,7 @@ namespace BlogArray.SaaS.TenantSuite.Controllers;
 public class UsersController(OpenIdDbContext context,
     IUserStore<ApplicationUser> userStore,
     UserManager<ApplicationUser> userManager,
-    IConfiguration configuration, IEmailTemplate emailTemplate) : BaseController
+    OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager, IEmailTemplate emailTemplate) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -208,6 +209,7 @@ public class UsersController(OpenIdDbContext context,
     #endregion Detais/edit
 
     #region Actions
+
     public async Task<IActionResult> Search(string term)
     {
         IQueryable<ApplicationUser> users = context.Users.Where(u => u.IsActive == true);
@@ -462,5 +464,155 @@ public class UsersController(OpenIdDbContext context,
         return Ok(id == LoggedInUserID);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> Assign(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? user = await context.Users.FindAsync(id);
+
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        AssignTenantViewModel assignViewModel = new()
+        {
+            UserId = user.Id,
+            Name = user.DisplayName,
+        };
+
+        return PartialView("_AssignTenant", assignViewModel);
+    }
+
+    [HttpPost, ActionName("Assign")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AssignConfirm(AssignTenantRequestViewModel assignViewModel)
+    {
+        if (string.IsNullOrEmpty(assignViewModel.UserId))
+        {
+            return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        ApplicationUser? user = await context.Users.FindAsync(assignViewModel.UserId);
+
+        if (user is null)
+        {
+            return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        if (assignViewModel.Tenants is null || assignViewModel.Tenants.Count is 0)
+        {
+            return JsonError("Please select at least one tenant to assign.");
+        }
+
+        string successMessage = $"{assignViewModel.Tenants.Count} tenant(s) have been successfully assigned to the user.";
+
+        foreach (string id in assignViewModel.Tenants)
+        {
+            bool hasAccess = await context.Authorizations.Where(a => a.Subject == assignViewModel.UserId && a.Application.Id == id).AnyAsync();
+
+            if (!hasAccess)
+            {
+                OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+                OpenIdAuthorization auth = new()
+                {
+                    Application = openIdApplication,
+                    CreationDate = DateTime.UtcNow,
+                    Status = "valid",
+                    Subject = assignViewModel.UserId,
+                    Scopes = "[\"openid\",\"email\",\"profile\",\"roles\"]",
+                    Type = "permanent"
+                };
+
+                await authorizationManager.CreateAsync(auth);
+            }
+        }
+
+        return JsonSuccess(successMessage);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Unassign(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+        if (openIdApplication is null)
+        {
+            return NotFound();
+        }
+
+        // Retrieve distinct users associated with the application
+        List<BasicUserViewModel> users = await context.Authorizations
+            .Where(a => a.Application.Id == id)
+            .Select(s => new BasicUserViewModel
+            {
+                Id = s.Subject,
+                DisplayName = s.SubjectUser.DisplayName,
+                Email = s.SubjectUser.Email,
+                ProfileImage = s.SubjectUser.ProfileImage
+            }).Distinct().ToListAsync();
+
+        UnAssignViewModel unAssignViewModel = new()
+        {
+            ApplicationId = openIdApplication.Id,
+            Name = openIdApplication.DisplayName,
+            Users = users
+        };
+
+        return PartialView("_UnassignTenant", unAssignViewModel);
+    }
+
+    [HttpPost, ActionName("Unassign")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UnassignConfirm(UnAssignViewModelRequest unAssignViewModel)
+    {
+        if (string.IsNullOrEmpty(unAssignViewModel.ApplicationId))
+        {
+            return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(unAssignViewModel.ApplicationId);
+
+        if (openIdApplication is null)
+        {
+            return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        if (unAssignViewModel.Users is null || unAssignViewModel.Users.Count is 0)
+        {
+            return JsonError("Please select at least one user to unassign.");
+        }
+
+        // Remove selected users from tokens and authorizations
+        await context.Tokens
+            .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
+            .ExecuteDeleteAsync();
+
+        int unassignedCount = await context.Authorizations
+            .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
+            .ExecuteDeleteAsync();
+
+        string successMessage = $"{unassignedCount} user(s) have been successfully unassigned from the tenant.";
+
+        //TODO: Remove Admins from the list of unassign
+        // if (adminInAssign)
+        // {
+        //     successMessage += " Note: Some users who manage the tenant could not be unassigned.";
+        // }
+
+        return JsonSuccess(successMessage);
+    }
+
     #endregion Actions
+
 }

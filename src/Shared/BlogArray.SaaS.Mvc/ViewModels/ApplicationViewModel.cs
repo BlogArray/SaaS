@@ -3,7 +3,7 @@ using UoN.ExpressiveAnnotations.NetCore.Attributes;
 
 namespace BlogArray.SaaS.Mvc.ViewModels;
 
-public class ApplicationListViewModel
+public class BasicApplicationViewModel
 {
     public string Id { get; set; } = default!;
 
@@ -11,9 +11,12 @@ public class ApplicationListViewModel
 
     public string DisplayName { get; set; } = default!;
 
-    public string Description { get; set; } = default!;
-
     public string Icon { get; set; } = default!;
+}
+
+public class ApplicationListViewModel : BasicApplicationViewModel
+{
+    public string Description { get; set; } = default!;
 }
 
 public class ApplicationViewModel
