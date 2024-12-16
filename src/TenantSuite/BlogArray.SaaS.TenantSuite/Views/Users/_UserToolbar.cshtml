@@ -32,29 +32,29 @@
        Confirm = "Disabling this user will revoke their access to all assigned tenants. Are you sure you want to continue?"
    }, new { @class = "btn btn-outline-secondary", title = "Disable user" })
             }
-            @if (Model.IsEmailPhoneConfirmed)
+            @if (!Model.IsEmailPhoneConfirmed)
             {
-                @Html.AjaxActionLink("Confirm email/phone", "ResetPassword", new { id = Model.Id }, new AjaxOptions
+                @Html.AjaxActionLink("Confirm email/phone", "ConfirmEmailPhone", new { id = Model.Id }, new AjaxOptions
    {
-       UpdateTargetId = "changeUserInfo",
-       OnSuccess = "userEditFormLoaded"
-   }, new { @class = "btn btn-outline-secondary", title = "Reset password" })
+       OnSuccess = "changeState",
+       Confirm = "This will allow them to access the account. Are you sure you want to confirm the user's email and phone number?"
+   }, new { @class = "btn btn-outline-secondary", title = "Mark email and phone as confirmed." })
             }
             @if (Model.LockoutEnabled)
             {
-                @Html.AjaxActionLink("Unlock user", "ResetPassword", new { id = Model.Id }, new AjaxOptions
+                @Html.AjaxActionLink("Unlock user", "UnlockUser", new { id = Model.Id }, new AjaxOptions
    {
-       UpdateTargetId = "changeUserInfo",
-       OnSuccess = "userEditFormLoaded"
-   }, new { @class = "btn btn-outline-secondary", title = "Reset password" })
+       OnSuccess = "changeState",
+       Confirm = "This action will allow the user to log in again. Are you sure you want to unlock this user?"
+   }, new { @class = "btn btn-outline-secondary", title = $"User is currently locked until {Model.LockoutEnd}" })
             }
             else
             {
-                @Html.AjaxActionLink("Lock user", "ResetPassword", new { id = Model.Id }, new AjaxOptions
+                @Html.AjaxActionLink("Lock user", "LockUser", new { id = Model.Id }, new AjaxOptions
    {
        UpdateTargetId = "changeUserInfo",
        OnSuccess = "userEditFormLoaded"
-   }, new { @class = "btn btn-outline-secondary", title = "Reset password" })
+   }, new { @class = "btn btn-outline-secondary", title = "Prevent the user from logging in by locking their account for certain period." })
             }
 
             @Html.AjaxActionLink("Reset password", "ResetPassword", new { id = Model.Id }, new AjaxOptions

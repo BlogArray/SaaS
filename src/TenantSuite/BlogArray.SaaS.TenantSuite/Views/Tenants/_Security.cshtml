@@ -15,11 +15,11 @@
 </p>
 <dl class="row">
     <dt class="col-md-3 fw-medium">Social login @* Users can able to login using social accounts like microsoft, google, etc. *@</dt>
-    <dd class="col-md-9">@Model.IsSocialAuthEnabled</dd>
+    <dd class="col-md-9">@Html.DisplayFor(m => m.IsSocialAuthEnabled, "YesNo")</dd>
     <dt class="col-md-3 fw-medium">Enforce MFA @* Enforce MFA for users for enhanced security *@</dt>
-    <dd class="col-md-9">@Model.IsMfaEnforced</dd>
+    <dd class="col-md-9">@Html.DisplayFor(m => m.IsMfaEnforced, "YesNo")</dd>
     <dt class="col-md-3 fw-medium">Enable SSO using SAML</dt>
-    <dd class="col-md-9">@Model.IsSsoEnabled</dd>
+    <dd class="col-md-9">@Html.DisplayFor(m => m.IsSsoEnabled, "YesNo")</dd>
     @if (Model.IsSsoEnabled)
     {
         <dt class="col-md-3 fw-medium">Sign-in URL</dt>

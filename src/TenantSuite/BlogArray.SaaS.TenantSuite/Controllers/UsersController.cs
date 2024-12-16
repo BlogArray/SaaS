@@ -360,6 +360,78 @@ public class UsersController(OpenIdDbContext context,
         }
     }
 
+    public async Task<IActionResult> ConfirmEmailPhone(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? entity = await userManager.FindByIdAsync(id);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        entity.EmailConfirmed = true;
+        entity.PhoneNumberConfirmed = true;
+        entity.UpdatedOn = DateTime.UtcNow;
+        entity.UpdatedById = LoggedInUserID;
+
+        await context.SaveChangesAsync();
+
+        return JsonSuccess("User information has been successfully saved.");
+    }
+
+    public async Task<IActionResult> UnlockUser(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? entity = await userManager.FindByIdAsync(id);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        entity.LockoutEnabled = false;
+        entity.LockoutEnd = null;
+        entity.UpdatedOn = DateTime.UtcNow;
+        entity.UpdatedById = LoggedInUserID;
+
+        await context.SaveChangesAsync();
+
+        return JsonSuccess("User information has been successfully saved.");
+    }
+
+    public async Task<IActionResult> LockUser(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? entity = await userManager.FindByIdAsync(id);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        entity.LockoutEnabled = true;
+        entity.LockoutEnd = DateTime.UtcNow.AddDays(1);
+        entity.UpdatedOn = DateTime.UtcNow;
+        entity.UpdatedById = LoggedInUserID;
+
+        await context.SaveChangesAsync();
+
+        return JsonSuccess("User information has been successfully saved.");
+    }
+
     public IActionResult IsCurrentuser(string id)
     {
         return Ok(id == LoggedInUserID);

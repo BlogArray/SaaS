@@ -35,34 +35,27 @@
     <dt class="col-md-3 fw-medium">Email</dt>
     <dd class="col-md-9">@Model.Email</dd>
     <dt class="col-md-3 fw-medium">Email confirmed</dt>
-    <dd class="col-md-9">@Model.EmailConfirmed</dd>
+    <dd class="col-md-9">@Html.DisplayFor(m => m.EmailConfirmed, "YesNo")</dd>
     <dt class="col-md-3 fw-medium">Phone number</dt>
     <dd class="col-md-9">@Model.PhoneNumber</dd>
     <dt class="col-md-3 fw-medium">Phone number confirmed</dt>
-    <dd class="col-md-9">@Model.PhoneNumberConfirmed</dd>
+    <dd class="col-md-9">@Html.DisplayFor(m => m.PhoneNumberConfirmed, "YesNo")</dd>
 </dl>
 
 <h6 class="fw-bolder">Account Details</h6>
 <dl class="row">
     <dt class="col-md-3 fw-medium">Account status</dt>
     <dd class="col-md-9">
-        @if (Model.IsActive)
-        {
-            <span>Active</span>
-        }
-        else
-        {
-            <span class="badge text-bg-danger">Disabled</span>
-        }
+        @Html.DisplayFor(m => m.IsActive, "BooleanBadge")
     </dd>
     <dt class="col-md-3 fw-medium">Username</dt>
     <dd class="col-md-9">@Model.UserName</dd>
     <dt class="col-md-3 fw-medium">MFA enabled</dt>
-    <dd class="col-md-9">@Model.TwoFactorEnabled</dd>
+    <dd class="col-md-9">@Html.DisplayFor(m => m.TwoFactorEnabled, "YesNo")</dd>
     <dt class="col-md-3 fw-medium">Access failed count</dt>
     <dd class="col-md-9">@Model.AccessFailedCount</dd>
     <dt class="col-md-3 fw-medium">Lockout enabled</dt>
-    <dd class="col-md-9">@Model.LockoutEnabled</dd>
+    <dd class="col-md-9">@Html.DisplayFor(m => m.LockoutEnabled, "YesNo")</dd>
     @if (Model.LockoutEnabled)
     {
         <dt class="col-md-3 fw-medium">Lockout end</dt>
