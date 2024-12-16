@@ -52,8 +52,8 @@
             {
                 @Html.AjaxActionLink("Lock user", "LockUser", new { id = Model.Id }, new AjaxOptions
    {
-       UpdateTargetId = "changeUserInfo",
-       OnSuccess = "userEditFormLoaded"
+       OnSuccess = "changeState",
+       Confirm = "This action will prevent the user to log in again. Are you sure you want to lock this user?"
    }, new { @class = "btn btn-outline-secondary", title = "Prevent the user from logging in by locking their account for certain period." })
             }
 

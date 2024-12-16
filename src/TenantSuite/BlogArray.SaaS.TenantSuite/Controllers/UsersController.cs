@@ -384,6 +384,56 @@ public class UsersController(OpenIdDbContext context,
         return JsonSuccess("User information has been successfully saved.");
     }
 
+    public async Task<IActionResult> LockUser(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? entity = await userManager.FindByIdAsync(id);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        entity.LockoutEnabled = true;
+        entity.LockoutEnd = DateTime.MaxValue;
+        entity.UpdatedOn = DateTime.UtcNow;
+        entity.UpdatedById = LoggedInUserID;
+
+        await context.SaveChangesAsync();
+
+        return JsonSuccess("The user account is currently locked, preventing any further login attempts until the lock is lifted.");
+    }
+
+    //[HttpPost, ActionName("LockUser")]
+    //[ValidateAntiForgeryToken]
+    //public async Task<IActionResult> LockUserConfirm(string id)
+    //{
+    //    if (id == null)
+    //    {
+    //        return NotFound();
+    //    }
+
+    //    ApplicationUser? entity = await userManager.FindByIdAsync(id);
+
+    //    if (entity is null)
+    //    {
+    //        return NotFound();
+    //    }
+
+    //    entity.LockoutEnabled = true;
+    //    entity.LockoutEnd = DateTime.UtcNow.AddDays(1);
+    //    entity.UpdatedOn = DateTime.UtcNow;
+    //    entity.UpdatedById = LoggedInUserID;
+
+    //    await context.SaveChangesAsync();
+
+    //    return JsonSuccess("User information has been successfully saved.");
+    //}
+
     public async Task<IActionResult> UnlockUser(string id)
     {
         if (id == null)
@@ -404,32 +454,7 @@ public class UsersController(OpenIdDbContext context,
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
-
-        return JsonSuccess("User information has been successfully saved.");
-    }
-
-    public async Task<IActionResult> LockUser(string id)
-    {
-        if (id == null)
-        {
-            return NotFound();
-        }
-
-        ApplicationUser? entity = await userManager.FindByIdAsync(id);
-
-        if (entity is null)
-        {
-            return NotFound();
-        }
-
-        entity.LockoutEnabled = true;
-        entity.LockoutEnd = DateTime.UtcNow.AddDays(1);
-        entity.UpdatedOn = DateTime.UtcNow;
-        entity.UpdatedById = LoggedInUserID;
-
-        await context.SaveChangesAsync();
-
-        return JsonSuccess("User information has been successfully saved.");
+        return JsonSuccess("The user account is now unlocked, allowing the user to log in and access their account without any restrictions.");
     }
 
     public IActionResult IsCurrentuser(string id)
