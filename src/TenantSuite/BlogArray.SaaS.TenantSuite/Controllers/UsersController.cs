@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 using P.Pager;
+using Polly;
 using System.Text;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;
@@ -204,6 +206,107 @@ public class UsersController(OpenIdDbContext context,
         await context.SaveChangesAsync();
 
         return JsonSuccess("User information has been successfully saved.");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Roles(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        bool hasUser = await context.Users.AnyAsync(u => u.Id == id);
+
+        if (!hasUser)
+        {
+            return NotFound();
+        }
+
+        UserRolesViewModel rolesViewModel = new()
+        {
+            UserId = id,
+            Roles = await context.Roles.Where(r => context.UserRoles.Where(ur => ur.UserId == id)
+            .Select(ur => ur.RoleId).Contains(r.Id)).Select(r => new SelectListItem
+            {
+                Text = r.Description,
+                Value = r.Name,
+            }).ToListAsync(),
+        };
+
+        return PartialView("_Roles", rolesViewModel);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> EditRoles(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        bool hasUser = await context.Users.AnyAsync(u => u.Id == id);
+
+        if (!hasUser)
+        {
+            return NotFound();
+        }
+
+        UserRolesViewModel rolesViewModel = new()
+        {
+            UserId = id,
+            RolesSelected = await context.Roles.Where(r => context.UserRoles.Where(ur => ur.UserId == id)
+            .Select(ur => ur.RoleId).Contains(r.Id)).Select(r => r.Name).ToListAsync(),
+            Roles = await context.Roles.Select(r => new SelectListItem
+            {
+                Text = r.Name,
+                Value = r.Name,
+            }).ToListAsync(),
+        };
+
+        return PartialView("_EditRoles", rolesViewModel);
+    }
+
+    [HttpPost, ActionName("EditRoles")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> EditRolesConfirm(UserRolesViewModel assignViewModel)
+    {
+        if (string.IsNullOrEmpty(assignViewModel.UserId))
+        {
+            return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        ApplicationUser? user = await context.Users.FindAsync(assignViewModel.UserId);
+
+        if (user is null)
+        {
+            return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        int unassignedRoles = await context.UserRoles.Where(r => r.UserId == assignViewModel.UserId).ExecuteDeleteAsync();
+
+        if (assignViewModel.RolesSelected is not null && assignViewModel.RolesSelected.Count > 0)
+        {
+            IdentityResult identityResult = await userManager.AddToRolesAsync(user, assignViewModel.RolesSelected);
+
+            if (identityResult.Succeeded)
+            {
+                string successMessage = $"Successfully assigned {assignViewModel.RolesSelected.Count} role(s) to the user.";
+
+                return JsonSuccess(successMessage);
+            }
+            else
+            {
+                return IdentityErrorResult(identityResult.Errors);
+            }
+        }
+
+        if (unassignedRoles > 0)
+        {
+            return JsonSuccess($"Successfully unassigned {unassignedRoles} role(s) to the user.");
+        }
+
+        return JsonError("Please select at least one role to assign.");
     }
 
     #endregion Detais/edit

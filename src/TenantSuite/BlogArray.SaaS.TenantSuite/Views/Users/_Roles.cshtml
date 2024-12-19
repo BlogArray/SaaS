@@ -1,0 +1,28 @@
+﻿@model UserRolesViewModel
+<div class="d-flex align-items-center justify-content-between">
+    <h5 class="mb-0">Assigned roles</h5>
+    <div class="ms-auto">
+        @Html.AjaxActionLink("Edit", "EditRoles", "Users", new { @id = Model.UserId }, new AjaxOptions
+   {
+       UpdateTargetId = "changeUserInfo",
+       OnSuccess = "userEditFormLoaded"
+   }, new { @class = "bi-mr bi bi-pencil btn btn-primary btn-sm" })
+    </div>
+</div>
+<p>
+    Assigned user roles
+</p>
+<dl class="row">
+    @if (Model.Roles?.Count > 0)
+    {
+        @foreach (var role in Model.Roles)
+        {
+            <dt class="col-md-3 fw-medium">@role.Value</dt>
+            <dd class="col-md-9">@role.Text</dd>
+        }
+    }
+    else
+    {
+        <p>No roles assigned.</p>
+    }
+</dl>

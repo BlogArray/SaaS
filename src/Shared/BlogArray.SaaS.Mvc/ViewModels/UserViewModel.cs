@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.AspNetCore.Mvc.Rendering;
+using System.ComponentModel.DataAnnotations;
 using UoN.ExpressiveAnnotations.NetCore.Attributes;
 
 namespace BlogArray.SaaS.Mvc.ViewModels;
@@ -132,4 +133,13 @@ public class UnAssignTenantViewModel : AssignTenantViewModel
 
 public class UnAssignTenantRequestViewModel : AssignTenantRequestViewModel
 {
+}
+
+public class UserRolesViewModel
+{
+    public string UserId { get; set; } = default!;
+
+    public List<string>? RolesSelected { get; set; } = default!;
+
+    public List<SelectListItem>? Roles { get; set; } = default!;
 }

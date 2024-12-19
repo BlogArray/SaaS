@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc.ModelBinding;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Net;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;
@@ -45,6 +46,13 @@ public class BaseController : Controller
     protected IActionResult Exception(HttpStatusCode statusCode)
     {
         throw new Exception(statusCode.ToString());
+    }
+
+    protected IActionResult IdentityErrorResult(IEnumerable<IdentityError> identityErrors)
+    {
+        string errors = string.Join(". ", identityErrors.Select(e => e.Description));
+
+        return JsonError(errors);
     }
 
     protected void AddErrorMessage(string error)

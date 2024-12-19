@@ -1,0 +1,55 @@
+﻿@model UserRolesViewModel
+
+@using (Html.AjaxBeginForm(new AjaxOptions
+ {
+     Url = @Url.ActionLink("EditRoles"),
+     HttpMethod = "post",
+     OnSuccess = "onUserRoleChangeSuccess",
+     OnFailure = "handleAjaxError"
+ }, new { id = "saveUserForm" }))
+{
+    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="userEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="offcanvas-header border-bottom">
+            <h5 id="offcanvasRightLabel">
+                Update roles
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <input asp-for="UserId" type="hidden" />
+            <div class="mb-3">
+                <label asp-for="RolesSelected" class="form-label">Select roles</label>
+                <select multiple class="form-select" asp-for="RolesSelected" asp-items="Model.Roles">
+                </select>
+                <span asp-validation-for="RolesSelected" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="offcanvas-header border-top">
+            <div>
+                <input type="submit" value="Update roles" class="btn btn-primary" />
+                <input type="button" value="Cancel" class="btn btn-secondary" data-bs-dismiss="offcanvas" aria-label="Close" />
+            </div>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+<script>
+    var rolesChoice, timeZoneChoice, localeChoice;
+
+    $(document).ready(function () {
+        Unobtrusive.reInit($("#saveUserForm"));
+
+        rolesChoice = new Choices('#RolesSelected', {
+            searchPlaceholderValue: 'Please search',
+            placeholderValue: 'Please select a role',
+            shouldSort: false,
+            removeItems: true,
+            removeItemButton: true,
+        });
+    });
+</script>
