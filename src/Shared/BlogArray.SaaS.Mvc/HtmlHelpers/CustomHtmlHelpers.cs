@@ -19,12 +19,12 @@ public static class CustomHtmlHelpers
         string url)
     {
         // Create the div element
-        var divBuilder = new TagBuilder("div");
+        TagBuilder divBuilder = new("div");
         divBuilder.Attributes["id"] = divId;
         divBuilder.Attributes["data-url"] = url;
 
         // Create the script element
-        var scriptBuilder = new TagBuilder("script");
+        TagBuilder scriptBuilder = new("script");
         scriptBuilder.MergeAttribute("type", "text/javascript");
 
         scriptBuilder.InnerHtml.AppendHtml($@"
@@ -34,7 +34,7 @@ public static class CustomHtmlHelpers
         ");
 
         // Create a new content builder
-        var contentBuilder = new HtmlContentBuilder();
+        HtmlContentBuilder contentBuilder = new();
 
         // Render div and script into the content builder
         divBuilder.WriteTo(new StringWriter(), HtmlEncoder.Default);

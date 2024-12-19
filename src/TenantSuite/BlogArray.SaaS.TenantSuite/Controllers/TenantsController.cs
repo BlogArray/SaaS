@@ -86,19 +86,16 @@ public class TenantsController(OpenIdDbContext context,
         }
         OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
 
-        if (openIdApplication is null)
-        {
-            return NotFound();
-        }
-
-        return View(new ApplicationListViewModel
-        {
-            Id = id,
-            ClientId = openIdApplication.ClientId,
-            DisplayName = openIdApplication.DisplayName,
-            Icon = openIdApplication.Theme.Favicon,
-            Description = openIdApplication.Description,
-        });
+        return openIdApplication is null
+            ? NotFound()
+            : View(new ApplicationListViewModel
+            {
+                Id = id,
+                ClientId = openIdApplication.ClientId,
+                DisplayName = openIdApplication.DisplayName,
+                Icon = openIdApplication.Theme.Favicon,
+                Description = openIdApplication.Description,
+            });
     }
 
     public async Task<IActionResult> Toolbar(string id)

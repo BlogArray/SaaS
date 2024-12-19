@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 using P.Pager;
-using Polly;
 using System.Text;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;
@@ -301,12 +300,9 @@ public class UsersController(OpenIdDbContext context,
             }
         }
 
-        if (unassignedRoles > 0)
-        {
-            return JsonSuccess($"Successfully unassigned {unassignedRoles} role(s) to the user.");
-        }
-
-        return JsonError("Please select at least one role to assign.");
+        return unassignedRoles > 0
+            ? JsonSuccess($"Successfully unassigned {unassignedRoles} role(s) to the user.")
+            : JsonError("Please select at least one role to assign.");
     }
 
     #endregion Detais/edit
