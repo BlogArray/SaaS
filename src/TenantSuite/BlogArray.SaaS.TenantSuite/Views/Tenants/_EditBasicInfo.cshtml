@@ -48,13 +48,13 @@
                 <span asp-validation-for="Description" class="text-danger"></span>
             </div>
             <div class="mb-3">
-                <label asp-for="RedirectUri" class="form-label">Redirect Uri</label>
-                <input asp-for="RedirectUri" class="form-control" />
+                <label asp-for="RedirectUri" class="form-label">Redirect Uris</label>
+                <input type="text" asp-for="RedirectUri" class="form-control" />
                 <span asp-validation-for="RedirectUri" class="text-danger"></span>
             </div>
             <div class="mb-3">
-                <label asp-for="PostLogoutRedirectUri" class="form-label">Post Logout Redirect Uri</label>
-                <input asp-for="PostLogoutRedirectUri" class="form-control" />
+                <label asp-for="PostLogoutRedirectUri" class="form-label">Post Logout Redirect Uris</label>
+                <input type="text" asp-for="PostLogoutRedirectUri" class="form-control" />
                 <span asp-validation-for="PostLogoutRedirectUri" class="text-danger"></span>
             </div>
             @*  <div class="mb-3">
@@ -78,7 +78,44 @@
 }
 
 <script>
+    var redirectUrlChoice, postLogoutUriChoice;
+
     $(document).ready(function () {
         Unobtrusive.reInit($("#saveTenantForm"));
+
+        redirectUrlChoice = new Choices('#RedirectUri', {
+            placeholderValue: 'Please enter redirect url',
+            allowHTML: true,
+            allowHtmlUserInput:false,
+            editItems: true,
+            duplicateItemsAllowed: false,
+            uniqueItemText: 'Only unique url\'s can be added',
+            customAddItemText: 'Enter valid url',
+            addItemFilter: function(value) {
+            if (!value) {
+              return false;
+            }
+            const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
+            const expression = new RegExp(urlRegex.source, 'i');
+            return expression.test(value);
+          }
+        });
+        postLogoutUriChoice = new Choices('#PostLogoutRedirectUri', {
+            placeholderValue: 'Please enter post logout redirect url',
+            allowHTML: true,
+            allowHtmlUserInput:false,
+            editItems: true,
+            duplicateItemsAllowed: false,
+            uniqueItemText: 'Only unique url\'s can be added',
+            customAddItemText: 'Enter valid url',
+            addItemFilter: function(value) {
+            if (!value) {
+              return false;
+            }
+            const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
+            const expression = new RegExp(urlRegex.source, 'i');
+            return expression.test(value);
+          }
+        });
     });
 </script>

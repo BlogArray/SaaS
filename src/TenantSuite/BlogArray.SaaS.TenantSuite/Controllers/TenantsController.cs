@@ -585,8 +585,8 @@ public class TenantsController(OpenIdDbContext context,
             Website = entity.Website,
             Description = entity.Description,
             //Permissions = entity.Permissions != null ? JsonSerializer.Deserialize<List<string>>(entity.Permissions) : [],
-            RedirectUri = entity.RedirectUris != null ? JsonSerializer.Deserialize<List<string>>(entity.RedirectUris)[0] : "",
-            PostLogoutRedirectUri = entity.PostLogoutRedirectUris != null ? JsonSerializer.Deserialize<List<string>>(entity.PostLogoutRedirectUris)[0] : ""
+            RedirectUri = entity.RedirectUris != null ? string.Join(",", JsonSerializer.Deserialize<string[]>(entity.RedirectUris)) : "",
+            PostLogoutRedirectUri = entity.PostLogoutRedirectUris != null ? string.Join(",", JsonSerializer.Deserialize<string[]>(entity.PostLogoutRedirectUris)) : "",
         };
     }
 
@@ -617,14 +617,8 @@ public class TenantsController(OpenIdDbContext context,
         entity.Permissions = JsonSerializer.Serialize(OpenIdConstants.OpenIdPermissions());
         entity.Requirements = JsonSerializer.Serialize(OpenIdConstants.OpenIdRequirements());
 
-        entity.RedirectUris = JsonSerializer.Serialize(new List<string>
-        {
-            model.RedirectUri
-        });
-        entity.PostLogoutRedirectUris = JsonSerializer.Serialize(new List<string>
-        {
-            model.PostLogoutRedirectUri
-        });
+        entity.RedirectUris = string.IsNullOrEmpty(model.RedirectUri) ? null : JsonSerializer.Serialize(model.RedirectUri.Split(","));
+        entity.PostLogoutRedirectUris = string.IsNullOrEmpty(model.PostLogoutRedirectUri) ? null : JsonSerializer.Serialize(model.PostLogoutRedirectUri.Split(","));
 
         entity.CreatedById = LoggedInUserID;
         entity.CreatedOn = DateTime.UtcNow;
@@ -640,14 +634,8 @@ public class TenantsController(OpenIdDbContext context,
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
         //entity.Permissions = JsonSerializer.Serialize(model.Permissions);
-        entity.RedirectUris = JsonSerializer.Serialize(new List<string>
-        {
-            model.RedirectUri
-        });
-        entity.PostLogoutRedirectUris = JsonSerializer.Serialize(new List<string>
-        {
-            model.PostLogoutRedirectUri
-        });
+        entity.RedirectUris = string.IsNullOrEmpty(model.RedirectUri) ? null : JsonSerializer.Serialize(model.RedirectUri.Split(","));
+        entity.PostLogoutRedirectUris = string.IsNullOrEmpty(model.PostLogoutRedirectUri) ? null : JsonSerializer.Serialize(model.PostLogoutRedirectUri.Split(","));
     }
 
     private void SetOptions()
