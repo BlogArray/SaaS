@@ -77,7 +77,7 @@ public class UserEmailVM
     public string Email { get; set; } = default!;
 }
 
-public class UserInviteEmailVM : UserEmailVM
+public class UserTenantVM : UserEmailVM
 {
     [Required]
     public string Tenant { get; set; } = default!;

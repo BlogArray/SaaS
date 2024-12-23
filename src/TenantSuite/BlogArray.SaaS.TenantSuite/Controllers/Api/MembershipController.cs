@@ -1,5 +1,4 @@
 ﻿using BlogArray.SaaS.Mvc.ActionFilters;
-using BlogArray.SaaS.Mvc.ViewModels;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -19,11 +18,18 @@ public class MembershipController(OpenIdDbContext context,
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
     [HttpPost]
-    public async Task<IActionResult> Invite(UserInviteEmailVM userVM)
+    public async Task<IActionResult> Invite(UserTenantVM userVM)
     {
         if (!ModelState.IsValid)
         {
             return ModelStateError(ModelState);
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.SingleOrDefaultAsync(app => app.ClientId == userVM.Tenant);
+
+        if (openIdApplication is null)
+        {
+            return JsonError($"Tenant with {userVM.Tenant} name is not found in identity server.");
         }
 
         ApplicationUser user = Activator.CreateInstance<ApplicationUser>();
@@ -45,6 +51,8 @@ public class MembershipController(OpenIdDbContext context,
             return ModelStateError(ModelState);
         }
 
+        await AssignUserToTenantAsync(user.Id, openIdApplication);
+
         string code = await userManager.GeneratePasswordResetTokenAsync(user);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
@@ -61,11 +69,18 @@ public class MembershipController(OpenIdDbContext context,
             $"The password setup link has been sent to {userVM.Email}. Please ask them to check their email.");
     }
 
-    public async Task<IActionResult> EnableUser(UserEmailVM userVM)
+    public async Task<IActionResult> AddUserToTenant(UserTenantVM userVM)
     {
         if (!ModelState.IsValid)
         {
             return ModelStateError(ModelState);
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.SingleOrDefaultAsync(app => app.ClientId == userVM.Tenant);
+
+        if (openIdApplication is null)
+        {
+            return JsonError($"Tenant with {userVM.Tenant} name is not found in identity server.");
         }
 
         ApplicationUser? entity = await userManager.FindByEmailAsync(userVM.Email);
@@ -75,20 +90,29 @@ public class MembershipController(OpenIdDbContext context,
             return JsonError($"User with {userVM.Email} email is not found in identity server.");
         }
 
-        entity.IsActive = true;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
+
+        //If user is assigned to multiple tenants providing access to the specific tenant
+        await AssignUserToTenantAsync(entity.Id, openIdApplication);
 
         return JsonSuccess($"User {entity.Email} has been enabled successfully.");
     }
 
-    public async Task<IActionResult> DisableUser(UserEmailVM userVM)
+    public async Task<IActionResult> RemoveUserFromTenant(UserTenantVM userVM)
     {
         if (!ModelState.IsValid)
         {
             return ModelStateError(ModelState);
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.SingleOrDefaultAsync(app => app.ClientId == userVM.Tenant);
+
+        if (openIdApplication is null)
+        {
+            return JsonError($"Tenant with {userVM.Tenant} name is not found in identity server.");
         }
 
         ApplicationUser? entity = await userManager.FindByEmailAsync(userVM.Email);
@@ -97,14 +121,48 @@ public class MembershipController(OpenIdDbContext context,
         {
             return JsonError($"User with {userVM.Email} email is not found in identity server.");
         }
-        //TODO: If user is tenant admin, restrict
-        entity.IsActive = false;
+
+        //entity.IsActive = false;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
 
+        //If user is assigned to multiple tenants removing access to the specific tenant
+        await UnassignUserToTenantAsync(entity.Id, openIdApplication.Id);
+
         return JsonSuccess($"User {entity.Email} has been disabled successfully.");
+    }
+
+    private async Task AssignUserToTenantAsync(string userId, OpenIdApplication application)
+    {
+        bool hasAccess = await context.Authorizations.Where(a => a.Subject == userId && a.Application.Id == application.Id).AnyAsync();
+
+        if (!hasAccess)
+        {
+            OpenIdAuthorization auth = new()
+            {
+                Application = application,
+                CreationDate = DateTime.UtcNow,
+                Status = "valid",
+                Subject = userId,
+                Scopes = "[\"openid\",\"email\",\"profile\",\"roles\"]",
+                Type = "permanent"
+            };
+
+            await authorizationManager.CreateAsync(auth);
+        }
+    }
+
+    private async Task UnassignUserToTenantAsync(string userId, string appId)
+    {
+        await context.Tokens
+            .Where(a => a.Application.Id == appId && a.Subject == userId)
+            .ExecuteDeleteAsync();
+
+        await context.Authorizations
+            .Where(a => a.Application.Id == appId && a.Subject == userId)
+            .ExecuteDeleteAsync();
     }
 
 }
