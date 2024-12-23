@@ -6,9 +6,8 @@ namespace BlogArray.SaaS.OpenId.Entities;
 
 public class ApplicationUser : IdentityUser
 {
-    [Required]
     [StringLength(128)]
-    public string FirstName { get; set; } = default!;
+    public string? FirstName { get; set; } = default!;
 
     [StringLength(128)]
     public string? LastName { get; set; } = default!;

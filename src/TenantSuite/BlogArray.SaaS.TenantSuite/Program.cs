@@ -1,3 +1,4 @@
+using BlogArray.SaaS.Mvc.ActionFilters;
 using BlogArray.SaaS.Mvc.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -108,6 +109,11 @@ builder.Services.AddAuthentication(o =>
 builder.AddIdentityCore();
 
 builder.Services.AddHttpClient();
+
+builder.Services.AddScoped(container =>
+{
+    return new ClientIpCheckActionFilter(Configuration["IPSafeList"]);
+});
 
 WebApplication app = builder.Build();
 

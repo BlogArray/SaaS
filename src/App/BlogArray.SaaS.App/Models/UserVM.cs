@@ -2,7 +2,7 @@
 
 namespace BlogArray.SaaS.App.Models;
 
-public class UserVM
+public class UserVM : CreateUserVM
 {
     [Key]
     public long Id { get; set; }
@@ -10,23 +10,18 @@ public class UserVM
     //[Required]
     //public string Name { get; set; } = default!;
 
-    [Required]
-    public string Email { get; set; } = default!;
-
     //[Required]
     //public string Username { get; set; } = default!;
-
-    public bool IsActive { get; set; } = true;
 }
 
-public class CreateUserVM
+public class CreateUserVM : UserEmailVM
 {
     //[Required]
     //public string Name { get; set; } = default!;
 
-    [Required]
-    [DataType(DataType.EmailAddress)]
-    public string Email { get; set; } = default!;
+    //[Required]
+    //[DataType(DataType.EmailAddress)]
+    //public string Email { get; set; } = default!;
 
     public bool IsActive { get; set; } = true;
 }

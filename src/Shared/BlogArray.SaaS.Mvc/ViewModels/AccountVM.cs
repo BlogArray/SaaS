@@ -69,3 +69,16 @@ public class AppUserBaseVM
     public string? LocaleCode { get; set; } = default!;
 
 }
+
+public class UserEmailVM
+{
+    [Required]
+    [DataType(DataType.EmailAddress)]
+    public string Email { get; set; } = default!;
+}
+
+public class UserInviteEmailVM : UserEmailVM
+{
+    [Required]
+    public string Tenant { get; set; } = default!;
+}

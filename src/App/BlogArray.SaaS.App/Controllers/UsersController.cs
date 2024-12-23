@@ -32,7 +32,7 @@ public class UsersController(SaasAppDbContext context) : Controller
             return View(userVM);
         }
 
-        if (await context.AppPersonnels.AnyAsync(s => s.Email == userVM.Email || s.Email == userVM.Email))
+        if (await context.AppPersonnels.AnyAsync(s => s.Email == userVM.Email))
         {
             ModelState.AddModelError("Email", "Email already exists.");
             return View(userVM);

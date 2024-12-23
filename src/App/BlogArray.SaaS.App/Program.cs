@@ -1,4 +1,5 @@
 using AspNetCore.Unobtrusive.Ajax;
+using BlogArray.SaaS.Mvc.ActionFilters;
 using BlogArray.SaaS.Mvc.Extensions;
 using BlogArray.SaaS.TenantStore.App;
 using Finbuckle.MultiTenant;
@@ -15,6 +16,11 @@ builder.Services.AddOpenIdContext(connectionString);
 builder.Services.AddDbContext<SaasAppDbContext>();
 
 builder.AddTenantStore();
+
+builder.Services.AddScoped(container =>
+{
+    return new ClientIpCheckActionFilter(Configuration["IPSafeList"]);
+});
 
 WebApplication app = builder.Build();
 

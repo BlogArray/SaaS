@@ -1,4 +1,5 @@
 using BlogArray.SaaS.Identity.HostedServices;
+using BlogArray.SaaS.Mvc.ActionFilters;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Serilog;
 
@@ -24,6 +25,11 @@ builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Settings");
 }).AddRazorRuntimeCompilation();
+
+builder.Services.AddScoped(container =>
+{
+    return new ClientIpCheckActionFilter(Configuration["IPSafeList"]);
+});
 
 AuthenticationBuilder authBuilder = builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme);
 
