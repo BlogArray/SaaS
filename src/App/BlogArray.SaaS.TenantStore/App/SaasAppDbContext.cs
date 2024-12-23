@@ -8,7 +8,7 @@ public class SaasAppDbContext(IMultiTenantContextAccessor<AppTenantInfo> multiTe
 {
     private AppTenantInfo TenantInfo { get; set; } = multiTenantContextAccessor.MultiTenantContext.TenantInfo;
 
-    public DbSet<SaasAppUser> AppUsers { get; set; } = default!;
+    public DbSet<AppPersonnel> AppPersonnels { get; set; } = default!;
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {

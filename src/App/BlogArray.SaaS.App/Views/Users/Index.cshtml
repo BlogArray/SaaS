@@ -13,10 +13,10 @@
     <thead>
         <tr>
             <th>
-                @Html.DisplayNameFor(model => model.Email)
+                Email
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Username)
+                Active
             </th>
         </tr>
     </thead>
@@ -28,7 +28,16 @@
                     @Html.DisplayFor(modelItem => item.Email)
                 </td>
                 <td>
-                    @Html.DisplayFor(modelItem => item.Username)
+                    @if (item.IsActive)
+                    {
+                        @:Yes
+                        <a asp-action="DeActivate" asp-route-id="@item.Id">Disable user</a>
+                    }
+                    else
+                    {
+                        @:No
+                        <a asp-action="Activate" asp-route-id="@item.Id">Activate user</a>
+                    }
                 </td>
             </tr>
         }

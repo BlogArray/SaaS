@@ -70,7 +70,7 @@ public static class ConfigureTenantStoreServices
                    if (identity != null && !identity.IsAuthenticated)
                    {
                        context?.HandleResponse();
-                       context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=User details not found in BlogArray. Please contact your administrator if the issue persists.");
+                       context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=Unable to retrive the User details. Please contact your administrator if the issue persists.");
                    }
                    else
                    {
@@ -79,12 +79,12 @@ public static class ConfigureTenantStoreServices
                        if (string.IsNullOrEmpty(email))
                        {
                            context?.HandleResponse();
-                           context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=User details not found in BlogArray. Please contact your administrator if the issue persists.");
+                           context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=Unable to retrive the user email. Please contact your administrator if the issue persists.");
                        }
 
-                       SaasAppUser? appuser = dbContext.AppUsers.SingleOrDefault(s => s.Email == email);
+                       AppPersonnel? appuser = dbContext.AppPersonnels.SingleOrDefault(s => s.Email == email);
 
-                       if (appuser is null)
+                       if (appuser is null || appuser.IsActive is false)
                        {
                            context?.HandleResponse();
                            context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=User details not found in BlogArray. Please contact your administrator if the issue persists.");

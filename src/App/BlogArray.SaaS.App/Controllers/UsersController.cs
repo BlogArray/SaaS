@@ -10,11 +10,11 @@ public class UsersController(SaasAppDbContext context) : Controller
 {
     public async Task<IActionResult> Index()
     {
-        List<UserVM> users = await context.AppUsers.Select(s => new UserVM
+        List<UserVM> users = await context.AppPersonnels.Select(s => new UserVM
         {
             Id = s.Id,
             Email = s.Email,
-            Username = s.Username
+            IsActive = s.IsActive
         }).ToListAsync();
         return View(users);
     }
@@ -32,18 +32,41 @@ public class UsersController(SaasAppDbContext context) : Controller
             return View(userVM);
         }
 
-        if (await context.AppUsers.AnyAsync(s => s.Username == userVM.Email || s.Email == userVM.Email))
+        if (await context.AppPersonnels.AnyAsync(s => s.Email == userVM.Email || s.Email == userVM.Email))
         {
             ModelState.AddModelError("Email", "Email already exists.");
             return View(userVM);
         }
 
-        await context.AppUsers.AddAsync(new SaasAppUser
+        await context.AppPersonnels.AddAsync(new AppPersonnel
         {
             Email = userVM.Email,
-            Username = userVM.Email
+            IsActive = userVM.IsActive
         });
         await context.SaveChangesAsync();
+        return RedirectToAction("Index");
+    }
+
+
+    public async Task<IActionResult> DeActivate(long id)
+    {
+        var user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);
+        if (user is not null)
+        {
+            user.IsActive = false;
+            await context.SaveChangesAsync();
+        }
+        return RedirectToAction("Index");
+    }
+
+    public async Task<IActionResult> Activate(long id)
+    {
+        var user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);
+        if (user is not null)
+        {
+            user.IsActive = true;
+            await context.SaveChangesAsync();
+        }
         return RedirectToAction("Index");
     }
 }

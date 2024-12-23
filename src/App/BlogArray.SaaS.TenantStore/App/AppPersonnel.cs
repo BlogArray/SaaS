@@ -2,7 +2,7 @@
 
 namespace BlogArray.SaaS.TenantStore.App;
 
-public class SaasAppUser
+public class AppPersonnel
 {
     [Key]
     public long Id { get; set; }
@@ -13,6 +13,8 @@ public class SaasAppUser
     [Required]
     public string Email { get; set; } = default!;
 
-    [Required]
-    public string Username { get; set; } = default!;
+    //[Required]
+    //public string Username { get; set; } = default!;
+
+    public bool IsActive { get; set; } = true;
 }

@@ -13,8 +13,10 @@ public class UserVM
     [Required]
     public string Email { get; set; } = default!;
 
-    [Required]
-    public string Username { get; set; } = default!;
+    //[Required]
+    //public string Username { get; set; } = default!;
+
+    public bool IsActive { get; set; } = true;
 }
 
 public class CreateUserVM
@@ -25,4 +27,6 @@ public class CreateUserVM
     [Required]
     [DataType(DataType.EmailAddress)]
     public string Email { get; set; } = default!;
+
+    public bool IsActive { get; set; } = true;
 }
