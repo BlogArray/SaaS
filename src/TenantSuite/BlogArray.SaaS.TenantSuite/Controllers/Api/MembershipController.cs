@@ -17,7 +17,7 @@ public class MembershipController(OpenIdDbContext context,
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
-    [HttpPost]
+    [HttpPost("invite")]
     public async Task<IActionResult> Invite(UserTenantVM userVM)
     {
         if (!ModelState.IsValid)
@@ -69,6 +69,7 @@ public class MembershipController(OpenIdDbContext context,
             $"The password setup link has been sent to {userVM.Email}. Please ask them to check their email.");
     }
 
+    [HttpPost("addusertotenant")]
     public async Task<IActionResult> AddUserToTenant(UserTenantVM userVM)
     {
         if (!ModelState.IsValid)
@@ -101,6 +102,7 @@ public class MembershipController(OpenIdDbContext context,
         return JsonSuccess($"User {entity.Email} has been enabled successfully.");
     }
 
+    [HttpPost("removeusertotenant")]
     public async Task<IActionResult> RemoveUserFromTenant(UserTenantVM userVM)
     {
         if (!ModelState.IsValid)

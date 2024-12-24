@@ -3,9 +3,15 @@ using BlogArray.SaaS.Mvc.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Serilog;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Host.UseSerilog((context, services, configuration) => configuration
+                .ReadFrom.Configuration(context.Configuration)
+                .ReadFrom.Services(services)
+                .Enrich.FromLogContext());
 
 ConfigurationManager Configuration = builder.Configuration;
 
@@ -116,6 +122,8 @@ builder.Services.AddScoped(container =>
 });
 
 WebApplication app = builder.Build();
+
+app.UseSerilogRequestLogging();
 
 app.MapControllerRoute(
     name: "default",

@@ -1,12 +1,16 @@
-﻿using BlogArray.SaaS.App.Models;
+﻿using BlogArray.SaaS.App.Interfaces;
+using BlogArray.SaaS.App.Models;
 using BlogArray.SaaS.TenantStore.App;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Refit;
+
 
 namespace BlogArray.SaaS.App.Controllers;
 
-[Authorize]
-public class UsersController(SaasAppDbContext context) : Controller
+[Microsoft.AspNetCore.Authorization.Authorize]
+public class UsersController(SaasAppDbContext context,
+     IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor,
+     IMembershipClient membershipClient, ILogger<UsersController> logger) : Controller
 {
     public async Task<IActionResult> Index()
     {
@@ -55,6 +59,18 @@ public class UsersController(SaasAppDbContext context) : Controller
         {
             user.IsActive = false;
             await context.SaveChangesAsync();
+            try
+            {
+                await membershipClient.RemoveUserFromTenant(new UserTenantVM
+                {
+                    Email = user.Email,
+                    Tenant = multiTenantContextAccessor.MultiTenantContext.TenantInfo.Identifier
+                });
+            }
+            catch (ApiException apiException)
+            {
+                logger.LogError("The API returned an exception with status code {0} with content {1}", apiException.StatusCode, apiException.Content);
+            }
         }
         return RedirectToAction("Index");
     }
@@ -66,6 +82,19 @@ public class UsersController(SaasAppDbContext context) : Controller
         {
             user.IsActive = true;
             await context.SaveChangesAsync();
+
+            try
+            {
+                await membershipClient.AddUserToTenant(new UserTenantVM
+                {
+                    Email = user.Email,
+                    Tenant = multiTenantContextAccessor.MultiTenantContext.TenantInfo.Identifier
+                });
+            }
+            catch (ApiException apiException)
+            {
+                logger.LogError("The API returned an exception with status code {0} with content {1}", apiException.StatusCode, apiException.Content);
+            }
         }
         return RedirectToAction("Index");
     }
