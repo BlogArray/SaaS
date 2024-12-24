@@ -65,7 +65,7 @@ public class MembershipController(OpenIdDbContext context,
         emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl);
 
         //TODO: Invitation
-        return Ok($"User with email {userVM.Email} is successfully created." +
+        return JsonSuccess($"User with email {userVM.Email} is successfully created." +
             $"The password setup link has been sent to {userVM.Email}. Please ask them to check their email.");
     }
 

@@ -48,6 +48,20 @@ public class UsersController(SaasAppDbContext context,
             IsActive = userVM.IsActive
         });
         await context.SaveChangesAsync();
+
+        try
+        {
+            await membershipClient.Invite(new UserTenantVM
+            {
+                Email = userVM.Email,
+                Tenant = multiTenantContextAccessor.MultiTenantContext.TenantInfo.Identifier
+            });
+        }
+        catch (ApiException apiException)
+        {
+            logger.LogError("The API returned an exception with status code {0} with content {1}", apiException.StatusCode, apiException.Content);
+        }
+
         return RedirectToAction("Index");
     }
 
