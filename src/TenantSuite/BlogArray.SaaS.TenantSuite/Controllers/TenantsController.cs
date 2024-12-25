@@ -1,9 +1,11 @@
 ﻿using BlogArray.SaaS.Mvc;
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 using P.Pager;
+using System.Data;
 using System.Text.Json;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -462,6 +464,13 @@ public class TenantsController(OpenIdDbContext context,
 
                 await authorizationManager.CreateAsync(auth);
             }
+
+            string? email = await context.Authorizations.Where(a => a.Subject == id && a.Application.Id == assignViewModel.ApplicationId).Select(s => s.SubjectUser.Email).FirstOrDefaultAsync();
+
+            if (email is not null && openIdApplication.ConnectionString is not null)
+            {
+                await EnablePersonnelInTenantAsync(email, openIdApplication.ConnectionString);
+            }
         }
 
         return JsonSuccess(successMessage);
@@ -529,12 +538,20 @@ public class TenantsController(OpenIdDbContext context,
             .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
             .ExecuteDeleteAsync();
 
+        var emails = await context.Authorizations
+            .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
+            .Select(s => s.SubjectUser.Email).ToArrayAsync();
+
         int unassignedCount = await context.Authorizations
             .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
             .ExecuteDeleteAsync();
 
         string successMessage = $"{unassignedCount} user(s) have been successfully unassigned from the tenant.";
 
+        if (!string.IsNullOrEmpty(openIdApplication.ConnectionString) && emails.Length > 0)
+        {
+            await DisablePersonnelsInTenantAsync(emails, openIdApplication.ConnectionString);
+        }
         //TODO: Remove Admins from the list of unassign
         // if (adminInAssign)
         // {
@@ -658,6 +675,68 @@ public class TenantsController(OpenIdDbContext context,
         catch (Exception)
         {
             return false; // General issue (e.g., invalid string format)
+        }
+    }
+
+    /// <summary>
+    /// Disable multiple Personnels in a tenant by marking them inactive.
+    /// </summary>
+    /// <param name="emails">Array of emails of Personnels to disable.</param>
+    /// <param name="connectionString">Database connection string.</param>
+    private static async Task DisablePersonnelsInTenantAsync(string[] emails, string connectionString)
+    {
+        if (emails != null && emails.Length > 0)
+        {
+            const string query = @"UPDATE AppPersonnels 
+                           SET IsActive = @IsActive 
+                           WHERE Email IN @Emails";
+
+            var parameters = new
+            {
+                IsActive = false,
+                Emails = emails
+            };
+
+            using IDbConnection? connection = DapperContext.CreateConnection(connectionString);
+
+            await connection.ExecuteAsync(query, parameters);
+        }
+    }
+
+    /// <summary>
+    /// Create/Enable Personnel in a tenant
+    /// </summary>
+    /// <param name="emails">Email of Personnel to enable/create.</param>
+    /// <param name="connectionString">Database connection string.</param>
+    private static async Task EnablePersonnelInTenantAsync(string email, string connectionString)
+    {
+        if (string.IsNullOrEmpty(email)) return;
+
+        const string checkQuery = @"SELECT COUNT(1) 
+                                FROM AppPersonnels 
+                                WHERE Email = @Email";
+
+        const string updateQuery = @"UPDATE AppPersonnels 
+                                 SET IsActive = @IsActive 
+                                 WHERE Email = @Email";
+
+        const string insertQuery = @"INSERT INTO AppPersonnels (Email, IsActive) 
+                                 VALUES (@Email, @IsActive)";
+
+        using IDbConnection connection = DapperContext.CreateConnection(connectionString);
+
+        // Check if the user exists
+        var userExists = await connection.ExecuteScalarAsync<int>(checkQuery, new { Email = email });
+
+        if (userExists > 0)
+        {
+            // Update existing user to enable them
+            await connection.ExecuteAsync(updateQuery, new { Email = email, IsActive = true });
+        }
+        else
+        {
+            // Create a new user and mark them as enabled
+            await connection.ExecuteAsync(insertQuery, new { Email = email, IsActive = true });
         }
     }
 
