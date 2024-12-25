@@ -714,12 +714,12 @@ public class UsersController(OpenIdDbContext context,
             .ExecuteDeleteAsync();
 
         string? email = await context.Users.Where(a => a.Id == unAssignViewModel.UserId).Select(s => s.Email).FirstOrDefaultAsync();
-        
+
         if (!string.IsNullOrEmpty(email) && connections.Length > 0)
         {
             await DisablePersonnelInTenantsAsync(connections, email);
         }
-        
+
         string successMessage = $"{unassignedCount} tenant(s) have been successfully unassigned from the user.";
 
         //TODO: Remove Admins from the list of unassign
