@@ -708,7 +708,7 @@ public class TenantsController(OpenIdDbContext context,
     /// </summary>
     /// <param name="emails">Email of Personnel to enable/create.</param>
     /// <param name="connectionString">Database connection string.</param>
-    private static async Task EnablePersonnelInTenantAsync(string email, string connectionString)
+    public static async Task EnablePersonnelInTenantAsync(string email, string connectionString)
     {
         if (string.IsNullOrEmpty(email)) return;
 

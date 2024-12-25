@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using Dapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 using P.Pager;
+using System.Data;
 using System.Text;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;
@@ -629,6 +631,13 @@ public class UsersController(OpenIdDbContext context,
                 };
 
                 await authorizationManager.CreateAsync(auth);
+
+                string? email = await context.Authorizations.Where(a => a.Subject == assignViewModel.UserId && a.Application.Id == id).Select(s => s.SubjectUser.Email).FirstOrDefaultAsync();
+
+                if (email is not null && openIdApplication.ConnectionString is not null)
+                {
+                    await TenantsController.EnablePersonnelInTenantAsync(email, openIdApplication.ConnectionString);
+                }
             }
         }
 
@@ -696,10 +705,21 @@ public class UsersController(OpenIdDbContext context,
             .Where(a => unAssignViewModel.Tenants.Contains(a.Application.Id) && a.Subject == unAssignViewModel.UserId)
             .ExecuteDeleteAsync();
 
+        var connections = await context.Applications
+            .Where(s => s.ConnectionString != "" && s.ConnectionString != null && unAssignViewModel.Tenants.Contains(s.Id))
+            .Select(s => s.ConnectionString).ToArrayAsync();
+
         int unassignedCount = await context.Authorizations
             .Where(a => unAssignViewModel.Tenants.Contains(a.Application.Id) && a.Subject == unAssignViewModel.UserId)
             .ExecuteDeleteAsync();
 
+        string? email = await context.Users.Where(a => a.Id == unAssignViewModel.UserId).Select(s => s.Email).FirstOrDefaultAsync();
+        
+        if (!string.IsNullOrEmpty(email) && connections.Length > 0)
+        {
+            await DisablePersonnelInTenantsAsync(connections, email);
+        }
+        
         string successMessage = $"{unassignedCount} tenant(s) have been successfully unassigned from the user.";
 
         //TODO: Remove Admins from the list of unassign
@@ -712,5 +732,39 @@ public class UsersController(OpenIdDbContext context,
     }
 
     #endregion Actions
+
+    #region Private
+
+    /// <summary>
+    /// Disable a user in multiple tenants.
+    /// </summary>
+    /// <param name="connectionStrings">Array of database connection strings for tenants.</param>
+    /// <param name="email">Email of the user to disable.</param>
+    private static async Task DisablePersonnelInTenantsAsync(string[] connectionStrings, string email)
+    {
+        if (connectionStrings != null && connectionStrings.Length > 0)
+        {
+            var parameters = new
+            {
+                IsActive = false,
+                Email = email
+            };
+
+            const string query = @"UPDATE AppPersonnels 
+                           SET IsActive = @IsActive 
+                           WHERE Email = @Email";
+
+            var tasks = connectionStrings.Select(async connectionString =>
+            {
+                using IDbConnection connection = DapperContext.CreateConnection(connectionString);
+                await connection.ExecuteAsync(query, parameters);
+            });
+
+            await Task.WhenAll(tasks);
+        }
+    }
+
+
+    #endregion Private
 
 }
