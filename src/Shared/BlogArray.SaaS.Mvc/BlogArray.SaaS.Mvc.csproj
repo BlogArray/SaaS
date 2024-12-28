@@ -23,7 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Identity\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
+    <ProjectReference Include="..\..\Core\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
   </ItemGroup>
 
 </Project>

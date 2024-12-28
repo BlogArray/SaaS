@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Identity\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
+    <ProjectReference Include="..\..\Core\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
     <ProjectReference Include="..\..\Shared\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
   </ItemGroup>
 </Project>
