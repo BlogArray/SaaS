@@ -64,8 +64,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Shared\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
-    <ProjectReference Include="..\..\Shared\BlogArray.SaaS.Resources\BlogArray.SaaS.Resources.csproj" />
+    <ProjectReference Include="..\..\Core\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
+    <ProjectReference Include="..\..\Core\BlogArray.SaaS.Resources\BlogArray.SaaS.Resources.csproj" />
     <ProjectReference Include="..\..\Core\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
   </ItemGroup>
 
