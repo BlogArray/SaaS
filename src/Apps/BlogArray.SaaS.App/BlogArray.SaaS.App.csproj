@@ -24,21 +24,6 @@
     <ProjectReference Include="..\..\Core\BlogArray.SaaS.TenantStore\BlogArray.SaaS.TenantStore.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Content Update="Views\Error\AccessDenied.cshtml">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Content Update="Views\Error\Index.cshtml">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-    <Content Update="Views\Error\NotFound.cshtml">
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </Content>
-  </ItemGroup>
-
   <Target Name="CopySystemSecurityCryptographyPkcs" AfterTargets="Build">
     <Copy SourceFiles="$(PkgSystem_Security_Cryptography_Pkcs)\lib\net9.0\System.Security.Cryptography.Pkcs.dll" DestinationFolder="$(OutDir)" />
   </Target>

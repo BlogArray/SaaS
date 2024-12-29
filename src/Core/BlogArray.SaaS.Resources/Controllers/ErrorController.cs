@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
-namespace BlogArray.SaaS.TenantSuite.Controllers;
+namespace BlogArray.SaaS.Resources.Controllers;
 
 [AllowAnonymous]
 public class ErrorController : Controller

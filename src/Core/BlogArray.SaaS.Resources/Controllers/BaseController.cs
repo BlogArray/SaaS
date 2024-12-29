@@ -1,14 +1,18 @@
-﻿using Microsoft.AspNetCore.Mvc.ModelBinding;
+﻿using BlogArray.SaaS.Mvc.Services;
+using BlogArray.SaaS.Mvc.ViewModels;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using System.Net;
+using System.Security.Claims;
 
-namespace BlogArray.SaaS.Identity.Controllers;
+namespace BlogArray.SaaS.Resources.Controllers;
 
 public class BaseController : Controller
 {
-    public string LoggedInUserID => Converter.ToString(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value);
+    public string? LoggedInUserID => User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value;
 
-    public string LoggedInUserEmail => Converter.ToString(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value);
-
+    public string? LoggedInUserEmail => User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
 
     protected IActionResult JsonError(dynamic message)
     {
@@ -62,4 +66,12 @@ public class BaseController : Controller
         TempData["AlertMessage"] = error;
         TempData["AlertType"] = type;
     }
+
+    protected IActionResult IdentityErrorResult(IEnumerable<IdentityError> identityErrors)
+    {
+        string errors = string.Join(". ", identityErrors.Select(e => e.Description));
+
+        return JsonError(errors);
+    }
+
 }
