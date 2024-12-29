@@ -46,7 +46,7 @@ public class BaseController : Controller
         return Ok(returnResult);
     }
 
-    protected IActionResult Exception(HttpStatusCode statusCode)
+    protected static IActionResult Exception(HttpStatusCode statusCode)
     {
         throw new Exception(statusCode.ToString());
     }

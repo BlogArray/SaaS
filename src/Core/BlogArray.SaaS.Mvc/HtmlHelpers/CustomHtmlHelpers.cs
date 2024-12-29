@@ -9,12 +9,12 @@ public static class CustomHtmlHelpers
     /// <summary>
     /// Generates a div and jQuery script to dynamically load content from a specified URL
     /// </summary>
-    /// <param name="htmlHelper">The HTML helper</param>
+    /// <param name="_">The HTML helper</param>
     /// <param name="divId">Optional custom div ID (defaults to a generated GUID)</param>
     /// <param name="url">The URL to load content from</param>
     /// <returns>An HTML string with the content loading script</returns>
     public static IHtmlContent DynamicContentLoader(
-        this IHtmlHelper htmlHelper,
+        this IHtmlHelper _,
         string divId,
         string url)
     {

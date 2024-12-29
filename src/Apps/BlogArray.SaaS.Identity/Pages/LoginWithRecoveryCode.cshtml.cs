@@ -4,21 +4,10 @@
 
 namespace BlogArray.SaaS.Identity.Pages
 {
-    public class LoginWithRecoveryCodeModel : PageModel
+    public class LoginWithRecoveryCodeModel(
+        SignInManagerExtension<ApplicationUser> signInManager,
+        ILogger<LoginWithRecoveryCodeModel> logger) : PageModel
     {
-        private readonly SignInManagerExtension<ApplicationUser> _signInManager;
-        private readonly UserManager<ApplicationUser> _userManager;
-        private readonly ILogger<LoginWithRecoveryCodeModel> _logger;
-
-        public LoginWithRecoveryCodeModel(
-            SignInManagerExtension<ApplicationUser> signInManager,
-            UserManager<ApplicationUser> userManager,
-            ILogger<LoginWithRecoveryCodeModel> logger)
-        {
-            _signInManager = signInManager;
-            _userManager = userManager;
-            _logger = logger;
-        }
 
         /// <summary>
         ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -53,7 +42,7 @@ namespace BlogArray.SaaS.Identity.Pages
         public async Task<IActionResult> OnGetAsync(string next)
         {
             // Ensure the user has gone through the username & password screen first
-            ApplicationUser user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+            ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
 
             if (user == null)
             {
@@ -72,7 +61,7 @@ namespace BlogArray.SaaS.Identity.Pages
                 return Page();
             }
 
-            ApplicationUser user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+            ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
 
             if (user == null)
             {
@@ -90,23 +79,23 @@ namespace BlogArray.SaaS.Identity.Pages
                 new Claim("Locale", user.LocaleCode),
             ];
 
-            Microsoft.AspNetCore.Identity.SignInResult result = await _signInManager.TwoFactorRecoveryCodeSignInAsync(recoveryCode, customClaims);
+            Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorRecoveryCodeSignInAsync(recoveryCode, customClaims);
 
             //var userId = await _userManager.GetUserIdAsync(user);
 
             if (result.Succeeded)
             {
-                _logger.LogInformation("User with ID '{UserId}' logged in with a recovery code.", user.Id);
+                logger.LogInformation("User with ID '{UserId}' logged in with a recovery code.", user.Id);
                 return LocalRedirect(next ?? Url.Content("~/"));
             }
             if (result.IsLockedOut)
             {
-                _logger.LogWarning("User account locked out.");
+                logger.LogWarning("User account locked out.");
                 return RedirectToPage("./Lockout");
             }
             else
             {
-                _logger.LogWarning("Invalid recovery code entered for user with ID '{UserId}' ", user.Id);
+                logger.LogWarning("Invalid recovery code entered for user with ID '{UserId}' ", user.Id);
                 ModelState.AddModelError(string.Empty, "You entered an incorrect recovery code.");
                 return Page();
             }

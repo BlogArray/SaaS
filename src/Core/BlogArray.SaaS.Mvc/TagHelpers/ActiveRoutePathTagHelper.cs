@@ -10,18 +10,15 @@ namespace BlogArray.SaaS.Mvc.TagHelpers;
 /// Sets an link active or not
 /// </summary>
 [HtmlTargetElement(Attributes = "active-path")]
-public class ActiveRoutePathTagHelper : AnchorTagHelper
+public class ActiveRoutePathTagHelper(IHtmlGenerator generator) : AnchorTagHelper(generator)
 {
-    public ActiveRoutePathTagHelper(IHtmlGenerator generator) : base(generator)
-    {
-    }
 
     /// <summary>
     /// Active class by default its active
     /// </summary>
     public string ActiveClass { get; set; } = "active";
 
-    public string Href { get; set; }
+    //public string Href { get; set; }
 
     public override void Process(TagHelperContext context, TagHelperOutput output)
     {

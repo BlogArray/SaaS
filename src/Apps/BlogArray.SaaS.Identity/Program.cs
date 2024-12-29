@@ -10,7 +10,7 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
                 .ReadFrom.Services(services)
                 .Enrich.FromLogContext());
 
-IConfiguration Configuration = builder.Configuration;
+ConfigurationManager Configuration = builder.Configuration;
 
 builder.AddBlogArrayServices();
 

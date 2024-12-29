@@ -61,7 +61,7 @@ public class PersonnelsController(SaasAppDbContext context,
         catch (ApiException apiException)
         {
             AddErrorMessage($"Unable to invite personnel with email {userVM.Email}.");
-            logger.LogError("The API returned an exception with status code {0} with content {1}", apiException.StatusCode, apiException.Content);
+            logger.LogError("The API returned an exception with status code {StatusCode} with content {Content}", apiException.StatusCode, apiException.Content);
         }
 
         return RedirectToAction("Index");
@@ -87,7 +87,7 @@ public class PersonnelsController(SaasAppDbContext context,
             catch (ApiException apiException)
             {
                 AddErrorMessage($"Unable to deactivate personnel with email {user.Email}.");
-                logger.LogError("The API returned an exception with status code {0} with content {1}", apiException.StatusCode, apiException.Content);
+                logger.LogError("The API returned an exception with status code {StatusCode} with content {Content}", apiException.StatusCode, apiException.Content);
             }
         }
         return RedirectToAction("Index");
@@ -112,7 +112,7 @@ public class PersonnelsController(SaasAppDbContext context,
             catch (ApiException apiException)
             {
                 AddErrorMessage($"Unable to activate personnel with email {user.Email}.");
-                logger.LogError("The API returned an exception with status code {0} with content {1}", apiException.StatusCode, apiException.Content);
+                logger.LogError("The API returned an exception with status code {StatusCode} with content {Content}", apiException.StatusCode, apiException.Content);
             }
         }
         return RedirectToAction("Index");

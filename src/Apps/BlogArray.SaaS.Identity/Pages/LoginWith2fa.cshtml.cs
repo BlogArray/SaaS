@@ -4,18 +4,10 @@
 
 namespace BlogArray.SaaS.Identity.Pages
 {
-    public class LoginWith2faModel : PageModel
+    public class LoginWith2faModel(
+        SignInManagerExtension<ApplicationUser> signInManager,
+        ILogger<LoginWith2faModel> logger) : PageModel
     {
-        private readonly SignInManagerExtension<ApplicationUser> _signInManager;
-        private readonly ILogger<LoginWith2faModel> _logger;
-
-        public LoginWith2faModel(
-            SignInManagerExtension<ApplicationUser> signInManager,
-            ILogger<LoginWith2faModel> logger)
-        {
-            _signInManager = signInManager;
-            _logger = logger;
-        }
 
         /// <summary>
         ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -63,7 +55,7 @@ namespace BlogArray.SaaS.Identity.Pages
         public async Task<IActionResult> OnGetAsync(string next)
         {
             // Ensure the user has gone through the username & password screen first
-            ApplicationUser user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+            ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
 
             if (user == null)
             {
@@ -85,7 +77,7 @@ namespace BlogArray.SaaS.Identity.Pages
 
             next ??= Url.Content("~/");
 
-            ApplicationUser user = await _signInManager.GetTwoFactorAuthenticationUserAsync();
+            ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
 
             if (user == null)
             {
@@ -104,23 +96,23 @@ namespace BlogArray.SaaS.Identity.Pages
                 new Claim("Locale", user.LocaleCode),
             ];
 
-            Microsoft.AspNetCore.Identity.SignInResult result = await _signInManager.TwoFactorAuthenticatorSignInAsync(authenticatorCode, true, Input.RememberMachine, customClaims);
+            Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorAuthenticatorSignInAsync(authenticatorCode, true, Input.RememberMachine, customClaims);
 
             //var userId = await _userManager.GetUserIdAsync(user);
 
             if (result.Succeeded)
             {
-                _logger.LogInformation("User with ID '{UserId}' logged in with 2fa.", user.Id);
+                logger.LogInformation("User with ID '{UserId}' logged in with 2fa.", user.Id);
                 return LocalRedirect(next);
             }
             else if (result.IsLockedOut)
             {
-                _logger.LogWarning("User with ID '{UserId}' account locked out.", user.Id);
+                logger.LogWarning("User with ID '{UserId}' account locked out.", user.Id);
                 return RedirectToPage("./Lockout");
             }
             else
             {
-                _logger.LogWarning("Invalid authenticator code entered for user with ID '{UserId}'.", user.Id);
+                logger.LogWarning("Invalid authenticator code entered for user with ID '{UserId}'.", user.Id);
                 ModelState.AddModelError(string.Empty, "You entered an incorrect Authenticator code.");
                 return Page();
             }

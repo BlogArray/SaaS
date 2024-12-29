@@ -41,17 +41,17 @@ public class ActiveClassTagHelper(IHtmlGenerator generator) : AnchorTagHelper(ge
         string currentController = routeData["controller"] as string ?? "";
         string currentAction = routeData["action"] as string ?? "";
 
-        if (!string.IsNullOrWhiteSpace(Area) && Area.ToLower() != currentArea.ToLower())
+        if (!string.IsNullOrWhiteSpace(Area) && !Area.Equals(currentArea, StringComparison.CurrentCultureIgnoreCase))
         {
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(Controller) && Controller.ToLower() != currentController.ToLower())
+        if (!string.IsNullOrWhiteSpace(Controller) && !Controller.Equals(currentController, StringComparison.CurrentCultureIgnoreCase))
         {
             return false;
         }
 
-        if (!string.IsNullOrWhiteSpace(Action) && Action.ToLower() != currentAction.ToLower())
+        if (!string.IsNullOrWhiteSpace(Action) && !Action.Equals(currentAction, StringComparison.CurrentCultureIgnoreCase))
         {
             return false;
         }

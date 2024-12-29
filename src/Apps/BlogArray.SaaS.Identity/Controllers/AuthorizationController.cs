@@ -328,15 +328,8 @@ public class AuthorizeViewModel
     public string Scope { get; set; }
 }
 
-public sealed class FormValueRequiredAttribute : ActionMethodSelectorAttribute
+public sealed class FormValueRequiredAttribute(string name) : ActionMethodSelectorAttribute
 {
-    private readonly string _name;
-
-    public FormValueRequiredAttribute(string name)
-    {
-        _name = name;
-    }
-
     public override bool IsValidForRequest(RouteContext context, ActionDescriptor action)
     {
         return string.Equals(context.HttpContext.Request.Method, "GET", StringComparison.OrdinalIgnoreCase) ||
@@ -348,7 +341,7 @@ public sealed class FormValueRequiredAttribute : ActionMethodSelectorAttribute
             ? false
             : !context.HttpContext.Request.ContentType.StartsWith("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase)
             ? false
-            : !string.IsNullOrEmpty(context.HttpContext.Request.Form[_name]);
+            : !string.IsNullOrEmpty(context.HttpContext.Request.Form[name]);
     }
 }
 
@@ -360,7 +353,7 @@ public static class AsyncEnumerableExtensions
 
         async Task<List<T>> ExecuteAsync()
         {
-            List<T> list = new();
+            List<T> list = [];
 
             await foreach (T? element in source)
             {
