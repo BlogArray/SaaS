@@ -1,4 +1,5 @@
-﻿using Dapper;
+﻿using BlogArray.SaaS.Mvc.Extensions;
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -15,7 +16,9 @@ namespace BlogArray.SaaS.TenantSuite.Controllers;
 public class UsersController(OpenIdDbContext context,
     IUserStore<ApplicationUser> userStore,
     UserManager<ApplicationUser> userManager,
-    OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager, IEmailTemplate emailTemplate) : BaseController
+    OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
+    IEmailTemplate emailTemplate,
+    IConfiguration configuration) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -88,11 +91,7 @@ public class UsersController(OpenIdDbContext context,
         string code = await userManager.GeneratePasswordResetTokenAsync(user);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-        string callbackUrl = Url.Page(
-            "/ResetPassword",
-            pageHandler: null,
-            values: new { code },
-            protocol: Request.Scheme);
+        string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
         AddSuccessMessage($"User with email {createUserViewModel.Email} is successfully created. " +
             $"The password setup link has been sent to {createUserViewModel.Email}. Please ask them to check their email.");
@@ -451,11 +450,7 @@ public class UsersController(OpenIdDbContext context,
             string code = await userManager.GeneratePasswordResetTokenAsync(entity);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-            string callbackUrl = Url.Page(
-                "/ResetPassword",
-                pageHandler: null,
-                values: new { code },
-                protocol: Request.Scheme);
+            string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
             emailTemplate.ForgotPassword(entity.Email, entity.DisplayName, callbackUrl);
 
@@ -705,7 +700,7 @@ public class UsersController(OpenIdDbContext context,
             .Where(a => unAssignViewModel.Tenants.Contains(a.Application.Id) && a.Subject == unAssignViewModel.UserId)
             .ExecuteDeleteAsync();
 
-        var connections = await context.Applications
+        string?[] connections = await context.Applications
             .Where(s => s.ConnectionString != "" && s.ConnectionString != null && unAssignViewModel.Tenants.Contains(s.Id))
             .Select(s => s.ConnectionString).ToArrayAsync();
 
@@ -754,7 +749,7 @@ public class UsersController(OpenIdDbContext context,
                            SET IsActive = @IsActive 
                            WHERE Email = @Email";
 
-            var tasks = connectionStrings.Select(async connectionString =>
+            IEnumerable<Task> tasks = connectionStrings.Select(async connectionString =>
             {
                 using IDbConnection connection = DapperContext.CreateConnection(connectionString);
                 await connection.ExecuteAsync(query, parameters);

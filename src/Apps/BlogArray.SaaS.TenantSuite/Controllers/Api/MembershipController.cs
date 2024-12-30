@@ -1,4 +1,5 @@
 ﻿using BlogArray.SaaS.Mvc.ActionFilters;
+using BlogArray.SaaS.Mvc.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,9 @@ namespace BlogArray.SaaS.TenantSuite.Controllers.Api;
 public class MembershipController(OpenIdDbContext context,
     IUserStore<ApplicationUser> userStore,
     UserManager<ApplicationUser> userManager,
-    OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager, IEmailTemplate emailTemplate) : BaseController
+    OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
+    IEmailTemplate emailTemplate,
+    IConfiguration configuration) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -56,11 +59,7 @@ public class MembershipController(OpenIdDbContext context,
         string code = await userManager.GeneratePasswordResetTokenAsync(user);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-        string callbackUrl = Url.Page(
-            "/ResetPassword",
-        pageHandler: null,
-        values: new { code },
-        protocol: Request.Scheme);
+        string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
         emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl);
 

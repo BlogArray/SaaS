@@ -7,7 +7,8 @@ using System.Text;
 
 namespace BlogArray.SaaS.Identity.Pages
 {
-    public class ForgotPasswordModel(UserManager<ApplicationUser> userManager, IEmailTemplate emailTemplate) : PageModel
+    public class ForgotPasswordModel(UserManager<ApplicationUser> userManager,
+        IEmailTemplate emailTemplate, IConfiguration configuration) : PageModel
     {
 
         /// <summary>
@@ -47,13 +48,10 @@ namespace BlogArray.SaaS.Identity.Pages
                 // For more information on how to enable account confirmation and password reset please
                 // visit https://go.microsoft.com/fwlink/?LinkID=532713
                 string code = await userManager.GeneratePasswordResetTokenAsync(user);
+
                 code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-                string callbackUrl = Url.Page(
-                    "/ResetPassword",
-                    pageHandler: null,
-                    values: new { code },
-                    protocol: Request.Scheme);
+                string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
                 emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl);
 

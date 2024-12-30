@@ -69,7 +69,7 @@ public class PersonnelsController(SaasAppDbContext context,
 
     public async Task<IActionResult> DeActivate(long id)
     {
-        var user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);
+        AppPersonnel? user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);
         if (user is not null)
         {
             try
@@ -95,7 +95,7 @@ public class PersonnelsController(SaasAppDbContext context,
 
     public async Task<IActionResult> Activate(long id)
     {
-        var user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);
+        AppPersonnel? user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);
         if (user is not null)
         {
             try

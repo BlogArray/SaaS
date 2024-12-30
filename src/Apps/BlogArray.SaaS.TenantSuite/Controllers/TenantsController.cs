@@ -538,7 +538,7 @@ public class TenantsController(OpenIdDbContext context,
             .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
             .ExecuteDeleteAsync();
 
-        var emails = await context.Authorizations
+        string?[] emails = await context.Authorizations
             .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
             .Select(s => s.SubjectUser.Email).ToArrayAsync();
 
@@ -726,7 +726,7 @@ public class TenantsController(OpenIdDbContext context,
         using IDbConnection connection = DapperContext.CreateConnection(connectionString);
 
         // Check if the user exists
-        var userExists = await connection.ExecuteScalarAsync<int>(checkQuery, new { Email = email });
+        int userExists = await connection.ExecuteScalarAsync<int>(checkQuery, new { Email = email });
 
         if (userExists > 0)
         {

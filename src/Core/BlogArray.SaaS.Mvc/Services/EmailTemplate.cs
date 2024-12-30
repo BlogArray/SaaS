@@ -76,7 +76,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     {
         string template = $"Hey {name}!{newLine}" +
             $"This is to inform you that the password for your App account has been successfully changed on {DateTime.UtcNow} UTC.{newLine}" +
-            $"If you did not initiate this change, please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "account/forgotpassword"), "Reset Password Link")}. " +
+            $"If you did not initiate this change, please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")}. " +
             $"We also recommend reviewing your account for any unauthorized activity.{newLine}" +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"Thank you for choosing App.";
