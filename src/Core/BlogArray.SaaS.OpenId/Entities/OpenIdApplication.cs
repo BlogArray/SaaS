@@ -48,6 +48,13 @@ public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string
     public string? Website { get; set; } = default!;
 
     /// <summary>
+    /// App tenant base url
+    /// eg., www.example.com/[clientId]
+    /// </summary>
+    [StringLength(512)]
+    public string? TenantUrl { get; set; } = default!;
+
+    /// <summary>
     /// App description
     /// </summary>
     [StringLength(512)]

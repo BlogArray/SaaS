@@ -33,7 +33,7 @@
                 <label asp-for="ConnectionString" class="form-label">Connection string</label>
                 <textarea asp-for="ConnectionString" aria-describedby="secretCS" class="form-control"></textarea>
                 <div id="secretCS" class="form-text">
-                    The connection string to your database instance, e.g. Server=localhost;Database=Orchard;User Id=username;Password=password.
+                    The connection string to your database instance, e.g. Server=localhost;Database=[db_name];User Id=username;Password=password.
                 </div>
                 <span asp-validation-for="ConnectionString" class="text-danger"></span>
             </div>

@@ -617,6 +617,7 @@ public class TenantsController(OpenIdDbContext context,
         entity.ClientSecretPlain = model.ClientSecret;
         entity.ConnectionString = model.ConnectionString;
         entity.APIKey = model.APIKey;
+        entity.TenantUrl = model.TenantUrl;
         entity.Theme = new ThemeConfiguration
         {
             Logo = BlogArrayConstants.DefaultLogoUrl,

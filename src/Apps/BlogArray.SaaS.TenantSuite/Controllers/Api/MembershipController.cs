@@ -39,6 +39,8 @@ public class MembershipController(OpenIdDbContext context,
 
         user.DisplayName = userVM.Email;
         user.ProfileImage = "/_content/BlogArray.SaaS.Resources/resources/images/user-icon.webp";
+        user.CreatedOn = DateTime.UtcNow;
+        user.CreatedById = LoggedInUserID;
 
         await userStore.SetUserNameAsync(user, userVM.Email, CancellationToken.None);
         await emailStore.SetEmailAsync(user, userVM.Email, CancellationToken.None);
@@ -61,7 +63,7 @@ public class MembershipController(OpenIdDbContext context,
 
         string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
-        emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl);
+        emailTemplate.Invite(user.Email, user.DisplayName, callbackUrl, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
 
         //TODO: Invitation
         return JsonSuccess($"User with email {userVM.Email} is successfully created." +

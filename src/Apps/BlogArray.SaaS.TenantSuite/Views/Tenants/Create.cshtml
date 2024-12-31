@@ -35,9 +35,17 @@
                 <label asp-for="ClientId" class="form-label">Client Id (Tenant id)</label>
                 <input asp-for="ClientId" class="form-control" />
                 <div class="form-text">
-                    Client Id is used to determine tenant. Example: If Client Id is "site1", the tenant URL prefix is "https://orchardcore.net/site1".
+                    Client Id is used to determine tenant. Example: If Client Id is "site1", the tenant URL prefix is "https://example.com/site1".
                 </div>
                 <span asp-validation-for="ClientId" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="TenantUrl" class="form-label">Tenant Url</label>
+                <input asp-for="TenantUrl" class="form-control" placeholder="https://example.com/site1" />
+                <div class="form-text">
+                    Example: If Client Id is "site1", then enter tenant URL as "https://example.com/site1".
+                </div>
+                <span asp-validation-for="TenantUrl" class="text-danger"></span>
             </div>
             <div class="mb-3">
                 <label asp-for="ClientSecret" class="form-label">Client Secret</label>
@@ -75,7 +83,7 @@
                 <label asp-for="ConnectionString" class="form-label">Connection string</label>
                 <textarea asp-for="ConnectionString" aria-describedby="secretCS" class="form-control"></textarea>
                 <div id="secretCS" class="form-text">
-                    The connection string to your database instance, e.g. Server=localhost;Database=Orchard;User Id=username;Password=password.
+                    The connection string to your database instance, e.g. Server=localhost;Database=[db_name];User Id=username;Password=password.
                 </div>
                 <span asp-validation-for="ConnectionString" class="text-danger"></span>
             </div>
