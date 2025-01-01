@@ -35,43 +35,49 @@ public class MembershipController(OpenIdDbContext context,
             return JsonError($"Tenant with {userVM.Tenant} name is not found in identity server.");
         }
 
-        ApplicationUser user = Activator.CreateInstance<ApplicationUser>();
+        bool newUser = false;
+        ApplicationUser? user = await userManager.FindByEmailAsync(userVM.Email);
 
-        user.DisplayName = userVM.Email;
-        user.ProfileImage = "/_content/BlogArray.SaaS.Resources/resources/images/user-icon.webp";
-        user.CreatedOn = DateTime.UtcNow;
-        user.CreatedById = LoggedInUserID;
-
-        await userStore.SetUserNameAsync(user, userVM.Email, CancellationToken.None);
-        await emailStore.SetEmailAsync(user, userVM.Email, CancellationToken.None);
-
-        IdentityResult result = await userManager.CreateAsync(user);
-
-        if (!result.Succeeded)
+        if (user is null)
         {
-            foreach (IdentityError error in result.Errors)
+            newUser = true;
+            user = Activator.CreateInstance<ApplicationUser>();
+
+            user.DisplayName = userVM.Email;
+            user.ProfileImage = "/_content/BlogArray.SaaS.Resources/resources/images/user-icon.webp";
+            user.CreatedOn = DateTime.UtcNow;
+            user.CreatedById = LoggedInUserID;
+
+            await userStore.SetUserNameAsync(user, userVM.Email, CancellationToken.None);
+            await emailStore.SetEmailAsync(user, userVM.Email, CancellationToken.None);
+
+            IdentityResult result = await userManager.CreateAsync(user);
+
+            if (!result.Succeeded)
             {
-                ModelState.AddModelError(string.Empty, error.Description);
+                foreach (IdentityError error in result.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error.Description);
+                }
+                return ModelStateError(ModelState);
             }
-            return ModelStateError(ModelState);
         }
 
-        bool hasAccess = await context.Authorizations.Where(a => a.Subject == user.Id && a.Application.Id == openIdApplication.Id).AnyAsync();
+        await AssignUserToTenantAsync(user.Id, openIdApplication);
 
-        if (hasAccess)
+        if (newUser)
         {
-            emailTemplate.Invite(user.Email, user.DisplayName, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
-        }
-        else
-        {
-            await AssignUserToTenantAsync(user.Id, openIdApplication);
-
             string code = await userManager.GeneratePasswordResetTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
             string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
             emailTemplate.InviteWithPasswordLink(user.Email, user.DisplayName, callbackUrl, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
+        }
+        else
+        {
+
+            emailTemplate.Invite(user.Email, user.DisplayName, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
         }
 
         return JsonSuccess($"User with email {userVM.Email} is successfully created." +

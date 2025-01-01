@@ -134,12 +134,12 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     public void InviteWithPasswordLink(string toEmail, string name, string callbackUrl, string org, string orgUrl, string invitedBy)
     {
         string template = $"Hey {name}!{newLine}" +
-            $"{invitedBy} has invited you to join {org} on App." +
+            $"You are invited to join {org} on App. " +
             $"To get started, please set up your account by creating a password using the link below:" +
             $"{MakeLinkButton(callbackUrl, "Change password")}" +
             $"If you’ve already set a password, you can log in directly to your account here:" +
             $"{MakeLinkButton(orgUrl, "Login")}" +
-            $"Once inside, you’ll gain access to your organization’s resources." +
+            $"Once inside, you’ll gain access to your organization’s resources. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"We’re excited to have you on board!";
 
@@ -151,10 +151,10 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     public void Invite(string toEmail, string name, string org, string orgUrl, string invitedBy)
     {
         string template = $"Hey {name}!{newLine}" +
-            $"{invitedBy} has invited you to join {org} on App." +
+            $"You are invited to join {org} on App. " +
             $"You can log in directly to your account here:" +
             $"{MakeLinkButton(orgUrl, "Login")}" +
-            $"Once inside, you’ll gain access to your organization’s resources." +
+            $"Once inside, you’ll gain access to your organization’s resources. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"We’re excited to have you on board!";
 
