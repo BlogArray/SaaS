@@ -44,6 +44,15 @@ public class ApplicationViewModel
     //public List<string> Permissions { get; set; } = [];
 
     public string? ConnectionString { get; set; } = default!;
+
+    /// <summary>
+    /// App tenant base url
+    /// eg., www.example.com/[clientId]
+    /// </summary>
+    [StringLength(512)]
+    [DataType(DataType.Url)]
+    [Required(AllowEmptyStrings = false)]
+    public string? TenantUrl { get; set; } = default!;
 }
 
 public class EditApplicationViewModel : ApplicationViewModel

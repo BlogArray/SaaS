@@ -18,6 +18,10 @@
     <dd class="col-md-9">@Model.Legalname</dd>
     <dt class="col-md-3 fw-medium">Display name</dt>
     <dd class="col-md-9">@Model.DisplayName</dd>
+    <dt class="col-md-3 fw-medium">Tenant url</dt>
+    <dd class="col-md-9">
+        <a href="@Model.TenantUrl" target="_blank">@Model.TenantUrl<i class="bi bi-box-arrow-up-right ms-2"></i></a>
+    </dd>
     <dt class="col-md-3 fw-medium">Connection string</dt>
     <dd class="col-md-9">
         @if (Model.ConnectionString?.Length > 0)

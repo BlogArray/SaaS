@@ -56,16 +56,24 @@ public class MembershipController(OpenIdDbContext context,
             return ModelStateError(ModelState);
         }
 
-        await AssignUserToTenantAsync(user.Id, openIdApplication);
+        bool hasAccess = await context.Authorizations.Where(a => a.Subject == user.Id && a.Application.Id == openIdApplication.Id).AnyAsync();
 
-        string code = await userManager.GeneratePasswordResetTokenAsync(user);
-        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+        if (hasAccess)
+        {
+            emailTemplate.Invite(user.Email, user.DisplayName, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
+        }
+        else
+        {
+            await AssignUserToTenantAsync(user.Id, openIdApplication);
 
-        string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
+            string code = await userManager.GeneratePasswordResetTokenAsync(user);
+            code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-        emailTemplate.Invite(user.Email, user.DisplayName, callbackUrl, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
+            string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
-        //TODO: Invitation
+            emailTemplate.InviteWithPasswordLink(user.Email, user.DisplayName, callbackUrl, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
+        }
+
         return JsonSuccess($"User with email {userVM.Email} is successfully created." +
             $"The password setup link has been sent to {userVM.Email}. Please ask them to check their email.");
     }
