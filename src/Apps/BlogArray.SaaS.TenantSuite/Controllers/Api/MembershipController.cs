@@ -70,7 +70,7 @@ public class MembershipController(OpenIdDbContext context,
             string code = await userManager.GeneratePasswordResetTokenAsync(user);
             code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
 
-            string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
+            string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code, tenant = openIdApplication.ClientId });
 
             emailTemplate.InviteWithPasswordLink(user.Email, user.DisplayName, callbackUrl, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
         }
