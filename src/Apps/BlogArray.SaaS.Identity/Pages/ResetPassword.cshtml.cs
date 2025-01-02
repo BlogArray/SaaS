@@ -93,6 +93,8 @@ namespace BlogArray.SaaS.Identity.Pages
 
             if (result.Succeeded)
             {
+                //TODO: Check for tenant and login
+
                 emailTemplate.PasswordChangeSuccessed(user.Email, user.DisplayName);
 
                 return RedirectToPage("./ResetPasswordConfirmation");
