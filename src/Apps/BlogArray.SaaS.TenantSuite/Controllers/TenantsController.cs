@@ -74,9 +74,9 @@ public class TenantsController(OpenIdDbContext context,
         MapProperties(openIdApplication, entity);
 
         await manager.CreateAsync(entity, openIdApplication.ClientSecret);
-        
+
         await AddToCache(entity);
-        
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -765,7 +765,7 @@ public class TenantsController(OpenIdDbContext context,
         string key = $"__tenant__id__{openIdApplication.Id}";
         string identifierKey = $"__tenant__identifier__{openIdApplication.ClientId}";
 
-        var tenentInfo = new AppTenantInfo
+        AppTenantInfo tenentInfo = new()
         {
             Id = openIdApplication.Id,
             Identifier = openIdApplication.ClientId,
