@@ -9,7 +9,7 @@ public static class OpenIdConstants
         return
         [
             Permissions.Endpoints.Authorization,
-            Permissions.Endpoints.Logout,
+            Permissions.Endpoints.EndSession,
             Permissions.Endpoints.Token,
 
             Permissions.GrantTypes.AuthorizationCode,

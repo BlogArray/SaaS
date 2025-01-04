@@ -56,7 +56,7 @@ public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedServic
                     {
                         Permissions.Endpoints.Authorization,
                         Permissions.Endpoints.Token,
-                        Permissions.Endpoints.Logout,
+                        Permissions.Endpoints.EndSession,
 
                         Permissions.GrantTypes.AuthorizationCode,
                         Permissions.GrantTypes.RefreshToken,

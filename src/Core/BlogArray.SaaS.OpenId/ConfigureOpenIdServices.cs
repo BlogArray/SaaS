@@ -46,17 +46,17 @@ public static class ConfigureOpenIdServices
                           // Register the ASP.NET Core host and configure the ASP.NET Core-specific options.
                           options.UseAspNetCore()
                              .EnableAuthorizationEndpointPassthrough()
-                             .EnableLogoutEndpointPassthrough()
+                             .EnableEndSessionEndpointPassthrough()
                              .EnableTokenEndpointPassthrough()
-                             .EnableUserinfoEndpointPassthrough()
+                             .EnableUserInfoEndpointPassthrough()
                              //.EnableErrorPassthrough()
                              .EnableStatusCodePagesIntegration();
 
                           options
                             .SetAuthorizationEndpointUris("/connect/authorize")
-                            .SetLogoutEndpointUris("/connect/logout")
+                            .SetEndSessionEndpointUris("/connect/logout")
                             .SetTokenEndpointUris("/connect/token")
-                            .SetUserinfoEndpointUris("/connect/userinfo");
+                            .SetUserInfoEndpointUris("/connect/userinfo");
 
                           if (isProduction)
                           {

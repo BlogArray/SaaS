@@ -36,13 +36,13 @@ public class AuthorizationController(
         // For scenarios where the default authentication handler configured in the ASP.NET Core
         // authentication options shouldn't be used, a specific scheme can be specified here.
         AuthenticateResult result = await HttpContext.AuthenticateAsync();
-        if (result == null || !result.Succeeded || request.HasPrompt(Prompts.Login) ||
+        if (result == null || !result.Succeeded || request.HasPromptValue(PromptValues.Login) ||
            (request.MaxAge != null && result.Properties?.IssuedUtc != null &&
             DateTimeOffset.UtcNow - result.Properties.IssuedUtc > TimeSpan.FromSeconds(request.MaxAge.Value)))
         {
             // If the client application requested promptless authentication,
             // return an error indicating that the user is not logged in.
-            if (request.HasPrompt(Prompts.None))
+            if (request.HasPromptValue(PromptValues.None))
             {
                 return Forbid(
                     authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
@@ -55,7 +55,7 @@ public class AuthorizationController(
 
             // To avoid endless login -> authorization redirects, the prompt=login flag
             // is removed from the authorization request payload before redirecting the user.
-            string prompt = string.Join(" ", request.GetPrompts().Remove(Prompts.Login));
+            string prompt = string.Join(" ", request.GetPromptValues().Remove(PromptValues.Login));
 
             List<KeyValuePair<string, StringValues>> parameters = Request.HasFormContentType ?
                 Request.Form.Where(parameter => parameter.Key != Parameters.Prompt).ToList() :
