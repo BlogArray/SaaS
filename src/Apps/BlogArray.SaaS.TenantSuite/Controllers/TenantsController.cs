@@ -7,6 +7,7 @@ using OpenIddict.Core;
 using P.Pager;
 using System.Data;
 using System.Text.Json;
+using static Dapper.SqlMapper;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;
@@ -14,7 +15,8 @@ namespace BlogArray.SaaS.TenantSuite.Controllers;
 [Authorize(Roles = "Superuser")]
 public class TenantsController(OpenIdDbContext context,
     OpenIddictApplicationManager<OpenIdApplication> manager,
-    OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager, IAzureStorageService azureStorage) : BaseController
+    OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
+    IAzureStorageService azureStorage, ICacheService cacheService) : BaseController
 {
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
@@ -72,7 +74,9 @@ public class TenantsController(OpenIdDbContext context,
         MapProperties(openIdApplication, entity);
 
         await manager.CreateAsync(entity, openIdApplication.ClientSecret);
-
+        
+        await AddToCache(entity);
+        
         return RedirectToAction(nameof(Index));
     }
 
@@ -164,6 +168,8 @@ public class TenantsController(OpenIdDbContext context,
 
         await manager.UpdateAsync(entity);
 
+        await AddToCache(entity);
+
         return JsonSuccess("Tenant information updated successfuly");
     }
 
@@ -228,6 +234,8 @@ public class TenantsController(OpenIdDbContext context,
         entity.Theme.PrimaryColor = themeViewModel.PrimaryColor;
 
         await manager.UpdateAsync(entity);
+
+        await AddToCache(entity);
 
         return JsonSuccess("Tenant theme information updated successfuly");
     }
@@ -311,6 +319,8 @@ public class TenantsController(OpenIdDbContext context,
 
         await manager.UpdateAsync(entity);
 
+        await AddToCache(entity);
+
         return JsonSuccess("Tenant security information updated successfuly");
     }
 
@@ -359,6 +369,8 @@ public class TenantsController(OpenIdDbContext context,
 
         await manager.UpdateAsync(openIdApplication);
 
+        await AddToCache(openIdApplication);
+
         return result.Status ? JsonSuccess(result.Result) : JsonError("An error occurred while saving your information.");
     }
 
@@ -395,6 +407,8 @@ public class TenantsController(OpenIdDbContext context,
             openIdApplication.APIKey = rotateKeys.Key;
             await manager.UpdateAsync(openIdApplication);
         }
+
+        await AddToCache(openIdApplication);
 
         return PartialView("_RotateKeys", rotateKeys);
     }
@@ -743,4 +757,33 @@ public class TenantsController(OpenIdDbContext context,
     }
 
     #endregion Private
+
+    #region Cache
+
+    public async Task AddToCache(OpenIdApplication openIdApplication)
+    {
+        string key = $"__tenant__id__{openIdApplication.Id}";
+        string identifierKey = $"__tenant__identifier__{openIdApplication.ClientId}";
+
+        var tenentInfo = new AppTenantInfo
+        {
+            Id = openIdApplication.Id,
+            Identifier = openIdApplication.ClientId,
+            Name = openIdApplication.DisplayName,
+            Legalname = openIdApplication.Legalname,
+            ConnectionString = openIdApplication.ConnectionString,
+            Website = openIdApplication.Website,
+            Favicon = openIdApplication.Theme.Favicon,
+            Logo = openIdApplication.Theme.Logo,
+            PrimaryColor = openIdApplication.Theme.PrimaryColor,
+            APIKey = openIdApplication.APIKey,
+            ClientSecretPlain = openIdApplication.ClientSecretPlain
+        };
+
+        await cacheService.SetAsync(key, tenentInfo);
+        await cacheService.SetAsync(identifierKey, tenentInfo);
+    }
+
+    #endregion Cache
+
 }

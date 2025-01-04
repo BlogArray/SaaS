@@ -14,7 +14,15 @@ ConfigurationManager Configuration = builder.Configuration;
 
 builder.AddBlogArrayServices();
 
-string? connectionString = Configuration.GetConnectionString("AppContext");
+builder.AddBlogArrayCacheServices();
+
+string? connectionString = Configuration.GetConnectionString("IdentityContext");
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("No connection string was provided.");
+}
+
 string? issuer = Configuration.GetValue<string>("Links:Issuer");
 
 builder.AddOpenIdServer(issuer, connectionString);

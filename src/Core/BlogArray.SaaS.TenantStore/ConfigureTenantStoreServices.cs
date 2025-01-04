@@ -1,6 +1,6 @@
 ﻿using BlogArray.SaaS.Mvc.Extensions;
+using BlogArray.SaaS.Mvc.ViewModels;
 using BlogArray.SaaS.TenantStore.App;
-using BlogArray.SaaS.TenantStore.Entities;
 using Finbuckle.MultiTenant;
 using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.AspNetCore.Authentication;
@@ -147,7 +147,7 @@ public static class ConfigureTenantStoreServices
         builder.Services.AddMultiTenant<AppTenantInfo>()
             .WithRouteStrategy()
             .WithRemoteAuthenticationCallbackStrategy()
-            .WithEFCoreStore<TenantStoreDbContext, AppTenantInfo>()
+            .WithDistributedCacheStore(TimeSpan.FromMinutes(5))
             .WithPerTenantAuthentication();
 
         builder.Services.ConfigurePerTenant<CookieAuthenticationOptions, AppTenantInfo>(CookieAuthenticationDefaults.AuthenticationScheme, (options, tenantInfo) =>

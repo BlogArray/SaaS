@@ -1,4 +1,4 @@
-﻿using BlogArray.SaaS.TenantStore.Entities;
+﻿using BlogArray.SaaS.Mvc.ViewModels;
 using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.EntityFrameworkCore;
 

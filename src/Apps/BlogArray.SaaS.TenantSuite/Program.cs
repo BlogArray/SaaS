@@ -15,9 +15,16 @@ builder.Host.UseSerilog((context, services, configuration) => configuration
 
 ConfigurationManager Configuration = builder.Configuration;
 
-string? connectionString = Configuration.GetConnectionString("AppContext");
+string? connectionString = Configuration.GetConnectionString("IdentityContext");
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException("No connection string was provided.");
+}
 
 builder.AddBlogArrayServices();
+
+builder.AddBlogArrayCacheServices();
 
 builder.AddOpenIdCore(connectionString);
 

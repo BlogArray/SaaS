@@ -55,6 +55,7 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddSingleton<IEmailTemplate, EmailTemplate>();
         builder.Services.AddSingleton<IEmailHelper, EmailHelper>();
         builder.Services.AddSingleton<IAzureStorageService, AzureStorageService>();
+        builder.Services.AddSingleton<ICacheService, CacheService>();
 
         builder.Services.AddCors(options =>
         {
@@ -69,6 +70,42 @@ public static class ConfigureBlogArrayServices
         });
 
         builder.Services.Configure<SmtpConfiguration>(builder.Configuration.GetSection("SMTP"));
+
+        return builder;
+    }
+
+    public static IHostApplicationBuilder AddBlogArrayCacheServices(this IHostApplicationBuilder builder)
+    {
+        builder.Services.Configure<CacheConfiguration>(builder.Configuration.GetSection("Cache"));
+
+        string? cacheType = builder.Configuration.GetValue("Cache:Type", "SqlServer");
+        string? connectionString = builder.Configuration.GetValue<string>("Cache:ConnectionString");
+
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new InvalidOperationException("No cache connection string was provided.");
+        }
+
+        if (cacheType == "Redis")
+        {
+            builder.Services.AddStackExchangeRedisCache(options =>
+            {
+                options.Configuration = connectionString;
+            });
+        }
+        else if (cacheType == "SqlServer")
+        {
+            builder.Services.AddDistributedSqlServerCache(options =>
+            {
+                options.ConnectionString = connectionString;
+                options.SchemaName = "dbo";
+                options.TableName = "BlogArray";
+            });
+        }
+        else
+        {
+            throw new InvalidOperationException("Invalid cache type specified.");
+        }
 
         return builder;
     }
