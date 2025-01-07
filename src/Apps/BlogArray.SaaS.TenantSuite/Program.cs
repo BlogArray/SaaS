@@ -1,5 +1,5 @@
+using BlogArray.SaaS.Middleware;
 using BlogArray.SaaS.Mvc.ActionFilters;
-using BlogArray.SaaS.Mvc.Extensions;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;

@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlogArray.SaaS.Resources", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlogArray.SaaS.TenantSuite", "src\Apps\BlogArray.SaaS.TenantSuite\BlogArray.SaaS.TenantSuite.csproj", "{22A39703-D615-4977-9D5B-A0B6C8910D54}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlogArray.SaaS.Middleware", "src\Core\BlogArray.SaaS.Middleware\BlogArray.SaaS.Middleware.csproj", "{B7FDAB4F-63CF-45EC-86F7-C2E706557A0F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +57,10 @@ Global
 		{22A39703-D615-4977-9D5B-A0B6C8910D54}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{22A39703-D615-4977-9D5B-A0B6C8910D54}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{22A39703-D615-4977-9D5B-A0B6C8910D54}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B7FDAB4F-63CF-45EC-86F7-C2E706557A0F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B7FDAB4F-63CF-45EC-86F7-C2E706557A0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B7FDAB4F-63CF-45EC-86F7-C2E706557A0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B7FDAB4F-63CF-45EC-86F7-C2E706557A0F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -67,5 +73,6 @@ Global
 		{A1FB2A04-E28C-4F1A-BA30-2CE628EF9D50} = {DBF194DB-34E8-4707-8003-B1E9B0C0B505}
 		{3943ACBE-B3C9-4E5B-8DB0-335CB74B36AE} = {DBF194DB-34E8-4707-8003-B1E9B0C0B505}
 		{22A39703-D615-4977-9D5B-A0B6C8910D54} = {ED0F0C35-637E-47FA-A17C-38A9E8F65C8E}
+		{B7FDAB4F-63CF-45EC-86F7-C2E706557A0F} = {DBF194DB-34E8-4707-8003-B1E9B0C0B505}
 	EndGlobalSection
 EndGlobal

@@ -1,4 +1,5 @@
 ﻿using AspNetCore.Unobtrusive.Ajax;
+using BlogArray.SaaS.Mvc;
 using BlogArray.SaaS.Mvc.Services;
 using BlogArray.SaaS.Mvc.ViewModels;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -9,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using UoN.ExpressiveAnnotations.NetCore.DependencyInjection;
 
-namespace BlogArray.SaaS.Mvc.Extensions;
+namespace BlogArray.SaaS.Middleware;
 
 public static class ConfigureBlogArrayServices
 {
@@ -36,9 +37,15 @@ public static class ConfigureBlogArrayServices
 
         builder.Services.ConfigureOptions<ConfigureSecurityStampOptions>();
 
-        builder.Services.AddControllersWithViews(/*config => config.Filters.Add(typeof(CustomExceptionFilter))*/).AddRazorRuntimeCompilation();
+        //builder.Services.AddControllersWithViews(/*config => config.Filters.Add(typeof(CustomExceptionFilter))*/).AddRazorRuntimeCompilation();
 
-        builder.Services.AddRazorPages().AddRazorRuntimeCompilation();
+        builder.Services.AddControllersWithViews()
+            .AddApplicationPart(typeof(BlogArray.SaaS.Resources.Controllers.BaseController).Assembly)
+            .AddRazorRuntimeCompilation();
+
+        builder.Services.AddRazorPages()
+            .AddApplicationPart(typeof(BlogArray.SaaS.Resources.Controllers.BaseController).Assembly)
+            .AddRazorRuntimeCompilation();
 
         builder.Services.AddRouting(options => options.LowercaseUrls = true);
 

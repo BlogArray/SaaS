@@ -1,4 +1,4 @@
-﻿using BlogArray.SaaS.Mvc.Extensions;
+﻿using BlogArray.SaaS.Middleware;
 using BlogArray.SaaS.Mvc.ViewModels;
 using BlogArray.SaaS.TenantStore.App;
 using Finbuckle.MultiTenant;
