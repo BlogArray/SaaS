@@ -58,11 +58,11 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         List<Claim> customClaims =
         [
-            new Claim(ClaimTypes.GivenName, user.DisplayName),
-            new Claim("Icon", user.ProfileImage),
-            new Claim(ClaimTypes.Gender, user.Gender),
-            new Claim("Timezone", user.TimeZone),
-            new Claim("Locale", user.LocaleCode),
+            new Claim(ClaimTypes.GivenName, user.DisplayName??user.Email),
+            new Claim("Icon", user.ProfileImage ?? ""),
+            new Claim(ClaimTypes.Gender, user.Gender ?? ""),
+            new Claim("Timezone", user.TimeZone ?? ""),
+            new Claim("Locale", user.LocaleCode ?? ""),
             new Claim("amr", "x509"),
         ];
 
