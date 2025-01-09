@@ -1,6 +1,6 @@
+using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Identity.HostedServices;
 using BlogArray.SaaS.Middleware;
-using BlogArray.SaaS.Mvc.ActionFilters;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Serilog;
 

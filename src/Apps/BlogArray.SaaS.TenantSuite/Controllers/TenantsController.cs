@@ -1,4 +1,5 @@
-﻿using Dapper;
+﻿using BlogArray.SaaS.Infrastructure.Caching;
+using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;

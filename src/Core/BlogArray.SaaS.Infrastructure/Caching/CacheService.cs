@@ -3,7 +3,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using System.Text.Json;
 
-namespace BlogArray.SaaS.Mvc.Services;
+namespace BlogArray.SaaS.Infrastructure.Caching;
 
 public interface ICacheService
 {

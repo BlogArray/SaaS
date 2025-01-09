@@ -29,6 +29,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Core\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.Domain\BlogArray.SaaS.Domain.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.Infrastructure\BlogArray.SaaS.Infrastructure.csproj" />
     <ProjectReference Include="..\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
     <ProjectReference Include="..\BlogArray.SaaS.Resources\BlogArray.SaaS.Resources.csproj" />
   </ItemGroup>

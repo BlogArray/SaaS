@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using System.Net;
 
-namespace BlogArray.SaaS.Mvc.ActionFilters;
+namespace BlogArray.SaaS.Application.Filters;
 
 public class ClientIpCheckActionFilter(string safelist) : ActionFilterAttribute
 {

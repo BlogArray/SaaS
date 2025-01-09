@@ -23,7 +23,7 @@ public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedServic
         OpenIddictApplicationManager<OpenIdApplication> manager = scope.ServiceProvider.GetRequiredService<OpenIddictApplicationManager<OpenIdApplication>>();
         OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager = scope.ServiceProvider.GetRequiredService<OpenIddictAuthorizationManager<OpenIdAuthorization>>();
 
-        foreach (Application app in apps.Applications)
+        foreach (BlogArray.SaaS.Identity.Models.Application app in apps.Applications)
         {
             if (await manager.FindByClientIdAsync(app.ClientId, cancellationToken) is null)
             {

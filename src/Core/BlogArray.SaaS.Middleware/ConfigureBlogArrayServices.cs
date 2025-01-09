@@ -1,6 +1,7 @@
 ﻿using AspNetCore.Unobtrusive.Ajax;
 using BlogArray.SaaS.Domain.Constants;
 using BlogArray.SaaS.Domain.DTOs;
+using BlogArray.SaaS.Infrastructure.Caching;
 using BlogArray.SaaS.Mvc.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;

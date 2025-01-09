@@ -1,6 +1,6 @@
 ﻿using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace BlogArray.SaaS.OpenId;
+namespace BlogArray.SaaS.Domain.Constants;
 
 public static class OpenIdConstants
 {
