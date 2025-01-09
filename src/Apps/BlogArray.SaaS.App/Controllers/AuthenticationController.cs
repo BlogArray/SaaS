@@ -1,5 +1,4 @@
-﻿using BlogArray.SaaS.Domain.DTOs;
-using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+﻿using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 namespace BlogArray.SaaS.App.Controllers;
 

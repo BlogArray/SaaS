@@ -1,5 +1,5 @@
-﻿using BlogArray.SaaS.Mvc.Services;
-using BlogArray.SaaS.Domain.DTOs;
+﻿using BlogArray.SaaS.Domain.DTOs;
+using BlogArray.SaaS.Mvc.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
