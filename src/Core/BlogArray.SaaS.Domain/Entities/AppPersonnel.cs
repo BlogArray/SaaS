@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace BlogArray.SaaS.TenantStore.App;
+namespace BlogArray.SaaS.Domain.Entities;
 
 public class AppPersonnel
 {

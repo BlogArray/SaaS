@@ -1,4 +1,4 @@
-﻿namespace BlogArray.SaaS.Mvc;
+﻿namespace BlogArray.SaaS.Domain.Constants;
 
 public static class BlogArrayConstants
 {

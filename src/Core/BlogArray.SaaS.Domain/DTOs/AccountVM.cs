@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace BlogArray.SaaS.Mvc.ViewModels;
+namespace BlogArray.SaaS.Domain.DTOs;
 
 public class ChangePasswordVM
 {

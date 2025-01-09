@@ -1,4 +1,4 @@
-﻿using BlogArray.SaaS.OpenId.Entities;
+﻿using BlogArray.SaaS.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 

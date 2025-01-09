@@ -1,4 +1,4 @@
-﻿using BlogArray.SaaS.Mvc.ViewModels;
+﻿using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.OpenId;
 using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.AspNetCore.Builder;

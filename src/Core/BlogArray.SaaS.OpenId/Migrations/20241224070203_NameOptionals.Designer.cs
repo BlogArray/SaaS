@@ -25,7 +25,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.ApplicationRole", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.ApplicationRole", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(400)
@@ -71,7 +71,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         });
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.ApplicationUser", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
                         .HasMaxLength(400)
@@ -216,7 +216,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         });
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.OpenIdApplication", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdApplication", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
@@ -338,7 +338,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.ToTable("OpenIddictApplications", (string)null);
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.OpenIdAuthorization", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdAuthorization", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
@@ -382,7 +382,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.ToTable("OpenIddictAuthorizations", (string)null);
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.OpenIdScope", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdScope", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
@@ -424,7 +424,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.ToTable("OpenIddictScopes", (string)null);
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.OpenIdToken", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdToken", b =>
                 {
                     b.Property<string>("Id")
                         .ValueGeneratedOnAdd()
@@ -606,14 +606,14 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.ApplicationUser", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.ApplicationUser", b =>
                 {
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", "CreatedBy")
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", "UpdatedBy")
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", "UpdatedBy")
                         .WithMany()
                         .HasForeignKey("UpdatedById")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -623,24 +623,24 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.OpenIdApplication", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdApplication", b =>
                 {
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", "Admin")
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", "Admin")
                         .WithMany()
                         .HasForeignKey("AdminId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", "CreatedBy")
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", "CreatedBy")
                         .WithMany()
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", "UpdatedBy")
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", "UpdatedBy")
                         .WithMany()
                         .HasForeignKey("UpdatedById")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.OwnsOne("BlogArray.SaaS.OpenId.Entities.TenantSecurityConfiguration", "Security", b1 =>
+                    b.OwnsOne("BlogArray.SaaS.Domain.Entities.TenantSecurityConfiguration", "Security", b1 =>
                         {
                             b1.Property<string>("OpenIdApplicationId")
                                 .HasColumnType("nvarchar(450)");
@@ -677,7 +677,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
                                 .HasForeignKey("OpenIdApplicationId");
                         });
 
-                    b.OwnsOne("BlogArray.SaaS.OpenId.Entities.ThemeConfiguration", "Theme", b1 =>
+                    b.OwnsOne("BlogArray.SaaS.Domain.Entities.ThemeConfiguration", "Theme", b1 =>
                         {
                             b1.Property<string>("OpenIdApplicationId")
                                 .HasColumnType("nvarchar(450)");
@@ -721,13 +721,13 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.Navigation("UpdatedBy");
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.OpenIdAuthorization", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdAuthorization", b =>
                 {
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.OpenIdApplication", "Application")
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.OpenIdApplication", "Application")
                         .WithMany("Authorizations")
                         .HasForeignKey("ApplicationId");
 
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", "SubjectUser")
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", "SubjectUser")
                         .WithMany()
                         .HasForeignKey("Subject")
                         .OnDelete(DeleteBehavior.Restrict);
@@ -737,13 +737,13 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.Navigation("SubjectUser");
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.OpenIdToken", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdToken", b =>
                 {
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.OpenIdApplication", "Application")
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.OpenIdApplication", "Application")
                         .WithMany("Tokens")
                         .HasForeignKey("ApplicationId");
 
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.OpenIdAuthorization", "Authorization")
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.OpenIdAuthorization", "Authorization")
                         .WithMany("Tokens")
                         .HasForeignKey("AuthorizationId");
 
@@ -754,7 +754,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationRole", null)
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -763,7 +763,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>
                 {
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", null)
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -772,7 +772,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<string>", b =>
                 {
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", null)
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -781,13 +781,13 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<string>", b =>
                 {
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationRole", null)
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationRole", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", null)
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -796,21 +796,21 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<string>", b =>
                 {
-                    b.HasOne("BlogArray.SaaS.OpenId.Entities.ApplicationUser", null)
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.OpenIdApplication", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdApplication", b =>
                 {
                     b.Navigation("Authorizations");
 
                     b.Navigation("Tokens");
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.OpenId.Entities.OpenIdAuthorization", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdAuthorization", b =>
                 {
                     b.Navigation("Tokens");
                 });

@@ -1,4 +1,4 @@
-﻿using BlogArray.SaaS.Mvc.ViewModels;
+﻿using BlogArray.SaaS.Domain.DTOs;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using System.Text.Json;

@@ -2,7 +2,7 @@
 using System.ComponentModel.DataAnnotations;
 using UoN.ExpressiveAnnotations.NetCore.Attributes;
 
-namespace BlogArray.SaaS.Mvc.ViewModels;
+namespace BlogArray.SaaS.Domain.DTOs;
 
 public class BasicUserViewModel
 {

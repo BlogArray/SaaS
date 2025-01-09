@@ -2,7 +2,7 @@
 using OpenIddict.EntityFrameworkCore.Models;
 using System.ComponentModel.DataAnnotations;
 
-namespace BlogArray.SaaS.OpenId.Entities;
+namespace BlogArray.SaaS.Domain.Entities;
 
 public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string, OpenIdAuthorization, OpenIdToken>
 {

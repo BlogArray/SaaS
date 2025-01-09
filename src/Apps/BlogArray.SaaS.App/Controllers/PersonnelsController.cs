@@ -1,6 +1,7 @@
 ﻿using BlogArray.SaaS.App.Interfaces;
 using BlogArray.SaaS.App.Models;
-using BlogArray.SaaS.TenantStore.App;
+using BlogArray.SaaS.Domain.DTOs;
+using BlogArray.SaaS.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Refit;
 

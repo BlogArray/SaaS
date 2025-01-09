@@ -2,7 +2,7 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 
-namespace BlogArray.SaaS.OpenId.Entities;
+namespace BlogArray.SaaS.Domain.Entities;
 
 public class ApplicationUser : IdentityUser
 {

@@ -1,4 +1,4 @@
-﻿namespace BlogArray.SaaS.Mvc.Constants;
+﻿namespace BlogArray.SaaS.Domain.Constants;
 
 /// <summary>
 /// Provides helper methods to generate cache keys for tenant-related data.

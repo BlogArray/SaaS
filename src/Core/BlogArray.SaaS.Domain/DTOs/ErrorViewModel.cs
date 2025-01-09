@@ -1,4 +1,4 @@
-namespace BlogArray.SaaS.Mvc.ViewModels;
+namespace BlogArray.SaaS.Domain.DTOs;
 
 public class ErrorViewModel
 {

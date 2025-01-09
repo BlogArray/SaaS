@@ -1,8 +1,9 @@
-﻿using BlogArray.SaaS.Mvc.ViewModels;
+﻿using BlogArray.SaaS.Domain.DTOs;
+using BlogArray.SaaS.Domain.Entities;
 using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
-namespace BlogArray.SaaS.TenantStore.App;
+namespace BlogArray.SaaS.TenantStore;
 
 public class SaasAppDbContext(IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor) : DbContext
 {

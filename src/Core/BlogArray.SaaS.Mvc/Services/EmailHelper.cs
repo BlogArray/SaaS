@@ -1,4 +1,4 @@
-﻿using BlogArray.SaaS.Mvc.ViewModels;
+﻿using BlogArray.SaaS.Domain.DTOs;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;

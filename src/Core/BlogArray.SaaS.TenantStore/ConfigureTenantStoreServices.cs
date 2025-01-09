@@ -1,6 +1,5 @@
 ﻿using BlogArray.SaaS.Middleware;
-using BlogArray.SaaS.Mvc.ViewModels;
-using BlogArray.SaaS.TenantStore.App;
+using BlogArray.SaaS.Domain.Entities;
 using Finbuckle.MultiTenant;
 using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.AspNetCore.Authentication;
@@ -13,6 +12,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using System.Security.Claims;
 using static OpenIddict.Abstractions.OpenIddictConstants;
+using BlogArray.SaaS.Domain.DTOs;
 
 namespace BlogArray.SaaS.TenantStore;
 

@@ -2,7 +2,6 @@ using AspNetCore.Unobtrusive.Ajax;
 using BlogArray.SaaS.App.Interfaces;
 using BlogArray.SaaS.Middleware;
 using BlogArray.SaaS.Mvc.ActionFilters;
-using BlogArray.SaaS.TenantStore.App;
 using Finbuckle.MultiTenant;
 using Refit;
 using Serilog;

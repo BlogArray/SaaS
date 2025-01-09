@@ -1,5 +1,5 @@
 ﻿using Azure.Storage.Blobs;
-using BlogArray.SaaS.Mvc.ViewModels;
+using BlogArray.SaaS.Domain.DTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 

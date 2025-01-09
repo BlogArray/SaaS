@@ -1,6 +1,7 @@
-﻿using Finbuckle.MultiTenant.Abstractions;
+﻿using BlogArray.SaaS.Domain.Constants;
+using Finbuckle.MultiTenant.Abstractions;
 
-namespace BlogArray.SaaS.Mvc.ViewModels;
+namespace BlogArray.SaaS.Domain.DTOs;
 
 public class AppTenantInfo : ITenantInfo
 {
