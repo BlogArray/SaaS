@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Options;
 using System.Security.Claims;
 
-namespace BlogArray.SaaS.Mvc.Services;
+namespace BlogArray.SaaS.Middleware;
 
 public class ConfigureSecurityStampOptions : IConfigureOptions<SecurityStampValidatorOptions>
 {

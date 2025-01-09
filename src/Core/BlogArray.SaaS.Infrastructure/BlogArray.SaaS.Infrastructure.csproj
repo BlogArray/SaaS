@@ -7,17 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Data\" />
     <Folder Include="Repositories\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
+    <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="9.0.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BlogArray.SaaS.Domain\BlogArray.SaaS.Domain.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
   </ItemGroup>
 
 </Project>

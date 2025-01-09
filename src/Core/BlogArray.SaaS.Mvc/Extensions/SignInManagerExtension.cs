@@ -7,8 +7,7 @@ using Microsoft.Extensions.Options;
 using System.Security.Claims;
 using System.Text;
 
-namespace BlogArray.SaaS.Mvc.Services;
-
+namespace BlogArray.SaaS.Mvc.Extensions;
 
 public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> where TUser : class
 {
@@ -43,21 +42,21 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         _confirmation = confirmation;
     }
 
-    public virtual async Task<Microsoft.AspNetCore.Identity.SignInResult> PasswordSignInAsync(ApplicationUser user, string password, bool isPersistent, bool lockoutOnFailure, List<Claim> customClaims)
+    public virtual async Task<SignInResult> PasswordSignInAsync(ApplicationUser user, string password, bool isPersistent, bool lockoutOnFailure, List<Claim> customClaims)
     {
         ArgumentNullException.ThrowIfNull(user);
 
-        Microsoft.AspNetCore.Identity.SignInResult attempt = await CheckPasswordSignInAsync(user, password, lockoutOnFailure);
+        SignInResult attempt = await CheckPasswordSignInAsync(user, password, lockoutOnFailure);
         return attempt.Succeeded
             ? await SignInOrTwoFactorAsync(user, isPersistent, customClaims: customClaims)
             : attempt;
     }
 
-    public async Task<Microsoft.AspNetCore.Identity.SignInResult> SignInUserAsync(ApplicationUser user, string password, bool isPersistent, bool lockoutOnFailure, List<Claim> customClaims)
+    public async Task<SignInResult> SignInUserAsync(ApplicationUser user, string password, bool isPersistent, bool lockoutOnFailure, List<Claim> customClaims)
     {
         ArgumentNullException.ThrowIfNull(user);
 
-        Microsoft.AspNetCore.Identity.SignInResult attempt = await CheckPasswordSignInAsync(user, password, lockoutOnFailure);
+        SignInResult attempt = await CheckPasswordSignInAsync(user, password, lockoutOnFailure);
         return attempt.Succeeded
             ? await SignInOrTwoFactorAsync(user, isPersistent, customClaims: customClaims)
             : attempt;
@@ -72,15 +71,15 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     /// <param name="bypassTwoFactor">Flag indicating whether to bypass two factor authentication.</param>
     /// <returns>The task object representing the asynchronous operation containing the <see name="Microsoft.AspNetCore.Identity.SignInResult"/>
     /// for the sign-in attempt.</returns>
-    public new virtual async Task<Microsoft.AspNetCore.Identity.SignInResult> ExternalLoginSignInAsync(string loginProvider, string providerKey, bool isPersistent, bool bypassTwoFactor)
+    public new virtual async Task<SignInResult> ExternalLoginSignInAsync(string loginProvider, string providerKey, bool isPersistent, bool bypassTwoFactor)
     {
         ApplicationUser? user = await UserManager.FindByLoginAsync(loginProvider, providerKey);
         if (user == null)
         {
-            return Microsoft.AspNetCore.Identity.SignInResult.Failed;
+            return SignInResult.Failed;
         }
 
-        Microsoft.AspNetCore.Identity.SignInResult? error = await PreSignInCheck(user);
+        SignInResult? error = await PreSignInCheck(user);
         if (error != null)
         {
             return error;
@@ -140,16 +139,16 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     /// two factor authentication prompts.</param>
     /// <returns>The task object representing the asynchronous operation containing the <see name="Microsoft.AspNetCore.Identity.SignInResult"/>
     /// for the sign-in attempt.</returns>
-    public virtual async Task<Microsoft.AspNetCore.Identity.SignInResult> TwoFactorAuthenticatorSignInAsync(string code, bool isPersistent, bool rememberClient, List<Claim> customClaims)
+    public virtual async Task<SignInResult> TwoFactorAuthenticatorSignInAsync(string code, bool isPersistent, bool rememberClient, List<Claim> customClaims)
     {
         TwoFactorAuthenticationInfo? twoFactorInfo = await RetrieveTwoFactorInfoAsync();
         if (twoFactorInfo == null)
         {
-            return Microsoft.AspNetCore.Identity.SignInResult.Failed;
+            return SignInResult.Failed;
         }
 
         ApplicationUser user = twoFactorInfo.User;
-        Microsoft.AspNetCore.Identity.SignInResult? error = await PreSignInCheck(user);
+        SignInResult? error = await PreSignInCheck(user);
         if (error != null)
         {
             return error;
@@ -167,7 +166,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
             {
                 // Return the same failure we do when resetting the lockout fails after a correct two factor code.
                 // This is currently redundant, but it's here in case the code gets copied elsewhere.
-                return Microsoft.AspNetCore.Identity.SignInResult.Failed;
+                return SignInResult.Failed;
             }
 
             if (await UserManager.IsLockedOutAsync(user))
@@ -175,7 +174,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
                 return await LockedOut(user);
             }
         }
-        return Microsoft.AspNetCore.Identity.SignInResult.Failed;
+        return SignInResult.Failed;
     }
 
     /// <summary>
@@ -183,12 +182,12 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     /// </summary>
     /// <param name="recoveryCode">The two factor recovery code.</param>
     /// <returns></returns>
-    public virtual async Task<Microsoft.AspNetCore.Identity.SignInResult> TwoFactorRecoveryCodeSignInAsync(string recoveryCode, List<Claim> customClaims)
+    public virtual async Task<SignInResult> TwoFactorRecoveryCodeSignInAsync(string recoveryCode, List<Claim> customClaims)
     {
         TwoFactorAuthenticationInfo? twoFactorInfo = await RetrieveTwoFactorInfoAsync();
         if (twoFactorInfo == null)
         {
-            return Microsoft.AspNetCore.Identity.SignInResult.Failed;
+            return SignInResult.Failed;
         }
 
         IdentityResult result = await UserManager.RedeemTwoFactorRecoveryCodeAsync(twoFactorInfo.User, recoveryCode);
@@ -198,10 +197,10 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         }
 
         // We don't protect against brute force attacks since codes are expected to be random.
-        return Microsoft.AspNetCore.Identity.SignInResult.Failed;
+        return SignInResult.Failed;
     }
 
-    protected virtual async Task<Microsoft.AspNetCore.Identity.SignInResult> SignInOrTwoFactorAsync(ApplicationUser user, bool isPersistent, List<Claim> customClaims, string? loginProvider = null, bool bypassTwoFactor = false)
+    protected virtual async Task<SignInResult> SignInOrTwoFactorAsync(ApplicationUser user, bool isPersistent, List<Claim> customClaims, string? loginProvider = null, bool bypassTwoFactor = false)
     {
         customClaims ??= [];
 
@@ -224,7 +223,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
                     await Context.SignInAsync(IdentityConstants.TwoFactorUserIdScheme, StoreTwoFactorInfo(userId, loginProvider, customClaims));
                 }
 
-                return Microsoft.AspNetCore.Identity.SignInResult.TwoFactorRequired;
+                return SignInResult.TwoFactorRequired;
             }
         }
         // Cleanup external cookie
@@ -241,7 +240,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         {
             await SignInAsync(user, isPersistent, customClaims, loginProvider);
         }
-        return Microsoft.AspNetCore.Identity.SignInResult.Success;
+        return SignInResult.Success;
     }
 
     /// <summary>
@@ -350,7 +349,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
             };
     }
 
-    private async Task<Microsoft.AspNetCore.Identity.SignInResult> DoTwoFactorSignInAsync(ApplicationUser user, TwoFactorAuthenticationInfo twoFactorInfo, bool isPersistent, bool rememberClient, List<Claim> claims)
+    private async Task<SignInResult> DoTwoFactorSignInAsync(ApplicationUser user, TwoFactorAuthenticationInfo twoFactorInfo, bool isPersistent, bool rememberClient, List<Claim> claims)
     {
         IdentityResult resetLockoutResult = await ResetLockoutWithResult(user);
         if (!resetLockoutResult.Succeeded)
@@ -358,7 +357,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
             // ResetLockout got an unsuccessful result that could be caused by concurrency failures indicating an
             // attacker could be trying to bypass the MaxFailedAccessAttempts limit. Return the same failure we do
             // when failing to increment the lockout to avoid giving an attacker extra guesses at the two factor code.
-            return Microsoft.AspNetCore.Identity.SignInResult.Failed;
+            return SignInResult.Failed;
         }
 
         claims ??= [];
@@ -384,7 +383,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
             }
         }
         await SignInWithClaimsAsync(user, isPersistent, claims);
-        return Microsoft.AspNetCore.Identity.SignInResult.Success;
+        return SignInResult.Success;
     }
 
     private sealed class IdentityResultException : Exception

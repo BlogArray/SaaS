@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 
-namespace BlogArray.SaaS.Mvc.Services;
+namespace BlogArray.SaaS.Mvc.Helpers;
 
 public class Converter
 {

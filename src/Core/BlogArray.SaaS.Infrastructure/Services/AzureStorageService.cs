@@ -3,7 +3,7 @@ using BlogArray.SaaS.Domain.DTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 
-namespace BlogArray.SaaS.Mvc.Services;
+namespace BlogArray.SaaS.Infrastructure.Services;
 
 public interface IAzureStorageService
 {

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
 
-namespace BlogArray.SaaS.Mvc.Services;
+namespace BlogArray.SaaS.Infrastructure.Services;
 
 public interface IEmailHelper
 {

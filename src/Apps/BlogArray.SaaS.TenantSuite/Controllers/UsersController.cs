@@ -1,4 +1,6 @@
-﻿using BlogArray.SaaS.Mvc.Extensions;
+﻿using BlogArray.SaaS.Infrastructure.Data;
+using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.Mvc.Extensions;
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;

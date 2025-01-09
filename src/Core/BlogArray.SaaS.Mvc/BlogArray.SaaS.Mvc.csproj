@@ -8,8 +8,6 @@
 
   <ItemGroup>
     <PackageReference Include="AspNetCore.Unobtrusive.Ajax" Version="3.0.0" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
-    <PackageReference Include="Dapper" Version="2.1.35" />
     <PackageReference Include="Finbuckle.MultiTenant" Version="9.0.0" />
     <PackageReference Include="Finbuckle.MultiTenant.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Finbuckle.MultiTenant.EntityFrameworkCore" Version="9.0.0" />

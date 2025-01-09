@@ -3,7 +3,7 @@ using BlogArray.SaaS.Mvc.Extensions;
 using Microsoft.Extensions.Configuration;
 using System.Text.Encodings.Web;
 
-namespace BlogArray.SaaS.Mvc.Services;
+namespace BlogArray.SaaS.Infrastructure.Services;
 
 public interface IEmailTemplate
 {

@@ -1,7 +1,7 @@
 ﻿using Microsoft.Data.SqlClient;
 using System.Data;
 
-namespace BlogArray.SaaS.Mvc.Services;
+namespace BlogArray.SaaS.Infrastructure.Data;
 
 public static class DapperContext
 {

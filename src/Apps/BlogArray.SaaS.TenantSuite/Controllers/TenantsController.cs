@@ -1,4 +1,6 @@
-﻿using BlogArray.SaaS.Infrastructure.Caching;
+﻿using BlogArray.SaaS.Infrastructure.Data;
+using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.Mvc.Extensions;
 using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Data.SqlClient;
@@ -673,7 +675,7 @@ public class TenantsController(OpenIdDbContext context,
 
     private void SetOptions()
     {
-        ViewBag.Permissions = AppServices.MapHashSetToSelectList(OpenIdConstants.OpenIdPermissions());
+        ViewBag.Permissions = OpenIdConstants.OpenIdPermissions().ToSelectList();
     }
 
     private static bool TestConnection(string connectionString)
