@@ -12,6 +12,14 @@
   
   <ItemGroup>
     <Folder Include="Features\" />
+    <Folder Include="Validators\" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\BlogArray.SaaS.Domain\BlogArray.SaaS.Domain.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.Infrastructure\BlogArray.SaaS.Infrastructure.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
   </ItemGroup>
 
 </Project>
