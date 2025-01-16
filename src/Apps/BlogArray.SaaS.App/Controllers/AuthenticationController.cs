@@ -48,6 +48,13 @@ public class AuthenticationController(IConfiguration configuration, IMultiTenant
 
     public ActionResult Manage()
     {
-        return Redirect(configuration["Links:Identity"]);
+        string? identityLink = configuration["Links:Identity"];
+
+        if (string.IsNullOrEmpty(identityLink))
+        {
+            throw new ArgumentNullException(identityLink, "Identity link must be configured in Links:Identity");
+        }
+
+        return Redirect(identityLink);
     }
 }

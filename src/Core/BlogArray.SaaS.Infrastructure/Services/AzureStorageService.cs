@@ -37,11 +37,21 @@ public class AzureStorageService(IConfiguration configuration) : IAzureStorageSe
 
     private async Task<string> UploadToAzure(MemoryStream stream, string path)
     {
-        string connectionString = configuration.GetConnectionString("StorageConnectionString");
+        string? connectionString = configuration["AzureBlobStorage:ConnectionString"];
+
+        if (string.IsNullOrEmpty(connectionString))
+        {
+            throw new ArgumentNullException(path, "Azure storage connection string must be configured in AzureBlobStorage:ConnectionString");
+        }
 
         BlobServiceClient blobServiceClient = new(connectionString);
 
-        string containerName = configuration.GetConnectionString("StorageContainer");
+        string? containerName = configuration["AzureBlobStorage:ContainerName"];
+
+        if (string.IsNullOrEmpty(containerName))
+        {
+            throw new ArgumentNullException(path, "Azure storage container name must be configured in AzureBlobStorage:ContainerName");
+        }
 
         BlobContainerClient containerClient = blobServiceClient.GetBlobContainerClient(containerName);
 
@@ -49,7 +59,7 @@ public class AzureStorageService(IConfiguration configuration) : IAzureStorageSe
 
         stream.Position = 0;
 
-        await blobClient.UploadAsync(stream, true);
+        await blobClient.UploadAsync(stream, overwrite: true);
 
         return PathToUrl(blobClient.Uri);
     }
