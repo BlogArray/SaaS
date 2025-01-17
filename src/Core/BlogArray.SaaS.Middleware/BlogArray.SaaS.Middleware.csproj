@@ -1,8 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-  </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="AspNetCore.Unobtrusive.Ajax" Version="3.0.0" />
     <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
