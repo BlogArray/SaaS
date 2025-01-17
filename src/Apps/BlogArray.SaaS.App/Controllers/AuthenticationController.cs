@@ -50,11 +50,8 @@ public class AuthenticationController(IConfiguration configuration, IMultiTenant
     {
         string? identityLink = configuration["Links:Identity"];
 
-        if (string.IsNullOrEmpty(identityLink))
-        {
-            throw new ArgumentNullException(identityLink, "Identity link must be configured in Links:Identity");
-        }
-
-        return Redirect(identityLink);
+        return string.IsNullOrEmpty(identityLink)
+            ? throw new ArgumentNullException(identityLink, "Identity link must be configured in Links:Identity")
+            : (ActionResult)Redirect(identityLink);
     }
 }
