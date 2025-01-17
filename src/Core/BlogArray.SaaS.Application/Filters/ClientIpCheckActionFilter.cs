@@ -1,7 +1,16 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿//
+// Copyright (c) BlogArray and Contributors.
+//
+// This software may be modified and distributed under the terms
+// of the MIT license. See the LICENSE file for details.
+//
+// https://github.com/BlogArray/SaaS
+//
+
+using System.Net;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using System.Net;
 
 namespace BlogArray.SaaS.Application.Filters;
 

@@ -1,8 +1,17 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿//
+// Copyright (c) BlogArray and Contributors.
+//
+// This software may be modified and distributed under the terms
+// of the MIT license. See the LICENSE file for details.
+//
+// https://github.com/BlogArray/SaaS
+//
+
+using System.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using P.Pager;
-using System.Data;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;
 

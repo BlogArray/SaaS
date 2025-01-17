@@ -1,4 +1,15 @@
-﻿using BlogArray.SaaS.Infrastructure.Data;
+﻿//
+// Copyright (c) BlogArray and Contributors.
+//
+// This software may be modified and distributed under the terms
+// of the MIT license. See the LICENSE file for details.
+//
+// https://github.com/BlogArray/SaaS
+//
+
+using System.Data;
+using System.Text.Json;
+using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Mvc.Extensions;
 using Dapper;
@@ -7,8 +18,6 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 using P.Pager;
-using System.Data;
-using System.Text.Json;
 using static Dapper.SqlMapper;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 

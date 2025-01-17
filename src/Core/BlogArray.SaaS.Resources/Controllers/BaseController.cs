@@ -1,10 +1,19 @@
-﻿using BlogArray.SaaS.Domain.DTOs;
+﻿//
+// Copyright (c) BlogArray and Contributors.
+//
+// This software may be modified and distributed under the terms
+// of the MIT license. See the LICENSE file for details.
+//
+// https://github.com/BlogArray/SaaS
+//
+
+using System.Net;
+using System.Security.Claims;
+using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.Mvc.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using System.Net;
-using System.Security.Claims;
 
 namespace BlogArray.SaaS.Resources.Controllers;
 

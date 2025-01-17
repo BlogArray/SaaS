@@ -1,11 +1,20 @@
-﻿using BlogArray.SaaS.Application.Filters;
+﻿//
+// Copyright (c) BlogArray and Contributors.
+//
+// This software may be modified and distributed under the terms
+// of the MIT license. See the LICENSE file for details.
+//
+// https://github.com/BlogArray/SaaS
+//
+
+using System.Text;
+using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Mvc.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
-using System.Text;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers.Api;
 

@@ -1,4 +1,15 @@
-﻿using BlogArray.SaaS.Infrastructure.Data;
+﻿//
+// Copyright (c) BlogArray and Contributors.
+//
+// This software may be modified and distributed under the terms
+// of the MIT license. See the LICENSE file for details.
+//
+// https://github.com/BlogArray/SaaS
+//
+
+using System.Data;
+using System.Text;
+using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Mvc.Extensions;
 using Dapper;
@@ -9,8 +20,6 @@ using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 using P.Pager;
-using System.Data;
-using System.Text;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;
 

@@ -1,4 +1,13 @@
-﻿using AspNetCore.Unobtrusive.Ajax;
+﻿//
+// Copyright (c) BlogArray and Contributors.
+//
+// This software may be modified and distributed under the terms
+// of the MIT license. See the LICENSE file for details.
+//
+// https://github.com/BlogArray/SaaS
+//
+
+using AspNetCore.Unobtrusive.Ajax;
 using BlogArray.SaaS.Domain.Constants;
 using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.Infrastructure.Services;
