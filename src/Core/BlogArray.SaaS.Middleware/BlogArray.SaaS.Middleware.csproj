@@ -1,18 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="AspNetCore.Unobtrusive.Ajax" Version="3.0.0" />
-    <PackageReference Include="Azure.Storage.Blobs" Version="12.23.0" />
-    <PackageReference Include="Dapper" Version="2.1.35" />
-    <PackageReference Include="Finbuckle.MultiTenant" Version="9.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="9.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" Version="9.0.1" />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.1" />
-    <PackageReference Include="Refit" Version="8.0.0" />
-    <PackageReference Include="Refit.HttpClientFactory" Version="8.0.0" />
-    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
-    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
-    <PackageReference Include="UoN.ExpressiveAnnotations.NetCore" Version="1.0.0" />
+    <PackageReference Include="AspNetCore.Unobtrusive.Ajax"  />
+    <PackageReference Include="Azure.Storage.Blobs"  />
+    <PackageReference Include="Dapper"  />
+    <PackageReference Include="Finbuckle.MultiTenant"   />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" />
+    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer"   />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis"   />
+    <PackageReference Include="Refit"  />
+    <PackageReference Include="Refit.HttpClientFactory"  />
+    <PackageReference Include="Serilog.AspNetCore"  />
+    <PackageReference Include="Serilog.Sinks.File"   />
+    <PackageReference Include="UoN.ExpressiveAnnotations.NetCore"   />
   </ItemGroup>
 
   <ItemGroup>

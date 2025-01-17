@@ -1,13 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.1">
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Tools">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design"  />
     <!--https://github.com/dotnet/aspnetcore/issues/38892#issuecomment-988926919-->
-    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="9.0.1" GeneratePathProperty="true" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" GeneratePathProperty="true" />
   </ItemGroup>
 
   <ItemGroup>

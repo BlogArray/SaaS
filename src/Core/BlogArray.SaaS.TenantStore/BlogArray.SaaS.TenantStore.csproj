@@ -1,8 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="Finbuckle.MultiTenant" Version="9.0.0" />
-    <PackageReference Include="Finbuckle.MultiTenant.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Finbuckle.MultiTenant"  />
+    <PackageReference Include="Finbuckle.MultiTenant.AspNetCore"   />
   </ItemGroup>
 
   <ItemGroup>

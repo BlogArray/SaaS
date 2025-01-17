@@ -1,0 +1,45 @@
+﻿<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="Finbuckle.MultiTenant" Version="9.0.0" />
+    <PackageVersion Include="Finbuckle.MultiTenant.AspNetCore" Version="9.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="9.0.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
+    <PackageVersion Include="OpenIddict.EntityFrameworkCore" Version="6.0.0" />
+    <PackageVersion Include="OpenIddict" Version="6.0.0" />
+    <PackageVersion Include="OpenIddict.AspNetCore" Version="6.0.0" />
+    <PackageVersion Include="AspNetCore.Unobtrusive.Ajax" Version="3.0.0" />
+    <PackageVersion Include="UoN.ExpressiveAnnotations.NetCore" Version="1.0.0" />
+    <PackageVersion Include="Dapper" Version="2.1.35" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.SqlServer" Version="9.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="9.0.1" />
+    <PackageVersion Include="Refit" Version="8.0.0" />
+    <PackageVersion Include="Refit.HttpClientFactory" Version="8.0.0" />
+    <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageVersion Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" Version="9.0.1" />
+    <PackageVersion Include="P.Pager" Version="9.0.0" />
+    <PackageVersion Include="P.Pager.Mvc.Core" Version="9.0.0" />
+    <PackageVersion Include="AspNet.Security.OAuth.Apple" Version="9.0.0" />
+    <PackageVersion Include="AspNet.Security.OAuth.GitHub" Version="9.0.0" />
+    <PackageVersion Include="AspNetSaml" Version="2.1.2" />
+    <PackageVersion Include="Azure.Data.Tables" Version="12.10.0" />
+    <PackageVersion Include="Azure.Storage.Blobs" Version="12.23.0" />
+    <PackageVersion Include="Azure.Storage.Files.Shares" Version="12.21.0" />
+    <PackageVersion Include="Azure.Storage.Queues" Version="12.21.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.Google" Version="9.0.1" />
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" Version="9.0.1" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageVersion>
+    <PackageVersion Include="Microsoft.Extensions.Azure" Version="1.9.0" />
+    <PackageVersion Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.0" />
+    <!--https://github.com/dotnet/aspnetcore/issues/38892#issuecomment-988926919-->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.1" GeneratePathProperty="true" />
+  </ItemGroup>
+</Project>
