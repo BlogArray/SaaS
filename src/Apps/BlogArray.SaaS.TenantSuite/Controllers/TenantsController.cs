@@ -737,7 +737,8 @@ public class TenantsController(OpenIdDbContext context,
     /// <param name="connectionString">Database connection string.</param>
     public static async Task EnablePersonnelInTenantAsync(string email, string connectionString)
     {
-        if (string.IsNullOrEmpty(email)) return;
+        if (string.IsNullOrEmpty(email))
+            return;
 
         const string checkQuery = @"SELECT COUNT(1) 
                                 FROM AppPersonnels 

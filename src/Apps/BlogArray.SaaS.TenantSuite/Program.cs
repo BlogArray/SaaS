@@ -69,7 +69,7 @@ builder.Services.AddAuthentication(o =>
             //Use Cases:
             //Performing additional validation on the tokens like tenant validation, user exists in the tenant.
             //Adding custom claims to the user�s principal.
-            ClaimsIdentity? identity = context?.Principal?.Identity as ClaimsIdentity;
+            var identity = context?.Principal?.Identity as ClaimsIdentity;
 
             if (identity != null && !identity.IsAuthenticated)
             {
@@ -96,10 +96,10 @@ builder.Services.AddAuthentication(o =>
 
             string? image = userInfo.GetString("image");
 
-            Dictionary<string, string> allClaims = userInfo.EnumerateObject()
+            var allClaims = userInfo.EnumerateObject()
                 .ToDictionary(p => p.Name, p => p.Value.ToString());
 
-            ClaimsIdentity? identity = context?.Principal?.Identity as ClaimsIdentity;
+            var identity = context?.Principal?.Identity as ClaimsIdentity;
 
             identity?.AddClaim(new Claim("image", image ?? ""));
 

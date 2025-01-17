@@ -67,7 +67,7 @@ public static class ConfigureTenantStoreServices
                    //Use Cases:
                    //Performing additional validation on the tokens like tenant validation, user exists in the tenant.
                    //Adding custom claims to the user’s principal.
-                   ClaimsIdentity? identity = context?.Principal?.Identity as ClaimsIdentity;
+                   var identity = context?.Principal?.Identity as ClaimsIdentity;
 
                    AppTenantInfo? multiTenantContext = context.HttpContext.RequestServices.GetRequiredService<IMultiTenantContextAccessor<AppTenantInfo>>().MultiTenantContext.TenantInfo;
 
@@ -117,10 +117,10 @@ public static class ConfigureTenantStoreServices
 
                    string? image = userInfo.GetString("image");
 
-                   Dictionary<string, string> allClaims = userInfo.EnumerateObject()
+                   var allClaims = userInfo.EnumerateObject()
                        .ToDictionary(p => p.Name, p => p.Value.ToString());
 
-                   ClaimsIdentity? identity = context?.Principal?.Identity as ClaimsIdentity;
+                   var identity = context?.Principal?.Identity as ClaimsIdentity;
 
                    identity?.AddClaim(new Claim("image", image ?? ""));
 

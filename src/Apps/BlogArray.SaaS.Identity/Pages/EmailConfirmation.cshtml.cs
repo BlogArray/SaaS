@@ -7,10 +7,9 @@
 // https://github.com/BlogArray/SaaS
 //
 
-namespace BlogArray.SaaS.Identity.Pages
-{
-    public class EmailConfirmation : PageModel
-    {
+namespace BlogArray.SaaS.Identity.Pages;
 
-    }
+public class EmailConfirmation : PageModel
+{
+
 }

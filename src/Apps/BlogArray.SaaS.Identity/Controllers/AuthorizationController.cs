@@ -51,8 +51,8 @@ public class AuthorizationController(
         // authentication options shouldn't be used, a specific scheme can be specified here.
         AuthenticateResult result = await HttpContext.AuthenticateAsync();
         if (result == null || !result.Succeeded || request.HasPromptValue(PromptValues.Login) ||
-           (request.MaxAge != null && result.Properties?.IssuedUtc != null &&
-            DateTimeOffset.UtcNow - result.Properties.IssuedUtc > TimeSpan.FromSeconds(request.MaxAge.Value)))
+           request.MaxAge != null && result.Properties?.IssuedUtc != null &&
+            DateTimeOffset.UtcNow - result.Properties.IssuedUtc > TimeSpan.FromSeconds(request.MaxAge.Value))
         {
             // If the client application requested promptless authentication,
             // return an error indicating that the user is not logged in.
@@ -306,7 +306,8 @@ public class AuthorizationController(
                 yield break;
 
             // Never include the security stamp in the access and identity tokens, as it's a secret value.
-            case "AspNet.Identity.SecurityStamp": yield break;
+            case "AspNet.Identity.SecurityStamp":
+                yield break;
 
             default:
                 yield return Destinations.AccessToken;

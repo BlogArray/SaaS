@@ -9,14 +9,13 @@
 
 using Microsoft.AspNetCore.Authorization;
 
-namespace BlogArray.SaaS.Identity.Controllers
+namespace BlogArray.SaaS.Identity.Controllers;
+
+[Authorize]
+public class HomeController(ILogger<HomeController> logger) : Controller
 {
-    [Authorize]
-    public class HomeController(ILogger<HomeController> logger) : Controller
+    public IActionResult Index()
     {
-        public IActionResult Index()
-        {
-            return View();
-        }
+        return View();
     }
 }

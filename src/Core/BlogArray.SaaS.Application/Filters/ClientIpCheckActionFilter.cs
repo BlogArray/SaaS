@@ -29,7 +29,7 @@ public class ClientIpCheckActionFilter(string safelist) : ActionFilterAttribute
 
         foreach (string address in ipList)
         {
-            IPAddress iPAddress = IPAddress.Parse(address);
+            var iPAddress = IPAddress.Parse(address);
 
             if (iPAddress.Equals(remoteIp))
             {

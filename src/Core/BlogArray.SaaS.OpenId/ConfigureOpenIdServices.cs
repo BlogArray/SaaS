@@ -80,7 +80,8 @@ public static class ConfigureOpenIdServices
                               // Register the development signing and encryption credentials in non-prod.
                               options.AddDevelopmentEncryptionCertificate()
                                      .AddDevelopmentSigningCertificate()
-                                     .DisableAccessTokenEncryption(); ;
+                                     .DisableAccessTokenEncryption();
+                              ;
                           }
 
                           // Register scopes (permissions)

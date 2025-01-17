@@ -174,15 +174,9 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     }
 
 
-    private static string MakeLink(string link, string name)
-    {
-        return $"<a href=\"{HtmlEncoder.Default.Encode(link)}\">{name}</a>";
-    }
+    private static string MakeLink(string link, string name) => $"<a href=\"{HtmlEncoder.Default.Encode(link)}\">{name}</a>";
 
-    private static string MakeLinkButton(string link, string name)
-    {
-        return $"{newLine}<a href=\"{HtmlEncoder.Default.Encode(link)}\" class=\"btn\">{name}</a>{newLine}";
-    }
+    private static string MakeLinkButton(string link, string name) => $"{newLine}<a href=\"{HtmlEncoder.Default.Encode(link)}\" class=\"btn\">{name}</a>{newLine}";
 
     private static string MakeList(List<string> list)
     {
@@ -257,9 +251,6 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         return html;
     }
 
-    private void Send(string toEmail, string subject, string body)
-    {
-        emailHelper.SendEmail(toEmail, subject, body);
-    }
+    private void Send(string toEmail, string subject, string body) => emailHelper.SendEmail(toEmail, subject, body);
 
 }

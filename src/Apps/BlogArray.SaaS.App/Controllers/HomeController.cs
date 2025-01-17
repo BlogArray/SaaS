@@ -10,25 +10,24 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Authorization;
 
-namespace BlogArray.SaaS.App.Controllers
+namespace BlogArray.SaaS.App.Controllers;
+
+public class HomeController() : Controller
 {
-    public class HomeController() : Controller
+    public IActionResult Index()
     {
-        public IActionResult Index()
-        {
-            return View();
-        }
+        return View();
+    }
 
-        [Authorize]
-        public IActionResult Privacy()
-        {
-            return View();
-        }
+    [Authorize]
+    public IActionResult Privacy()
+    {
+        return View();
+    }
 
-        [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
-        public IActionResult Error()
-        {
-            return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
-        }
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public IActionResult Error()
+    {
+        return View(new ErrorViewModel { RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier });
     }
 }
