@@ -54,12 +54,16 @@ public static class StringExtensions
     public static string? GetParam(string queryString, string key)
     {
         if (string.IsNullOrEmpty(queryString) || string.IsNullOrEmpty(key))
+        {
             return null;
+        }
 
         // Ensure the query string contains a '?'
         int questionMarkIndex = queryString.IndexOf('?');
         if (questionMarkIndex == -1)
+        {
             return null; // No query string part to parse
+        }
 
         // Extract the actual query string
         string actualQueryString = queryString[(questionMarkIndex + 1)..];

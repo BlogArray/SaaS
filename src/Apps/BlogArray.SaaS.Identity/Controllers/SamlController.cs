@@ -18,7 +18,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
-    public async Task<IActionResult> Login(string tenant, string next)
+    public async Task<IActionResult> Login(string tenant)
     {
         OpenIdApplication? client = await appManager.FindByClientIdAsync(tenant);
 
@@ -96,7 +96,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     [HttpGet("{tenant}/logout"), HttpPost("{tenant}/logout"), IgnoreAntiforgeryToken]
     public IActionResult Logout(string tenant)
     {
-        string samlEndpoint = "https://login.microsoftonline.com/76ad4116-d61a-49e3-a27f-c0ed764e945e/saml2";
+        string samlEndpoint = "https://login.microsoftonline.com/76ad4116-d61a-49e3-a27f-c0ed764e945e/saml2" + tenant;
 
         SignoutRequest request = new(
             "https://www.id.blogarray.dev",

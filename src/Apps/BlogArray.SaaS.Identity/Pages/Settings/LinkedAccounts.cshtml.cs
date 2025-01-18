@@ -109,11 +109,8 @@ public class LinkedAccountsModel(
         }
 
         string userId = await userManager.GetUserIdAsync(user);
-        ExternalLoginInfo info = await signInManager.GetExternalLoginInfoAsync(userId);
-        if (info == null)
-        {
-            throw new InvalidOperationException($"Unexpected error occurred loading external login info.");
-        }
+
+        ExternalLoginInfo info = await signInManager.GetExternalLoginInfoAsync(userId) ?? throw new InvalidOperationException($"Unexpected error occurred loading external login info.");
 
         IdentityResult result = await userManager.AddLoginAsync(user, info);
         if (!result.Succeeded)

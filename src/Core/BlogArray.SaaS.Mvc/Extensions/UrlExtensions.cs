@@ -37,7 +37,7 @@ public static class UrlExtensions
             foreach (System.Reflection.PropertyInfo prop in properties)
             {
                 object? value = prop.GetValue(queryParams);
-                value = value ?? "";
+                value ??= "";
                 query.Add($"{Uri.EscapeDataString(prop.Name)}={Uri.EscapeDataString(value.ToString() ?? string.Empty)}");
             }
 

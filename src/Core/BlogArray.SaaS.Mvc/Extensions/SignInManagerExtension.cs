@@ -397,10 +397,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
 
     private sealed class IdentityResultException : Exception
     {
-        internal IdentityResultException(IdentityResult result) : base()
-        {
-            IdentityResult = result;
-        }
+        internal IdentityResultException(IdentityResult result) : base() => IdentityResult = result;
 
         internal IdentityResult IdentityResult { get; set; }
 

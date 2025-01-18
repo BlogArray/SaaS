@@ -285,7 +285,9 @@ public class AuthorizationController(
                 yield return Destinations.AccessToken;
 
                 if (claim.Subject.HasScope(Scopes.Profile))
+                {
                     yield return Destinations.IdentityToken;
+                }
 
                 yield break;
 
@@ -293,7 +295,9 @@ public class AuthorizationController(
                 yield return Destinations.AccessToken;
 
                 if (claim.Subject.HasScope(Scopes.Email))
+                {
                     yield return Destinations.IdentityToken;
+                }
 
                 yield break;
 
@@ -301,7 +305,9 @@ public class AuthorizationController(
                 yield return Destinations.AccessToken;
 
                 if (claim.Subject.HasScope(Scopes.Roles))
+                {
                     yield return Destinations.IdentityToken;
+                }
 
                 yield break;
 

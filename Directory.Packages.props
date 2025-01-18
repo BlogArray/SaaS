@@ -2,7 +2,6 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageVersion Include="Finbuckle.MultiTenant" Version="9.0.0" />
     <PackageVersion Include="Finbuckle.MultiTenant.AspNetCore" Version="9.0.0" />
