@@ -9,6 +9,8 @@
 
 #nullable disable
 
+using BlogArray.SaaS.Application.Services;
+
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class ResetAuthenticatorModel(

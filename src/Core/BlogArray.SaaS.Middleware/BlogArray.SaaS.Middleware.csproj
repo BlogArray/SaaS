@@ -12,7 +12,6 @@
     <PackageReference Include="Refit.HttpClientFactory"  />
     <PackageReference Include="Serilog.AspNetCore"  />
     <PackageReference Include="Serilog.Sinks.File"   />
-    <PackageReference Include="UoN.ExpressiveAnnotations.NetCore"   />
   </ItemGroup>
 
   <ItemGroup>

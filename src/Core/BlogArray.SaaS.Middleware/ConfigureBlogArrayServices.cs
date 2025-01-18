@@ -17,7 +17,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using UoN.ExpressiveAnnotations.NetCore.DependencyInjection;
 
 namespace BlogArray.SaaS.Middleware;
 
@@ -39,8 +38,6 @@ public static class ConfigureBlogArrayServices
     public static IHostApplicationBuilder AddBlogArrayServices(this IHostApplicationBuilder builder)
     {
         builder.Services.AddUnobtrusiveAjax();
-
-        builder.Services.AddExpressiveAnnotations();
 
         builder.Services.AddHttpContextAccessor();
 

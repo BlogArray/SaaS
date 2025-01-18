@@ -7,6 +7,8 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using BlogArray.SaaS.Application.Services;
+
 namespace BlogArray.SaaS.Identity.Pages;
 
 public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> signInManager,

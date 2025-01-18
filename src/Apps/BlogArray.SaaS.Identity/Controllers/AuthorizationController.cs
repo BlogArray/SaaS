@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using BlogArray.SaaS.Application.Services;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Abstractions;

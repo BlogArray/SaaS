@@ -8,7 +8,7 @@
 //
 
 using System.ComponentModel.DataAnnotations;
-using UoN.ExpressiveAnnotations.NetCore.Attributes;
+using BlogArray.SaaS.Mvc.Attributes;
 
 namespace BlogArray.SaaS.Domain.DTOs;
 
@@ -176,27 +176,27 @@ public class TenantSecurityViewModel
     /// <summary>
     /// URL for SAML-based signing in
     /// </summary>
-    [RequiredIf("IsSsoEnabled", AllowEmptyStrings = false, ErrorMessage = "Enter Sign-in URL")]
+    [RequiredIf("IsSsoEnabled", true, ErrorMessage = "Enter Sign-in URL")]
     [DataType(DataType.Url)]
     public string? SsoSignInUrl { get; set; } = default!;
 
     /// <summary>
     /// URL for SAML-based signing out
     /// </summary>
-    [RequiredIf("IsSsoEnabled", AllowEmptyStrings = false, ErrorMessage = "Enter Sign-out URL")]
+    [RequiredIf("IsSsoEnabled", true, ErrorMessage = "Enter Sign-out URL")]
     [DataType(DataType.Url)]
     public string? SsoSignOutUrl { get; set; } = default!;
 
     /// <summary>
     /// Entity Identifier used to validate user access in SAML
     /// </summary>
-    [RequiredIf("IsSsoEnabled", AllowEmptyStrings = false, ErrorMessage = "Enter entity id")]
+    [RequiredIf("IsSsoEnabled", true, ErrorMessage = "Enter entity id")]
     public string? SsoEntityId { get; set; }
 
     /// <summary>
     /// X.509 Certificate used for SAML authentication
     /// </summary>
-    [RequiredIf("IsSsoEnabled", AllowEmptyStrings = false, ErrorMessage = "Enter Base-64 coded .cer, .crt, .cert, or .pem")]
+    [RequiredIf("IsSsoEnabled", true, ErrorMessage = "Enter Base-64 coded .cer, .crt, .cert, or .pem")]
     [DataType(DataType.MultilineText)]
     public string? SsoX509Certificate { get; set; }
 

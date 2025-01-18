@@ -16,7 +16,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace BlogArray.SaaS.Mvc.Extensions;
+namespace BlogArray.SaaS.Application.Services;
 
 public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> where TUser : class
 {

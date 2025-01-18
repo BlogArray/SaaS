@@ -8,6 +8,7 @@
 //
 
 using BlogArray.SaaS.Application.Filters;
+using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Identity.HostedServices;
 using BlogArray.SaaS.Middleware;
 using Microsoft.AspNetCore.Authentication.Cookies;

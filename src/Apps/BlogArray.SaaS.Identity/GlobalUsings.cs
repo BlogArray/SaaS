@@ -10,6 +10,7 @@
 global using System.ComponentModel.DataAnnotations;
 global using System.Globalization;
 global using System.Security.Claims;
+global using BlogArray.SaaS.Application.Services;
 global using BlogArray.SaaS.Domain.Constants;
 global using BlogArray.SaaS.Domain.DTOs;
 global using BlogArray.SaaS.Domain.Entities;

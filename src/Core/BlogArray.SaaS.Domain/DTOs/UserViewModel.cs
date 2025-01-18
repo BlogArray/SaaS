@@ -8,8 +8,8 @@
 //
 
 using System.ComponentModel.DataAnnotations;
+using BlogArray.SaaS.Mvc.Attributes;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using UoN.ExpressiveAnnotations.NetCore.Attributes;
 
 namespace BlogArray.SaaS.Domain.DTOs;
 
@@ -100,7 +100,7 @@ public class ResetPasswordViewModel
 
     public bool CreatePassword { get; set; }
 
-    [RequiredIf("CreatePassword", AllowEmptyStrings = false, ErrorMessage = "Enter a strong password")]
+    [RequiredIf("CreatePassword", true, ErrorMessage = "Enter a strong password")]
     [DataType(DataType.Password)]
     public string? Password { get; set; } = default!;
 }
@@ -126,7 +126,7 @@ public class AssignTenantViewModel
 
     public string Name { get; set; } = default!;
 
-    public List<BasicApplicationViewModel> Tenants { get; set; } = default!;
+    public List<BasicApplicationViewModel>? Tenants { get; set; } = default!;
 }
 
 public class AssignTenantRequestViewModel
