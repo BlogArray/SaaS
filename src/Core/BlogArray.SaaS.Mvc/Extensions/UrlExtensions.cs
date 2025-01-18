@@ -31,7 +31,7 @@ public static class UrlExtensions
         // Handle query parameters
         if (queryParams != null)
         {
-            List<string> query = new();
+            List<string> query = [];
             System.Reflection.PropertyInfo[] properties = queryParams.GetType().GetProperties();
 
             foreach (System.Reflection.PropertyInfo prop in properties)

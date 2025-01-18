@@ -25,7 +25,7 @@ public static class CustomHtmlHelpers
     public static IHtmlContent DynamicContentLoader(
         this IHtmlHelper _,
         string divId,
-        string url)
+        string? url)
     {
         // Create the div element
         TagBuilder divBuilder = new("div");
