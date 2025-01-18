@@ -9,8 +9,6 @@
 
 #nullable disable
 
-using BlogArray.SaaS.Application.Services;
-
 namespace BlogArray.SaaS.Identity.Pages;
 
 public class LoginWith2faModel(

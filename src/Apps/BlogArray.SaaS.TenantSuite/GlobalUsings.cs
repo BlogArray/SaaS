@@ -7,7 +7,6 @@
 // https://github.com/BlogArray/SaaS
 //
 
-global using BlogArray.SaaS.Application.Services;
 global using System.Security.Claims;
 global using BlogArray.SaaS.Domain.Constants;
 global using BlogArray.SaaS.Domain.DTOs;

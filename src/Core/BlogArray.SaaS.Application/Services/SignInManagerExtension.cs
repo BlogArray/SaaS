@@ -20,12 +20,12 @@ namespace BlogArray.SaaS.Application.Services;
 
 public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> where TUser : class
 {
-    private const string LoginProviderKey = "LoginProvider";
-    private const string XsrfKey = "XsrfId";
+    //private const string LoginProviderKey = "LoginProvider";
+    //private const string XsrfKey = "XsrfId";
 
-    private readonly IHttpContextAccessor _contextAccessor;
+    //private readonly IHttpContextAccessor _contextAccessor;
     private readonly IAuthenticationSchemeProvider _schemes;
-    private readonly IUserConfirmation<ApplicationUser> _confirmation;
+    //private readonly IUserConfirmation<ApplicationUser> _confirmation;
 
     private TwoFactorAuthenticationInfo? _twoFactorInfo;
 
@@ -43,12 +43,12 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         ArgumentNullException.ThrowIfNull(claimsFactory);
 
         UserManager = userManager;
-        _contextAccessor = contextAccessor;
+        //_contextAccessor = contextAccessor;
         ClaimsFactory = claimsFactory;
         Options = optionsAccessor?.Value ?? new IdentityOptions();
         Logger = logger;
         _schemes = schemes;
-        _confirmation = confirmation;
+        //_confirmation = confirmation;
     }
 
     public virtual async Task<SignInResult> PasswordSignInAsync(ApplicationUser user, string password, bool isPersistent, bool lockoutOnFailure, List<Claim> customClaims)

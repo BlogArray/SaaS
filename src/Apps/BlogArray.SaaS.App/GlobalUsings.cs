@@ -7,7 +7,6 @@
 // https://github.com/BlogArray/SaaS
 //
 
-global using BlogArray.SaaS.Application.Services;
 global using BlogArray.SaaS.Domain.DTOs;
 global using BlogArray.SaaS.Domain.Entities;
 global using BlogArray.SaaS.OpenId;

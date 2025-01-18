@@ -4,23 +4,21 @@ using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 namespace BlogArray.SaaS.Mvc.Attributes;
 
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
-public class RequiredIfAttribute : ValidationAttribute, IClientModelValidator
+public class RequiredIfAttribute(string dependentProperty, object targetValue) : ValidationAttribute, IClientModelValidator
 {
-    private readonly string _dependentProperty;
-    private readonly object _targetValue;
-
-    public RequiredIfAttribute(string dependentProperty, object targetValue)
-    {
-        _dependentProperty = dependentProperty;
-        _targetValue = targetValue;
-    }
-
-    protected override ValidationResult IsValid(object value, ValidationContext validationContext)
+    protected override ValidationResult IsValid(object? value, ValidationContext validationContext)
     {
         object instance = validationContext.ObjectInstance;
-        object? dependentPropertyValue = instance.GetType().GetProperty(_dependentProperty).GetValue(instance);
+        System.Reflection.PropertyInfo? propertyInfo = instance.GetType().GetProperty(dependentProperty);
 
-        if (dependentPropertyValue?.ToString() == _targetValue?.ToString())
+        if (propertyInfo == null)
+        {
+            return new ValidationResult($"Property '{dependentProperty}' not found.");
+        }
+
+        object? dependentPropertyValue = propertyInfo.GetValue(instance);
+
+        if (dependentPropertyValue?.ToString() == targetValue?.ToString())
         {
             if (value == null || value is string str && string.IsNullOrWhiteSpace(str))
             {
@@ -37,8 +35,8 @@ public class RequiredIfAttribute : ValidationAttribute, IClientModelValidator
 
         MergeAttribute(context.Attributes, "data-val", "true");
         MergeAttribute(context.Attributes, "data-val-requiredif", ErrorMessage ?? $"{context.ModelMetadata.DisplayName} is required.");
-        MergeAttribute(context.Attributes, "data-val-requiredif-dependentproperty", _dependentProperty);
-        MergeAttribute(context.Attributes, "data-val-requiredif-targetvalue", _targetValue?.ToString() ?? "");
+        MergeAttribute(context.Attributes, "data-val-requiredif-dependentproperty", dependentProperty);
+        MergeAttribute(context.Attributes, "data-val-requiredif-targetvalue", targetValue?.ToString() ?? "");
     }
 
     private static bool MergeAttribute(IDictionary<string, string> attributes, string key, string value)
