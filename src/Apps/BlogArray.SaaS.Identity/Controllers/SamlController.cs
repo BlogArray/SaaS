@@ -81,12 +81,18 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         string returnUrl = ExtractReturnUrl(relayState);
 
+        //Silent view to post the form to tenant's Logon action
         return View(new SamlAuth
         {
             RedirectTo = returnUrl
         });
     }
 
+    /// <summary>
+    /// Redirects the user to the specified URL after successful SAML authentication.
+    /// </summary>
+    /// <param name="samlAuth">The SAML authentication object containing the redirect URL.</param>
+    /// <returns>A redirection to the specified URL.</returns>
     [HttpPost]
     public IActionResult Logon(SamlAuth samlAuth)
     {
