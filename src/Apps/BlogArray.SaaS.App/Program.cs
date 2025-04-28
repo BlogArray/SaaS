@@ -73,6 +73,29 @@ app.UseRouting();
 
 app.UseMultiTenant();
 
+// Skip tenant check for static files and specific paths
+app.UseWhen(context =>
+    !context.Request.Path.StartsWithSegments("/static") &&
+    !context.Request.Path.StartsWithSegments("/_framework") &&
+    !context.Request.Path.StartsWithSegments("/_content") &&
+    !Path.HasExtension(context.Request.Path.Value), // skip requests with file extensions
+    appBuilder =>
+    {
+        appBuilder.Use(async (context, next) =>
+        {
+            AppTenantInfo? tenantInfo = context.GetMultiTenantContext<AppTenantInfo>()?.TenantInfo;
+
+            if (tenantInfo == null)
+            {
+                // Handle non-registered tenant
+                context.Response.StatusCode = 404;
+                return;
+            }
+
+            await next();
+        });
+    });
+
 app.UseStaticFiles();
 
 app.UseUnobtrusiveAjax();
