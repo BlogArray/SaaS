@@ -10,7 +10,7 @@
 using AspNetCore.Unobtrusive.Ajax;
 using Microsoft.AspNetCore.Builder;
 
-namespace BlogArray.SaaS.Middleware;
+namespace BlogArray.SaaS.Bootstrapper;
 
 public static class ConfigureBlogArrayApplication
 {

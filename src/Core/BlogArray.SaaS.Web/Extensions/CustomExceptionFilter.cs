@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 
-namespace BlogArray.SaaS.Mvc.Extensions;
+namespace BlogArray.SaaS.Web.Extensions;
 
 public class CustomExceptionFilter(IModelMetadataProvider modelMetadataProvider) : IExceptionFilter
 {

@@ -12,7 +12,7 @@ using BlogArray.SaaS.Domain.Entities;
 using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
-namespace BlogArray.SaaS.TenantStore;
+namespace BlogArray.SaaS.Bootstrapper;
 
 public class SaasAppDbContext(IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor) : DbContext
 {

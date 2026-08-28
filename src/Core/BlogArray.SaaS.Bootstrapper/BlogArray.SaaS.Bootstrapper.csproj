@@ -5,6 +5,7 @@
     <PackageReference Include="Azure.Storage.Blobs"  />
     <PackageReference Include="Dapper"  />
     <PackageReference Include="Finbuckle.MultiTenant"   />
+    <PackageReference Include="Finbuckle.MultiTenant.AspNetCore"   />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" />
     <PackageReference Include="Microsoft.Extensions.Caching.SqlServer"   />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis"   />
@@ -22,7 +23,7 @@
     <ProjectReference Include="..\..\Core\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
     <ProjectReference Include="..\BlogArray.SaaS.Domain\BlogArray.SaaS.Domain.csproj" />
     <ProjectReference Include="..\BlogArray.SaaS.Infrastructure\BlogArray.SaaS.Infrastructure.csproj" />
-    <ProjectReference Include="..\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.Web\BlogArray.SaaS.Web.csproj" />
     <ProjectReference Include="..\BlogArray.SaaS.Resources\BlogArray.SaaS.Resources.csproj" />
   </ItemGroup>
 

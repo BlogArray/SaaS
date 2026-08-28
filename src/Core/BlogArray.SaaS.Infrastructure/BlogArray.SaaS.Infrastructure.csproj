@@ -13,7 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BlogArray.SaaS.Domain\BlogArray.SaaS.Domain.csproj" />
-    <ProjectReference Include="..\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.Web\BlogArray.SaaS.Web.csproj" />
   </ItemGroup>
 
 </Project>

@@ -9,7 +9,7 @@
 
 using System.Globalization;
 
-namespace BlogArray.SaaS.Mvc.Helpers;
+namespace BlogArray.SaaS.Web.Helpers;
 
 public class Converter
 {

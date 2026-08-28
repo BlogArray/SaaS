@@ -18,7 +18,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace BlogArray.SaaS.Middleware;
+namespace BlogArray.SaaS.Bootstrapper;
 
 public static class ConfigureBlogArrayServices
 {

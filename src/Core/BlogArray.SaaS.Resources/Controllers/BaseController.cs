@@ -10,7 +10,7 @@
 using System.Net;
 using System.Security.Claims;
 using BlogArray.SaaS.Domain.DTOs;
-using BlogArray.SaaS.Mvc.Helpers;
+using BlogArray.SaaS.Web.Helpers;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;

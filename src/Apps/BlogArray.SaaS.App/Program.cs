@@ -10,7 +10,7 @@
 using AspNetCore.Unobtrusive.Ajax;
 using BlogArray.SaaS.App.Interfaces;
 using BlogArray.SaaS.Application.Filters;
-using BlogArray.SaaS.Middleware;
+using BlogArray.SaaS.Bootstrapper;
 using Finbuckle.MultiTenant.AspNetCore.Extensions;
 using Refit;
 using Serilog;

@@ -10,7 +10,6 @@
 using System.Security.Claims;
 using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.Domain.Entities;
-using BlogArray.SaaS.Middleware;
 using Finbuckle.MultiTenant.Abstractions;
 using Finbuckle.MultiTenant.AspNetCore.Extensions;
 using Finbuckle.MultiTenant.Extensions;
@@ -23,7 +22,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
-namespace BlogArray.SaaS.TenantStore;
+namespace BlogArray.SaaS.Bootstrapper;
 
 public static class ConfigureTenantStoreServices
 {

@@ -14,7 +14,7 @@ global using BlogArray.SaaS.Application.Services;
 global using BlogArray.SaaS.Domain.Constants;
 global using BlogArray.SaaS.Domain.DTOs;
 global using BlogArray.SaaS.Domain.Entities;
-global using BlogArray.SaaS.Mvc.Extensions;
+global using BlogArray.SaaS.Web.Extensions;
 global using BlogArray.SaaS.OpenId;
 global using BlogArray.SaaS.Resources.Controllers;
 global using Microsoft.AspNetCore.Authentication;

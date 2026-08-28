@@ -9,7 +9,7 @@
 
 using System.Text.Encodings.Web;
 using BlogArray.SaaS.Domain.Constants;
-using BlogArray.SaaS.Mvc.Extensions;
+using BlogArray.SaaS.Web.Extensions;
 using Microsoft.Extensions.Configuration;
 
 namespace BlogArray.SaaS.Infrastructure.Services;

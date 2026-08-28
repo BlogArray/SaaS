@@ -10,7 +10,7 @@
 using System.Text;
 using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Infrastructure.Services;
-using BlogArray.SaaS.Mvc.Extensions;
+using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;

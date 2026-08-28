@@ -13,7 +13,7 @@ using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace BlogArray.SaaS.TenantStore;
+namespace BlogArray.SaaS.Bootstrapper;
 
 public static class ConfigureTenantStoreApplication
 {

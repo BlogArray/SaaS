@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BlogArray.SaaS.Domain\BlogArray.SaaS.Domain.csproj" />
-    <ProjectReference Include="..\BlogArray.SaaS.Mvc\BlogArray.SaaS.Mvc.csproj" />
+    <ProjectReference Include="..\BlogArray.SaaS.Web\BlogArray.SaaS.Web.csproj" />
   </ItemGroup>
 
   <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' And !Exists('$(ProjectRoot)node_modules') ">

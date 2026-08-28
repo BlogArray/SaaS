@@ -6,13 +6,12 @@
   </Folder>
   <Folder Name="/Core/">
     <Project Path="src/Core/BlogArray.SaaS.Application/BlogArray.SaaS.Application.csproj" />
+    <Project Path="src/Core/BlogArray.SaaS.Bootstrapper/BlogArray.SaaS.Bootstrapper.csproj" />
     <Project Path="src/Core/BlogArray.SaaS.Domain/BlogArray.SaaS.Domain.csproj" />
     <Project Path="src/Core/BlogArray.SaaS.Infrastructure/BlogArray.SaaS.Infrastructure.csproj" />
-    <Project Path="src/Core/BlogArray.SaaS.Middleware/BlogArray.SaaS.Middleware.csproj" />
-    <Project Path="src/Core/BlogArray.SaaS.Mvc/BlogArray.SaaS.Mvc.csproj" />
     <Project Path="src/Core/BlogArray.SaaS.OpenId/BlogArray.SaaS.OpenId.csproj" />
     <Project Path="src/Core/BlogArray.SaaS.Resources/BlogArray.SaaS.Resources.csproj" />
-    <Project Path="src/Core/BlogArray.SaaS.TenantStore/BlogArray.SaaS.TenantStore.csproj" />
+    <Project Path="src/Core/BlogArray.SaaS.Web/BlogArray.SaaS.Web.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />

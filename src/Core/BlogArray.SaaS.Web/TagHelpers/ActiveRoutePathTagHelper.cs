@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Mvc.TagHelpers;
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
-namespace BlogArray.SaaS.Mvc.TagHelpers;
+namespace BlogArray.SaaS.Web.TagHelpers;
 
 /// <summary>
 /// Sets an link active or not

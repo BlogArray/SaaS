@@ -9,7 +9,7 @@
 
 using System.Web;
 
-namespace BlogArray.SaaS.Mvc.Extensions;
+namespace BlogArray.SaaS.Web.Extensions;
 
 public static class StringExtensions
 {

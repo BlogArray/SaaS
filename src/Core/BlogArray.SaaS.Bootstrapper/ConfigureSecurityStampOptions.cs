@@ -11,7 +11,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
-namespace BlogArray.SaaS.Middleware;
+namespace BlogArray.SaaS.Bootstrapper;
 
 public class ConfigureSecurityStampOptions : IConfigureOptions<SecurityStampValidatorOptions>
 {

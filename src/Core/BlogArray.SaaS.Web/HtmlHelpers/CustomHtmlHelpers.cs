@@ -11,7 +11,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
-namespace BlogArray.SaaS.Mvc.HtmlHelpers;
+namespace BlogArray.SaaS.Web.HtmlHelpers;
 
 public static class CustomHtmlHelpers
 {

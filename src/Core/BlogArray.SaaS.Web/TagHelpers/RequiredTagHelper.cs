@@ -10,7 +10,7 @@
 using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.AspNetCore.Razor.TagHelpers;
 
-namespace BlogArray.SaaS.Mvc.TagHelpers;
+namespace BlogArray.SaaS.Web.TagHelpers;
 
 /// <summary>
 /// Indicates * for all required fields

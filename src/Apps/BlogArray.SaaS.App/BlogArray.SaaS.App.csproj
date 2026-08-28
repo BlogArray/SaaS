@@ -13,7 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Core\BlogArray.SaaS.Application\BlogArray.SaaS.Application.csproj" />
     <ProjectReference Include="..\..\Core\BlogArray.SaaS.Resources\BlogArray.SaaS.Resources.csproj" />
-    <ProjectReference Include="..\..\Core\BlogArray.SaaS.TenantStore\BlogArray.SaaS.TenantStore.csproj" />
+    <ProjectReference Include="..\..\Core\BlogArray.SaaS.Bootstrapper\BlogArray.SaaS.Bootstrapper.csproj" />
   </ItemGroup>
 
   <Target Name="CopySystemSecurityCryptographyPkcs" AfterTargets="Build">
