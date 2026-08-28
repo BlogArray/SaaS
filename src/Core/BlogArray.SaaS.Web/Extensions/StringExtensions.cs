@@ -30,7 +30,7 @@ public static class StringExtensions
             Path = path
         };
 
-        return uriBuilder.ToString();
+        return uriBuilder.Uri.ToString();
     }
 
     /// <summary>

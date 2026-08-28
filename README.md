@@ -2,7 +2,7 @@
 
 ## Project Description
 
-BlogArray.SaaS is an open-source multi-tenant SaaS platform designed to empower .NET developers to build, deploy, and manage scalable SaaS applications effortlessly. Built with ASP.NET Core 9, this platform leverages OpenIddict for identity management and Finbuckle.MultiTenant for multi-tenant support. It provides developers with a foundational solution for handling tenant management, authentication, authorization, and tenant-specific functionality, saving time and reducing complexity.
+BlogArray.SaaS is an open-source multi-tenant SaaS platform designed to empower .NET developers to build, deploy, and manage scalable SaaS applications effortlessly. Built with ASP.NET Core 10, this platform leverages OpenIddict for identity management and Finbuckle.MultiTenant for multi-tenant support. It provides developers with a foundational solution for handling tenant management, authentication, authorization, and tenant-specific functionality, saving time and reducing complexity.
 
 The platform consists of three main applications:
 
@@ -44,7 +44,7 @@ To get started with BlogArray.SaaS, follow these steps:
 
 Ensure you have the following installed:
 
-- [.NET SDK 9](https://dotnet.microsoft.com/)
+- [.NET SDK 10](https://dotnet.microsoft.com/)
 - [SQL Server](https://www.microsoft.com/en-us/sql-server/) or [Redis](https://redis.io/)
 - [Azure Storage Account](https://azure.microsoft.com/en-us/services/storage/blobs/) (for media storage)
 - [Node.js](https://nodejs.org/) (if using frontend integrations)
@@ -140,7 +140,7 @@ Ensure you have the following installed:
    ```
 
 7. **Run Multiple Applications in Visual Studio**
-   - Open the `BlogArray.SaaS.sln` solution in Visual Studio.
+   - Open the `BlogArray.SaaS.slnx` solution in Visual Studio.
    - Set multiple startup projects by:
      1. Right-click the solution in Solution Explorer and select **Properties**.
      2. In the **Common Properties** -> **Startup Project** tab, choose **Multiple startup projects**.

@@ -8,7 +8,7 @@
 //
 
 using System.ComponentModel.DataAnnotations;
-using BlogArray.SaaS.Web.Attributes;
+using BlogArray.SaaS.Domain.Attributes;
 
 namespace BlogArray.SaaS.Domain.DTOs;
 

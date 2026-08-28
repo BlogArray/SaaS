@@ -10,7 +10,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace BlogArray.SaaS.Resources.Controllers;
+namespace BlogArray.SaaS.Web.Controllers;
 
 [AllowAnonymous]
 public class ErrorController : Controller

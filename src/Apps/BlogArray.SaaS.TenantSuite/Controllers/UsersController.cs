@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -7,12 +7,9 @@
 // https://github.com/BlogArray/SaaS
 //
 
-using System.Data;
 using System.Text;
-using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
-using Dapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -29,7 +26,8 @@ public class UsersController(OpenIdDbContext context,
     UserManager<ApplicationUser> userManager,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
     IEmailTemplate emailTemplate,
-    IConfiguration configuration) : BaseController
+    IConfiguration configuration,
+    ITenantPersonnelService personnelService) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -642,7 +640,7 @@ public class UsersController(OpenIdDbContext context,
 
                 if (email is not null && openIdApplication.ConnectionString is not null)
                 {
-                    await TenantsController.EnablePersonnelInTenantAsync(email, openIdApplication.ConnectionString);
+                    await personnelService.EnablePersonnelInTenantAsync(email, openIdApplication.ConnectionString);
                 }
             }
         }
@@ -721,9 +719,11 @@ public class UsersController(OpenIdDbContext context,
 
         string? email = await context.Users.Where(a => a.Id == unAssignViewModel.UserId).Select(s => s.Email).FirstOrDefaultAsync();
 
-        if (!string.IsNullOrEmpty(email) && connections.Length > 0)
+        string[] connectionList = connections.Where(c => !string.IsNullOrEmpty(c)).Select(c => c!).ToArray();
+
+        if (!string.IsNullOrEmpty(email) && connectionList.Length > 0)
         {
-            await DisablePersonnelInTenantsAsync(connections, email);
+            await personnelService.DisablePersonnelInTenantsAsync(connectionList, email!);
         }
 
         string successMessage = $"{unassignedCount} tenant(s) have been successfully unassigned from the user.";
@@ -738,39 +738,5 @@ public class UsersController(OpenIdDbContext context,
     }
 
     #endregion Actions
-
-    #region Private
-
-    /// <summary>
-    /// Disable a user in multiple tenants.
-    /// </summary>
-    /// <param name="connectionStrings">Array of database connection strings for tenants.</param>
-    /// <param name="email">Email of the user to disable.</param>
-    private static async Task DisablePersonnelInTenantsAsync(string[] connectionStrings, string email)
-    {
-        if (connectionStrings != null && connectionStrings.Length > 0)
-        {
-            var parameters = new
-            {
-                IsActive = false,
-                Email = email
-            };
-
-            const string query = @"UPDATE AppPersonnels 
-                           SET IsActive = @IsActive 
-                           WHERE Email = @Email";
-
-            IEnumerable<Task> tasks = connectionStrings.Select(async connectionString =>
-            {
-                using IDbConnection connection = DapperContext.CreateConnection(connectionString);
-                await connection.ExecuteAsync(query, parameters);
-            });
-
-            await Task.WhenAll(tasks);
-        }
-    }
-
-
-    #endregion Private
 
 }

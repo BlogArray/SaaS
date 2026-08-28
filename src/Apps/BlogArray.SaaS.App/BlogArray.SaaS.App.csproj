@@ -17,6 +17,6 @@
   </ItemGroup>
 
   <Target Name="CopySystemSecurityCryptographyPkcs" AfterTargets="Build">
-    <Copy SourceFiles="$(PkgSystem_Security_Cryptography_Pkcs)\lib\net9.0\System.Security.Cryptography.Pkcs.dll" DestinationFolder="$(OutDir)" />
+    <Copy SourceFiles="$(PkgSystem_Security_Cryptography_Pkcs)\lib\net10.0\System.Security.Cryptography.Pkcs.dll" DestinationFolder="$(OutDir)" />
   </Target>
 </Project>

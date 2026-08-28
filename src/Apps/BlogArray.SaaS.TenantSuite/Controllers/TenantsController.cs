@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -7,18 +7,13 @@
 // https://github.com/BlogArray/SaaS
 //
 
-using System.Data;
 using System.Text.Json;
-using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
-using Dapper;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 using P.Pager;
-using static Dapper.SqlMapper;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;
@@ -27,7 +22,9 @@ namespace BlogArray.SaaS.TenantSuite.Controllers;
 public class TenantsController(OpenIdDbContext context,
     OpenIddictApplicationManager<OpenIdApplication> manager,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
-    IAzureStorageService azureStorage, ICacheService cacheService) : BaseController
+    IAzureStorageService azureStorage,
+    ICacheService cacheService,
+    ITenantPersonnelService personnelService) : BaseController
 {
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
@@ -71,7 +68,7 @@ public class TenantsController(OpenIdDbContext context,
 
         if (!string.IsNullOrEmpty(openIdApplication.ConnectionString))
         {
-            bool valid = TestConnection(openIdApplication.ConnectionString);
+            bool valid = await personnelService.TestConnectionAsync(openIdApplication.ConnectionString);
 
             if (!valid)
             {
@@ -159,7 +156,7 @@ public class TenantsController(OpenIdDbContext context,
 
         if (!string.IsNullOrEmpty(openIdApplication.ConnectionString))
         {
-            bool valid = TestConnection(openIdApplication.ConnectionString);
+            bool valid = await personnelService.TestConnectionAsync(openIdApplication.ConnectionString);
 
             if (!valid)
             {
@@ -494,7 +491,7 @@ public class TenantsController(OpenIdDbContext context,
 
             if (email is not null && openIdApplication.ConnectionString is not null)
             {
-                await EnablePersonnelInTenantAsync(email, openIdApplication.ConnectionString);
+                await personnelService.EnablePersonnelInTenantAsync(email, openIdApplication.ConnectionString);
             }
         }
 
@@ -573,9 +570,11 @@ public class TenantsController(OpenIdDbContext context,
 
         string successMessage = $"{unassignedCount} user(s) have been successfully unassigned from the tenant.";
 
-        if (!string.IsNullOrEmpty(openIdApplication.ConnectionString) && emails.Length > 0)
+        string[] emailList = emails.Where(e => !string.IsNullOrEmpty(e)).Select(e => e!).ToArray();
+
+        if (!string.IsNullOrEmpty(openIdApplication.ConnectionString) && emailList.Length > 0)
         {
-            await DisablePersonnelsInTenantAsync(emails, openIdApplication.ConnectionString);
+            await personnelService.DisablePersonnelsInTenantAsync(emailList, openIdApplication.ConnectionString);
         }
         //TODO: Remove Admins from the list of unassign
         // if (adminInAssign)
@@ -685,89 +684,6 @@ public class TenantsController(OpenIdDbContext context,
     private void SetOptions()
     {
         ViewBag.Permissions = OpenIdConstants.OpenIdPermissions().ToSelectList();
-    }
-
-    private static bool TestConnection(string connectionString)
-    {
-        try
-        {
-            using SqlConnection connection = new(connectionString);
-            connection.Open();
-            return true; // Connection succeeded
-        }
-        catch (SqlException)
-        {
-            return false; // SQL-related issue (e.g., invalid credentials)
-        }
-        catch (Exception)
-        {
-            return false; // General issue (e.g., invalid string format)
-        }
-    }
-
-    /// <summary>
-    /// Disable multiple Personnels in a tenant by marking them inactive.
-    /// </summary>
-    /// <param name="emails">Array of emails of Personnels to disable.</param>
-    /// <param name="connectionString">Database connection string.</param>
-    private static async Task DisablePersonnelsInTenantAsync(string[] emails, string connectionString)
-    {
-        if (emails != null && emails.Length > 0)
-        {
-            const string query = @"UPDATE AppPersonnels 
-                           SET IsActive = @IsActive 
-                           WHERE Email IN @Emails";
-
-            var parameters = new
-            {
-                IsActive = false,
-                Emails = emails
-            };
-
-            using IDbConnection? connection = DapperContext.CreateConnection(connectionString);
-
-            await connection.ExecuteAsync(query, parameters);
-        }
-    }
-
-    /// <summary>
-    /// Create/Enable Personnel in a tenant
-    /// </summary>
-    /// <param name="emails">Email of Personnel to enable/create.</param>
-    /// <param name="connectionString">Database connection string.</param>
-    public static async Task EnablePersonnelInTenantAsync(string email, string connectionString)
-    {
-        if (string.IsNullOrEmpty(email))
-        {
-            return;
-        }
-
-        const string checkQuery = @"SELECT COUNT(1) 
-                                FROM AppPersonnels 
-                                WHERE Email = @Email";
-
-        const string updateQuery = @"UPDATE AppPersonnels 
-                                 SET IsActive = @IsActive 
-                                 WHERE Email = @Email";
-
-        const string insertQuery = @"INSERT INTO AppPersonnels (Email, IsActive) 
-                                 VALUES (@Email, @IsActive)";
-
-        using IDbConnection connection = DapperContext.CreateConnection(connectionString);
-
-        // Check if the user exists
-        int userExists = await connection.ExecuteScalarAsync<int>(checkQuery, new { Email = email });
-
-        if (userExists > 0)
-        {
-            // Update existing user to enable them
-            await connection.ExecuteAsync(updateQuery, new { Email = email, IsActive = true });
-        }
-        else
-        {
-            // Create a new user and mark them as enabled
-            await connection.ExecuteAsync(insertQuery, new { Email = email, IsActive = true });
-        }
     }
 
     #endregion Private

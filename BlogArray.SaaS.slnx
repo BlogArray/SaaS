@@ -13,6 +13,9 @@
     <Project Path="src/Core/BlogArray.SaaS.Resources/BlogArray.SaaS.Resources.csproj" />
     <Project Path="src/Core/BlogArray.SaaS.Web/BlogArray.SaaS.Web.csproj" />
   </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="tests/BlogArray.SaaS.UnitTests/BlogArray.SaaS.UnitTests.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />

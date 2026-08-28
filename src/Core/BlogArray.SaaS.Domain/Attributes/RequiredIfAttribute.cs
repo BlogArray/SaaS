@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 
-namespace BlogArray.SaaS.Web.Attributes;
+namespace BlogArray.SaaS.Domain.Attributes;
 
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
 public class RequiredIfAttribute(string dependentProperty, object targetValue) : ValidationAttribute, IClientModelValidator

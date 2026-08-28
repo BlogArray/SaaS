@@ -46,11 +46,11 @@ public static class ConfigureBlogArrayServices
         //builder.Services.AddControllersWithViews(/*config => config.Filters.Add(typeof(CustomExceptionFilter))*/).AddRazorRuntimeCompilation();
 
         builder.Services.AddControllersWithViews()
-            .AddApplicationPart(typeof(BlogArray.SaaS.Resources.Controllers.BaseController).Assembly)
+            .AddApplicationPart(typeof(BlogArray.SaaS.Web.Controllers.BaseController).Assembly)
             .AddRazorRuntimeCompilation();
 
         builder.Services.AddRazorPages()
-            .AddApplicationPart(typeof(BlogArray.SaaS.Resources.Controllers.BaseController).Assembly)
+            .AddApplicationPart(typeof(BlogArray.SaaS.Web.Controllers.BaseController).Assembly)
             .AddRazorRuntimeCompilation();
 
         builder.Services.AddRouting(options => options.LowercaseUrls = true);
@@ -69,6 +69,8 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddSingleton<IEmailHelper, EmailHelper>();
         builder.Services.AddSingleton<IAzureStorageService, AzureStorageService>();
         builder.Services.AddSingleton<ICacheService, CacheService>();
+
+        builder.Services.AddScoped<ITenantPersonnelService, TenantPersonnelService>();
 
         builder.Services.AddCors(options =>
         {
