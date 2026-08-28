@@ -47,7 +47,7 @@ public static class ConfigureTenantStoreApplication
             //tenant.OpenIdConnectClientSecret = tenant.ClientSecretPlain;
             //tenant.OpenIdConnectAuthority = "https://www.id.blogarray.dev/";
             //tenant.OpenIdConnectResponseType = "code";
-            await store.TryAddAsync(tenant);
+            await store.AddAsync(tenant);
         }
 
         return app;

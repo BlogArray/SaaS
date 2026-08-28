@@ -326,7 +326,7 @@ public class AuthorizationController(
         identity.SetClaim(Claims.Subject, await userManager.GetUserIdAsync(user))
                 .SetClaim(Claims.Email, await userManager.GetEmailAsync(user))
                 .SetClaim(Claims.Name, user.DisplayName)
-                .SetClaims(Claims.Role, [.. (await userManager.GetRolesAsync(user))]);
+                .SetClaims(Claims.Role, [.. await userManager.GetRolesAsync(user)]);
 
         identity.SetDestinations(GetDestinations);
 

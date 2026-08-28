@@ -27,7 +27,7 @@ The platform consists of three main applications:
 
 ## Technologies Used
 
-- **ASP.NET Core 9**
+- **ASP.NET Core 10**
 - **OpenIddict**
 - **Finbuckle.MultiTenant**
 - **Entity Framework Core**
@@ -140,7 +140,6 @@ Ensure you have the following installed:
    ```
 
 7. **Run Multiple Applications in Visual Studio**
-
    - Open the `BlogArray.SaaS.sln` solution in Visual Studio.
    - Set multiple startup projects by:
      1. Right-click the solution in Solution Explorer and select **Properties**.
@@ -159,14 +158,14 @@ Ensure you have the following installed:
 - **Azure Blob Storage**: Configure the Azure Blob Storage connection string and container name in `appsettings.json` for tenant-specific media storage.
 - **Multi-Tenant Strategy Configuration**: BlogArray.SaaS uses Finbuckle.MultiTenant's `Route` strategy for tenant identification by default. You can customize the strategy as per your requirements by referring to the [Finbuckle.MultiTenant Documentation](https://www.finbuckle.com/MultiTenant/Docs/v9.0.0/Introduction). Example of switching to the `Host` strategy:
 
-   ```csharp
-   builder.Services.AddMultiTenant<AppTenantInfo>()
-       .WithHostStrategy()
-       .WithDistributedCacheStore(TimeSpan.FromMinutes(5))
-       .WithPerTenantAuthentication();
-   ```
+  ```csharp
+  builder.Services.AddMultiTenant<AppTenantInfo>()
+      .WithHostStrategy()
+      .WithDistributedCacheStore(TimeSpan.FromMinutes(5))
+      .WithPerTenantAuthentication();
+  ```
 
-   Refer to the documentation for more details and supported strategies.
+  Refer to the documentation for more details and supported strategies.
 
 ---
 
@@ -213,4 +212,3 @@ Special thanks to the creators and maintainers of:
 ---
 
 We hope BlogArray.SaaS helps you kickstart your SaaS development journey. If you have any questions or encounter issues, feel free to open an issue in the repository!
-

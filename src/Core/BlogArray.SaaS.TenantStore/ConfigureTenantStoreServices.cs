@@ -11,8 +11,9 @@ using System.Security.Claims;
 using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Middleware;
-using Finbuckle.MultiTenant;
 using Finbuckle.MultiTenant.Abstractions;
+using Finbuckle.MultiTenant.AspNetCore.Extensions;
+using Finbuckle.MultiTenant.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -163,7 +164,7 @@ public static class ConfigureTenantStoreServices
             options.Cookie.Path = $"/{tenantInfo.Identifier}";
             options.Cookie.Name = "Cookie-" + tenantInfo.Identifier;
         });
-
+        
         builder.Services.ConfigurePerTenant<OpenIdConnectOptions, AppTenantInfo>(OpenIdConnectDefaults.AuthenticationScheme, (options, tenantInfo) =>
         {
             options.ClientId = tenantInfo.Identifier;
