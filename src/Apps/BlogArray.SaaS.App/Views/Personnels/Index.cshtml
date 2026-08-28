@@ -31,12 +31,18 @@
                     @if (item.IsActive)
                     {
                         @:Yes
-                        <a asp-action="DeActivate" asp-route-id="@item.Id">Disable user</a>
+                        <form asp-action="DeActivate" method="post" class="d-inline">
+                            <input type="hidden" name="id" value="@item.Id" />
+                            <button type="submit" class="btn btn-link btn-sm px-0 align-baseline">Disable user</button>
+                        </form>
                     }
                     else
                     {
                         @:No
-                        <a asp-action="Activate" asp-route-id="@item.Id">Activate user</a>
+                        <form asp-action="Activate" method="post" class="d-inline">
+                            <input type="hidden" name="id" value="@item.Id" />
+                            <button type="submit" class="btn btn-link btn-sm px-0 align-baseline">Activate user</button>
+                        </form>
                     }
                 </td>
             </tr>

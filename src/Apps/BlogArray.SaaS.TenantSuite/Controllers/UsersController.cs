@@ -8,6 +8,7 @@
 //
 
 using System.Text;
+using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -24,10 +25,9 @@ namespace BlogArray.SaaS.TenantSuite.Controllers;
 public class UsersController(OpenIdDbContext context,
     IUserStore<ApplicationUser> userStore,
     UserManager<ApplicationUser> userManager,
-    OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
     IEmailTemplate emailTemplate,
     IConfiguration configuration,
-    ITenantPersonnelService personnelService) : BaseController
+    IUserManagementService userManagementService) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -339,6 +339,8 @@ public class UsersController(OpenIdDbContext context,
         return Ok(basicUserViews);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> EnableUser(string id)
     {
         if (id == null)
@@ -367,6 +369,8 @@ public class UsersController(OpenIdDbContext context,
         return JsonSuccess($"User {entity.Email} has been enabled successfully.");
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> DisableUser(string id)
     {
         if (id == null)
@@ -467,6 +471,8 @@ public class UsersController(OpenIdDbContext context,
         }
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> ConfirmEmailPhone(string id)
     {
         if (id == null)
@@ -491,6 +497,8 @@ public class UsersController(OpenIdDbContext context,
         return JsonSuccess("User information has been successfully saved.");
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> LockUser(string id)
     {
         if (id == null)
@@ -515,32 +523,8 @@ public class UsersController(OpenIdDbContext context,
         return JsonSuccess("The user account is currently locked, preventing any further login attempts until the lock is lifted.");
     }
 
-    //[HttpPost, ActionName("LockUser")]
-    //[ValidateAntiForgeryToken]
-    //public async Task<IActionResult> LockUserConfirm(string id)
-    //{
-    //    if (id == null)
-    //    {
-    //        return NotFound();
-    //    }
-
-    //    ApplicationUser? entity = await userManager.FindByIdAsync(id);
-
-    //    if (entity is null)
-    //    {
-    //        return NotFound();
-    //    }
-
-    //    entity.LockoutEnabled = true;
-    //    entity.LockoutEnd = DateTime.UtcNow.AddDays(1);
-    //    entity.UpdatedOn = DateTime.UtcNow;
-    //    entity.UpdatedById = LoggedInUserID;
-
-    //    await context.SaveChangesAsync();
-
-    //    return JsonSuccess("User information has been successfully saved.");
-    //}
-
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> UnlockUser(string id)
     {
         if (id == null)
@@ -616,34 +600,7 @@ public class UsersController(OpenIdDbContext context,
 
         string successMessage = $"{assignViewModel.Tenants.Count} tenant(s) have been successfully assigned to the user.";
 
-        foreach (string id in assignViewModel.Tenants)
-        {
-            bool hasAccess = await context.Authorizations.Where(a => a.Subject == assignViewModel.UserId && a.Application.Id == id).AnyAsync();
-
-            if (!hasAccess)
-            {
-                OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
-
-                OpenIdAuthorization auth = new()
-                {
-                    Application = openIdApplication,
-                    CreationDate = DateTime.UtcNow,
-                    Status = "valid",
-                    Subject = assignViewModel.UserId,
-                    Scopes = "[\"openid\",\"email\",\"profile\",\"roles\"]",
-                    Type = "permanent"
-                };
-
-                await authorizationManager.CreateAsync(auth);
-
-                string? email = await context.Authorizations.Where(a => a.Subject == assignViewModel.UserId && a.Application.Id == id).Select(s => s.SubjectUser.Email).FirstOrDefaultAsync();
-
-                if (email is not null && openIdApplication.ConnectionString is not null)
-                {
-                    await personnelService.EnablePersonnelInTenantAsync(email, openIdApplication.ConnectionString);
-                }
-            }
-        }
+        await userManagementService.AssignTenantsAsync(assignViewModel.UserId, assignViewModel.Tenants);
 
         return JsonSuccess(successMessage);
     }
@@ -704,27 +661,7 @@ public class UsersController(OpenIdDbContext context,
             return JsonError("Please select at least one user to unassign.");
         }
 
-        // Remove selected users from tokens and authorizations
-        await context.Tokens
-            .Where(a => unAssignViewModel.Tenants.Contains(a.Application.Id) && a.Subject == unAssignViewModel.UserId)
-            .ExecuteDeleteAsync();
-
-        string?[] connections = await context.Applications
-            .Where(s => s.ConnectionString != "" && s.ConnectionString != null && unAssignViewModel.Tenants.Contains(s.Id))
-            .Select(s => s.ConnectionString).ToArrayAsync();
-
-        int unassignedCount = await context.Authorizations
-            .Where(a => unAssignViewModel.Tenants.Contains(a.Application.Id) && a.Subject == unAssignViewModel.UserId)
-            .ExecuteDeleteAsync();
-
-        string? email = await context.Users.Where(a => a.Id == unAssignViewModel.UserId).Select(s => s.Email).FirstOrDefaultAsync();
-
-        string[] connectionList = connections.Where(c => !string.IsNullOrEmpty(c)).Select(c => c!).ToArray();
-
-        if (!string.IsNullOrEmpty(email) && connectionList.Length > 0)
-        {
-            await personnelService.DisablePersonnelInTenantsAsync(connectionList, email!);
-        }
+        int unassignedCount = await userManagementService.UnassignTenantsAsync(unAssignViewModel.UserId, unAssignViewModel.Tenants);
 
         string successMessage = $"{unassignedCount} tenant(s) have been successfully unassigned from the user.";
 

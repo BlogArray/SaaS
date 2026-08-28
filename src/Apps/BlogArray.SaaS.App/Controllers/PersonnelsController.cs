@@ -75,6 +75,8 @@ public class PersonnelsController(SaasAppDbContext context,
         return RedirectToAction("Index");
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeActivate(long id)
     {
         AppPersonnel? user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);
@@ -101,6 +103,8 @@ public class PersonnelsController(SaasAppDbContext context,
         return RedirectToAction("Index");
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Activate(long id)
     {
         AppPersonnel? user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);

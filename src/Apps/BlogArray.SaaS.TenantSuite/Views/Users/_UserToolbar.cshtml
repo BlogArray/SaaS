@@ -18,43 +18,38 @@
         <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
             @if (!Model.IsActive)
             {
-                @Html.AjaxActionLink("Enable user", "EnableUser", new { id = Model.Id }, new AjaxOptions
-   {
-       OnSuccess = "changeState",
-       Confirm = "Enabling this user will grant them access to their assigned tenants. Are you sure you want to continue?"
-   }, new { @class = "btn btn-outline-secondary", title = "Enable user" })
+                <form asp-controller="Users" asp-action="EnableUser" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Enabling this user will grant them access to their assigned tenants. Are you sure you want to continue?" data-ajax-success="changeState" class="d-inline">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-outline-secondary" title="Enable user">Enable user</button>
+                </form>
             }
             else
             {
-                @Html.AjaxActionLink("Disable user", "DisableUser", new { id = Model.Id }, new AjaxOptions
-   {
-       OnSuccess = "changeState",
-       Confirm = "Disabling this user will revoke their access to all assigned tenants. Are you sure you want to continue?"
-   }, new { @class = "btn btn-outline-secondary", title = "Disable user" })
+                <form asp-controller="Users" asp-action="DisableUser" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Disabling this user will revoke their access to all assigned tenants. Are you sure you want to continue?" data-ajax-success="changeState" class="d-inline">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-outline-secondary" title="Disable user">Disable user</button>
+                </form>
             }
             @if (!Model.IsEmailPhoneConfirmed)
             {
-                @Html.AjaxActionLink("Confirm email/phone", "ConfirmEmailPhone", new { id = Model.Id }, new AjaxOptions
-   {
-       OnSuccess = "changeState",
-       Confirm = "This will allow them to access the account. Are you sure you want to confirm the user's email and phone number?"
-   }, new { @class = "btn btn-outline-secondary", title = "Mark email and phone as confirmed." })
+                <form asp-controller="Users" asp-action="ConfirmEmailPhone" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This will allow them to access the account. Are you sure you want to confirm the user's email and phone number?" data-ajax-success="changeState" class="d-inline">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-outline-secondary" title="Mark email and phone as confirmed.">Confirm email/phone</button>
+                </form>
             }
             @if (Model.LockoutEnabled)
             {
-                @Html.AjaxActionLink("Unlock user", "UnlockUser", new { id = Model.Id }, new AjaxOptions
-   {
-       OnSuccess = "changeState",
-       Confirm = "This action will allow the user to log in again. Are you sure you want to unlock this user?"
-   }, new { @class = "btn btn-outline-secondary", title = $"User is currently locked until {Model.LockoutEnd}" })
+                <form asp-controller="Users" asp-action="UnlockUser" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This action will allow the user to log in again. Are you sure you want to unlock this user?" data-ajax-success="changeState" class="d-inline">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-outline-secondary" title="User is currently locked until @Model.LockoutEnd">Unlock user</button>
+                </form>
             }
             else
             {
-                @Html.AjaxActionLink("Lock user", "LockUser", new { id = Model.Id }, new AjaxOptions
-   {
-       OnSuccess = "changeState",
-       Confirm = "This action will prevent the user to log in again. Are you sure you want to lock this user?"
-   }, new { @class = "btn btn-outline-secondary", title = "Prevent the user from logging in by locking their account." })
+                <form asp-controller="Users" asp-action="LockUser" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This action will prevent the user to log in again. Are you sure you want to lock this user?" data-ajax-success="changeState" class="d-inline">
+                    <input type="hidden" name="id" value="@Model.Id" />
+                    <button type="submit" class="btn btn-outline-secondary" title="Prevent the user from logging in by locking their account.">Lock user</button>
+                </form>
             }
 
             @Html.AjaxActionLink("Reset password", "ResetPassword", new { id = Model.Id }, new AjaxOptions

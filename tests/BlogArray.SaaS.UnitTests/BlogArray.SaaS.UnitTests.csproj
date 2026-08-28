@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Core\BlogArray.SaaS.Infrastructure\BlogArray.SaaS.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Core\BlogArray.SaaS.Web\BlogArray.SaaS.Web.csproj" />
     <ProjectReference Include="..\..\src\Core\BlogArray.SaaS.Domain\BlogArray.SaaS.Domain.csproj" />
   </ItemGroup>

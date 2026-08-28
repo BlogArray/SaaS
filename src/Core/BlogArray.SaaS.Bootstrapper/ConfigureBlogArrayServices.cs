@@ -8,8 +8,11 @@
 //
 
 using AspNetCore.Unobtrusive.Ajax;
+using BlogArray.SaaS.Application.Filters;
+using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Domain.Constants;
 using BlogArray.SaaS.Domain.DTOs;
+using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
@@ -71,6 +74,10 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddSingleton<ICacheService, CacheService>();
 
         builder.Services.AddScoped<ITenantPersonnelService, TenantPersonnelService>();
+        builder.Services.AddScoped<IDbConnectionFactory, SqlDbConnectionFactory>();
+        builder.Services.AddScoped<ITenantManagementService, TenantManagementService>();
+        builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+        builder.Services.AddScoped<ApiKeyAuthorizationFilter>();
 
         builder.Services.AddCors(options =>
         {

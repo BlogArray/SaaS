@@ -16,7 +16,7 @@ public interface ITenantPersonnelService
     Task DisablePersonnelInTenantsAsync(IReadOnlyCollection<string> connectionStrings, string email);
 }
 
-public class TenantPersonnelService : ITenantPersonnelService
+public class TenantPersonnelService(IDbConnectionFactory connectionFactory) : ITenantPersonnelService
 {
     public async Task<bool> TestConnectionAsync(string connectionString)
     {
@@ -54,7 +54,7 @@ public class TenantPersonnelService : ITenantPersonnelService
         const string insertQuery = @"INSERT INTO AppPersonnels (Email, IsActive)
                                  VALUES (@Email, @IsActive)";
 
-        using IDbConnection connection = DapperContext.CreateConnection(connectionString);
+        using IDbConnection connection = connectionFactory.CreateConnection(connectionString);
 
         int userExists = await connection.ExecuteScalarAsync<int>(checkQuery, new { Email = email });
 
@@ -79,7 +79,7 @@ public class TenantPersonnelService : ITenantPersonnelService
                            SET IsActive = @IsActive
                            WHERE Email IN @Emails";
 
-        using IDbConnection connection = DapperContext.CreateConnection(connectionString);
+        using IDbConnection connection = connectionFactory.CreateConnection(connectionString);
 
         await connection.ExecuteAsync(query, new { IsActive = false, Emails = emails });
     }
@@ -92,7 +92,7 @@ public class TenantPersonnelService : ITenantPersonnelService
 
         IEnumerable<Task> tasks = connectionStrings.Select(async connectionString =>
         {
-            using IDbConnection connection = DapperContext.CreateConnection(connectionString);
+            using IDbConnection connection = connectionFactory.CreateConnection(connectionString);
             await connection.ExecuteAsync(query, new { IsActive = false, Email = email });
         });
 

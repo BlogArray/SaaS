@@ -8,6 +8,7 @@
 //
 
 using AspNetCore.Unobtrusive.Ajax;
+using BlogArray.SaaS.App.Handlers;
 using BlogArray.SaaS.App.Interfaces;
 using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Bootstrapper;
@@ -46,8 +47,11 @@ builder.Services.AddScoped(container =>
     return new ClientIpCheckActionFilter(Configuration["IPSafeList"]);
 });
 
+builder.Services.AddScoped<TenantApiKeyHandler>();
+
 builder.Services.AddRefitClient<IMembershipClient>()
-    .ConfigureHttpClient(c => c.BaseAddress = new Uri(Configuration["Links:Suite"]));
+    .ConfigureHttpClient(c => c.BaseAddress = new Uri(Configuration["Links:Suite"]))
+    .AddHttpMessageHandler<TenantApiKeyHandler>();
 
 WebApplication app = builder.Build();
 

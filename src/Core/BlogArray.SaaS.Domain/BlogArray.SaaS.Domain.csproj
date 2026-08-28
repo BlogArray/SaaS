@@ -3,10 +3,7 @@
   <ItemGroup>
     <PackageReference Include="Finbuckle.MultiTenant" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
     <PackageReference Include="OpenIddict.EntityFrameworkCore" />
-    <PackageReference Include="OpenIddict" />
-    <PackageReference Include="OpenIddict.AspNetCore" />
   </ItemGroup>
 
   <ItemGroup>

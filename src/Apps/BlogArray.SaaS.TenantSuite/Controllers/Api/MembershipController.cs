@@ -19,7 +19,8 @@ using OpenIddict.Core;
 namespace BlogArray.SaaS.TenantSuite.Controllers.Api;
 
 [Route("api/[controller]")]
-[ServiceFilter(typeof(ClientIpCheckActionFilter))]
+    [ServiceFilter(typeof(ClientIpCheckActionFilter))]
+    [ServiceFilter(typeof(ApiKeyAuthorizationFilter))]
 [ApiController]
 public class MembershipController(OpenIdDbContext context,
     IUserStore<ApplicationUser> userStore,

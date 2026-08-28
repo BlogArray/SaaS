@@ -6,6 +6,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" />
+    <PackageReference Include="Refit" />
+    <PackageReference Include="Refit.HttpClientFactory" />
     <!--https://github.com/dotnet/aspnetcore/issues/38892#issuecomment-988926919-->
     <PackageReference Include="System.Security.Cryptography.Pkcs" GeneratePathProperty="true" />
   </ItemGroup>

@@ -8,6 +8,7 @@
 //
 
 using System.Text.Json;
+using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -21,7 +22,7 @@ namespace BlogArray.SaaS.TenantSuite.Controllers;
 [Authorize(Roles = "Superuser")]
 public class TenantsController(OpenIdDbContext context,
     OpenIddictApplicationManager<OpenIdApplication> manager,
-    OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
+    ITenantManagementService tenantManagementService,
     IAzureStorageService azureStorage,
     ICacheService cacheService,
     ITenantPersonnelService personnelService) : BaseController
@@ -382,6 +383,8 @@ public class TenantsController(OpenIdDbContext context,
         return result.Status ? JsonSuccess(result.Result) : JsonError("An error occurred while saving your information.");
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> RotateKeys(string id, string type)
     {
         if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(type))
@@ -468,32 +471,7 @@ public class TenantsController(OpenIdDbContext context,
 
         string successMessage = $"{assignViewModel.Users.Count} user(s) have been successfully assigned to the tenant.";
 
-        foreach (string id in assignViewModel.Users)
-        {
-            bool hasAccess = await context.Authorizations.Where(a => a.Subject == id && a.Application.Id == assignViewModel.ApplicationId).AnyAsync();
-
-            if (!hasAccess)
-            {
-                OpenIdAuthorization auth = new()
-                {
-                    Application = openIdApplication,
-                    CreationDate = DateTime.UtcNow,
-                    Status = "valid",
-                    Subject = id,
-                    Scopes = "[\"openid\",\"email\",\"profile\",\"roles\"]",
-                    Type = "permanent"
-                };
-
-                await authorizationManager.CreateAsync(auth);
-            }
-
-            string? email = await context.Authorizations.Where(a => a.Subject == id && a.Application.Id == assignViewModel.ApplicationId).Select(s => s.SubjectUser.Email).FirstOrDefaultAsync();
-
-            if (email is not null && openIdApplication.ConnectionString is not null)
-            {
-                await personnelService.EnablePersonnelInTenantAsync(email, openIdApplication.ConnectionString);
-            }
-        }
+        await tenantManagementService.AssignUsersAsync(openIdApplication, assignViewModel.Users);
 
         return JsonSuccess(successMessage);
     }
@@ -555,27 +533,9 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("Please select at least one user to unassign.");
         }
 
-        // Remove selected users from tokens and authorizations
-        await context.Tokens
-            .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
-            .ExecuteDeleteAsync();
-
-        string?[] emails = await context.Authorizations
-            .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
-            .Select(s => s.SubjectUser.Email).ToArrayAsync();
-
-        int unassignedCount = await context.Authorizations
-            .Where(a => unAssignViewModel.Users.Contains(a.Subject) && a.Application.Id == unAssignViewModel.ApplicationId)
-            .ExecuteDeleteAsync();
+        int unassignedCount = await tenantManagementService.UnassignUsersAsync(openIdApplication, unAssignViewModel.Users);
 
         string successMessage = $"{unassignedCount} user(s) have been successfully unassigned from the tenant.";
-
-        string[] emailList = emails.Where(e => !string.IsNullOrEmpty(e)).Select(e => e!).ToArray();
-
-        if (!string.IsNullOrEmpty(openIdApplication.ConnectionString) && emailList.Length > 0)
-        {
-            await personnelService.DisablePersonnelsInTenantAsync(emailList, openIdApplication.ConnectionString);
-        }
         //TODO: Remove Admins from the list of unassign
         // if (adminInAssign)
         // {

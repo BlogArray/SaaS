@@ -2,15 +2,11 @@
 
   <ItemGroup>
     <PackageReference Include="AspNetCore.Unobtrusive.Ajax"  />
-    <PackageReference Include="Azure.Storage.Blobs"  />
-    <PackageReference Include="Dapper"  />
     <PackageReference Include="Finbuckle.MultiTenant"   />
     <PackageReference Include="Finbuckle.MultiTenant.AspNetCore"   />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" />
     <PackageReference Include="Microsoft.Extensions.Caching.SqlServer"   />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis"   />
-    <PackageReference Include="Refit"  />
-    <PackageReference Include="Refit.HttpClientFactory"  />
     <PackageReference Include="Serilog.AspNetCore"  />
     <PackageReference Include="Serilog.Sinks.File"   />
   </ItemGroup>
@@ -20,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\BlogArray.SaaS.Application\BlogArray.SaaS.Application.csproj" />
     <ProjectReference Include="..\..\Core\BlogArray.SaaS.OpenId\BlogArray.SaaS.OpenId.csproj" />
     <ProjectReference Include="..\BlogArray.SaaS.Domain\BlogArray.SaaS.Domain.csproj" />
     <ProjectReference Include="..\BlogArray.SaaS.Infrastructure\BlogArray.SaaS.Infrastructure.csproj" />
