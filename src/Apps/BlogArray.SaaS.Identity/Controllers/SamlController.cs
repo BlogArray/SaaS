@@ -15,7 +15,8 @@ namespace BlogArray.SaaS.Identity.Controllers;
 
 [Route("saml")]
 public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appManager,
-    SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager) : Controller
+    SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager,
+    IConfiguration configuration) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Login(string tenant)
@@ -75,7 +76,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             new Claim("amr", "x509"),
         ];
 
-        await signInManager.SignInAsync(user, true, customClaims, IdentityConstants.ApplicationScheme);
+        await signInManager.SignInAsync(user, false, customClaims, IdentityConstants.ApplicationScheme);
 
         Microsoft.Extensions.Primitives.StringValues relayState = Request.Form["RelayState"];
 
@@ -102,11 +103,19 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     [HttpGet("{tenant}/logout"), HttpPost("{tenant}/logout"), IgnoreAntiforgeryToken]
     public IActionResult Logout(string tenant)
     {
-        string samlEndpoint = "https://login.microsoftonline.com/76ad4116-d61a-49e3-a27f-c0ed764e945e/saml2" + tenant;
+        // SAML endpoints and the local entity id are read from configuration
+        // ("Saml:IdpLogoutEndpointTemplate" uses {tenant} as a placeholder, "Links:Issuer"
+        // identifies this application) instead of being hardcoded.
+        string endpointTemplate = configuration["Saml:IdpLogoutEndpointTemplate"]
+            ?? "https://login.microsoftonline.com/76ad4116-d61a-49e3-a27f-c0ed764e945e/{tenant}/saml2";
+
+        string samlEndpoint = endpointTemplate.Replace("{tenant}", tenant);
+
+        string applicationBase = configuration["Links:Issuer"] ?? "https://www.id.blogarray.dev/";
 
         SignoutRequest request = new(
-            "https://www.id.blogarray.dev",
-            "https://www.id.blogarray.dev/saml/mvcc/acs"
+            applicationBase,
+            $"{applicationBase.TrimEnd('/')}/saml/{tenant}/acs"
         );
 
         return Redirect(request.GetRedirectUrl(samlEndpoint));

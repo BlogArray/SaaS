@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -17,12 +17,22 @@ public class ResetAuthenticatorModel(
     ILogger<ResetAuthenticatorModel> logger) : PageModel
 {
 
+    [BindProperty]
+    public InputModel Input { get; set; }
+
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
     /// </summary>
     [TempData]
     public string StatusMessage { get; set; }
+
+    public class InputModel
+    {
+        [Required(AllowEmptyStrings = false, ErrorMessage = "Enter your password")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; }
+    }
 
     public async Task<IActionResult> OnGet()
     {
@@ -36,6 +46,13 @@ public class ResetAuthenticatorModel(
         if (user == null)
         {
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+        }
+
+        // Security-sensitive action: require the current password to be re-entered.
+        if (!await userManager.CheckPasswordAsync(user, Input?.Password))
+        {
+            ModelState.AddModelError("Input.Password", "Incorrect password.");
+            return Page();
         }
 
         await userManager.SetTwoFactorEnabledAsync(user, false);

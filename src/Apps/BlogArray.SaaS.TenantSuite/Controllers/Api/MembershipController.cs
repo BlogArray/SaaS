@@ -21,6 +21,7 @@ namespace BlogArray.SaaS.TenantSuite.Controllers.Api;
 [Route("api/[controller]")]
     [ServiceFilter(typeof(ClientIpCheckActionFilter))]
     [ServiceFilter(typeof(ApiKeyAuthorizationFilter))]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("api")]
 [ApiController]
 public class MembershipController(OpenIdDbContext context,
     IUserStore<ApplicationUser> userStore,
@@ -39,11 +40,11 @@ public class MembershipController(OpenIdDbContext context,
             return ModelStateError(ModelState);
         }
 
-        OpenIdApplication? openIdApplication = await context.Applications.SingleOrDefaultAsync(app => app.ClientId == userVM.Tenant);
+        OpenIdApplication? openIdApplication = GetTenantApplicationFor(userVM.Tenant);
 
         if (openIdApplication is null)
         {
-            return JsonError($"Tenant with {userVM.Tenant} name is not found in identity server.");
+            return TenantForbiddenResult();
         }
 
         bool newUser = false;
@@ -103,18 +104,19 @@ public class MembershipController(OpenIdDbContext context,
             return ModelStateError(ModelState);
         }
 
-        OpenIdApplication? openIdApplication = await context.Applications.SingleOrDefaultAsync(app => app.ClientId == userVM.Tenant);
+        OpenIdApplication? openIdApplication = GetTenantApplicationFor(userVM.Tenant);
 
         if (openIdApplication is null)
         {
-            return JsonError($"Tenant with {userVM.Tenant} name is not found in identity server.");
+            return TenantForbiddenResult();
         }
 
         ApplicationUser? entity = await userManager.FindByEmailAsync(userVM.Email);
 
         if (entity is null)
         {
-            return JsonError($"User with {userVM.Email} email is not found in identity server.");
+            // Uniform response: do not disclose whether the email exists in the identity store.
+            return JsonSuccess("The request has been processed.");
         }
 
         entity.UpdatedOn = DateTime.UtcNow;
@@ -136,18 +138,19 @@ public class MembershipController(OpenIdDbContext context,
             return ModelStateError(ModelState);
         }
 
-        OpenIdApplication? openIdApplication = await context.Applications.SingleOrDefaultAsync(app => app.ClientId == userVM.Tenant);
+        OpenIdApplication? openIdApplication = GetTenantApplicationFor(userVM.Tenant);
 
         if (openIdApplication is null)
         {
-            return JsonError($"Tenant with {userVM.Tenant} name is not found in identity server.");
+            return TenantForbiddenResult();
         }
 
         ApplicationUser? entity = await userManager.FindByEmailAsync(userVM.Email);
 
         if (entity is null)
         {
-            return JsonError($"User with {userVM.Email} email is not found in identity server.");
+            // Uniform response: do not disclose whether the email exists in the identity store.
+            return JsonSuccess("The request has been processed.");
         }
 
         //entity.IsActive = false;
@@ -160,6 +163,32 @@ public class MembershipController(OpenIdDbContext context,
         await UnassignUserToTenantAsync(entity.Id, openIdApplication.Id);
 
         return JsonSuccess($"User {entity.Email} has been disabled successfully.");
+    }
+
+    /// <summary>
+    /// Returns the application resolved from the API key presented with the request, but only when it
+    /// matches the tenant requested in the body. This prevents one tenant's API key from operating on
+    /// another tenant (cross-tenant IDOR).
+    /// </summary>
+    private OpenIdApplication? GetTenantApplicationFor(string? requestedTenant)
+    {
+        if (HttpContext.Items[ApiKeyAuthorizationFilter.TenantApplicationItemKey] is not OpenIdApplication application)
+        {
+            return null;
+        }
+
+        return string.Equals(application.ClientId, requestedTenant, StringComparison.OrdinalIgnoreCase)
+            ? application
+            : null;
+    }
+
+    private ObjectResult TenantForbiddenResult()
+    {
+        return StatusCode(StatusCodes.Status403Forbidden, new ReturnResult
+        {
+            Status = false,
+            Message = "The API key is not authorized for the specified tenant."
+        });
     }
 
     private async Task AssignUserToTenantAsync(string userId, OpenIdApplication application)

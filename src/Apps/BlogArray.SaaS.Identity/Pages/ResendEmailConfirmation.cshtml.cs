@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -10,13 +10,15 @@
 #nullable disable
 
 using System.Text;
+using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
 [AllowAnonymous]
-public class ResendEmailConfirmationModel(UserManager<ApplicationUser> userManager) : PageModel
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("email")]
+public class ResendEmailConfirmationModel(UserManager<ApplicationUser> userManager, IEmailTemplate emailTemplate) : PageModel
 {
 
     /// <summary>
@@ -67,10 +69,8 @@ public class ResendEmailConfirmationModel(UserManager<ApplicationUser> userManag
             pageHandler: null,
             values: new { userId, code },
             protocol: Request.Scheme);
-        //await _emailSender.SendEmailAsync(
-        //    Input.Email,
-        //    "Confirm your email",
-        //    $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
+
+        emailTemplate.ConfirmEmail(Input.Email, user.DisplayName ?? Input.Email, callbackUrl);
 
         ModelState.AddModelError(string.Empty, "Verification email sent. Please check your email.");
         return Page();

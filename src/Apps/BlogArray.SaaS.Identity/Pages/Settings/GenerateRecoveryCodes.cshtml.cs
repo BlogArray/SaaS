@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -13,8 +13,11 @@ namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class GenerateRecoveryCodesModel(
     UserManager<ApplicationUser> userManager,
+    SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<GenerateRecoveryCodesModel> logger) : PageModel
 {
+    [BindProperty]
+    public InputModel Input { get; set; }
 
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -29,6 +32,13 @@ public class GenerateRecoveryCodesModel(
     /// </summary>
     [TempData]
     public string StatusMessage { get; set; }
+
+    public class InputModel
+    {
+        [Required(AllowEmptyStrings = false, ErrorMessage = "Enter your password")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; }
+    }
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -62,6 +72,14 @@ public class GenerateRecoveryCodesModel(
         {
             StatusMessage = $"Cannot generate recovery codes for user because they do not have 2FA enabled.";
             return RedirectToPage("./TwoFactorAuthentication");
+        }
+
+        // Security-sensitive action: require the current password to be re-entered so minted
+        // recovery codes cannot be generated from a stolen session cookie.
+        if (!await userManager.CheckPasswordAsync(user, Input?.Password))
+        {
+            ModelState.AddModelError("Input.Password", "Incorrect password.");
+            return Page();
         }
 
         IEnumerable<string> recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);

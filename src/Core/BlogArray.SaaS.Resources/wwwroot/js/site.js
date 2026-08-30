@@ -175,26 +175,30 @@ let Unobtrusive = function () {
 
 let AppCrypto = function () {
     /**
-     * Generates a unique code with a specified length based on the current timestamp and cryptographic randomness.
+     * Generates a unique code with a specified length using cryptographically secure randomness.
      * @param {number} length Length of the unique code to generate. Default is 32.
      */
     function generateUniqueCode(length = 32) {
         const charset = lowerAlphabets + numbers;
 
-        // Get the current date and time in milliseconds
-        const timestamp = Date.now().toString(36); // Base-36 encoding for shorter string
-        const remainingLength = length - timestamp.length;
-
+        // Rejection sampling over crypto.getRandomValues removes modulo bias without
+        // relying on Math.random or time-based seeds.
+        const maxAccepted = Math.floor(4294967296 / charset.length) * charset.length;
+        const buffer = new Uint32Array(length);
         let randomString = '';
+        let index = 0;
 
-        for (let i = 0; i < remainingLength; i++) {
-            const randomIndex = Math.floor(Math.random() * charset.length);
-            randomString += charset[randomIndex];
+        while (index < length) {
+            window.crypto.getRandomValues(buffer);
+            for (let i = 0; i < buffer.length && index < length; i++) {
+                if (buffer[i] < maxAccepted) {
+                    randomString += charset[buffer[i] % charset.length];
+                    index++;
+                }
+            }
         }
 
-        // Combine timestamp and random string, trimming to the requested length
-        const combinedString = `${randomString}${timestamp}`;
-        return combinedString;
+        return randomString;
     }
 
     /**
@@ -202,12 +206,24 @@ let AppCrypto = function () {
      * @param {number} length Length of the unique code to generate. Default is 12.
      */
     function generatePassword(length = 12) {
-        // Ensuring minimum requirement characters
+        // Cryptographically secure random integer in [0, maxExclusive) with rejection sampling.
+        const secureRandomInt = (maxExclusive) => {
+            const maxAccepted = Math.floor(4294967296 / maxExclusive) * maxExclusive;
+            const value = new Uint32Array(1);
+
+            do {
+                window.crypto.getRandomValues(value);
+            } while (value[0] >= maxAccepted);
+
+            return value[0] % maxExclusive;
+        };
+
+        // Ensuring minimum requirement characters, selected with crypto randomness
         let password = '';
-        password += lowerAlphabets[Math.floor(Math.random() * lowerAlphabets.length)];
-        password += upperAlphabets[Math.floor(Math.random() * upperAlphabets.length)];
-        password += numbers[Math.floor(Math.random() * numbers.length)];
-        password += specialCharacters[Math.floor(Math.random() * specialCharacters.length)];
+        password += lowerAlphabets[secureRandomInt(lowerAlphabets.length)];
+        password += upperAlphabets[secureRandomInt(upperAlphabets.length)];
+        password += numbers[secureRandomInt(numbers.length)];
+        password += specialCharacters[secureRandomInt(specialCharacters.length)];
 
         // Generate remaining characters randomly
         const remainingLength = length - password.length;
@@ -218,10 +234,17 @@ let AppCrypto = function () {
             password += allCharset[values[i] % allCharset.length];
         }
 
-        // Shuffle the resulting password to avoid predictable placement of required characters
-        password = password.split('').sort(() => 0.5 - Math.random()).join('');
+        // Fisher-Yates shuffle driven by crypto randomness to avoid predictable placement
+        // of the required characters.
+        const chars = password.split('');
+        for (let i = chars.length - 1; i > 0; i--) {
+            const j = secureRandomInt(i + 1);
+            const temp = chars[i];
+            chars[i] = chars[j];
+            chars[j] = temp;
+        }
 
-        return password;
+        return chars.join('');
     }
     return {
         GenerateUniqueCode: generateUniqueCode,

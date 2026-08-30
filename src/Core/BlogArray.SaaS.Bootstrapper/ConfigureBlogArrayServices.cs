@@ -14,12 +14,15 @@ using BlogArray.SaaS.Domain.Constants;
 using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Threading.RateLimiting;
 
 namespace BlogArray.SaaS.Bootstrapper;
 
@@ -40,21 +43,36 @@ public static class ConfigureBlogArrayServices
 
     public static IHostApplicationBuilder AddBlogArrayServices(this IHostApplicationBuilder builder)
     {
+        bool isDevelopment = builder.Environment.IsDevelopment();
+
         builder.Services.AddUnobtrusiveAjax();
 
         builder.Services.AddHttpContextAccessor();
 
         builder.Services.ConfigureOptions<ConfigureSecurityStampOptions>();
 
-        //builder.Services.AddControllersWithViews(/*config => config.Filters.Add(typeof(CustomExceptionFilter))*/).AddRazorRuntimeCompilation();
+        // Razor runtime compilation is a development convenience only and is disabled in
+        // production to reduce the attack surface.
+        IMvcBuilder mvcBuilder = builder.Services.AddControllersWithViews()
+            .AddApplicationPart(typeof(BlogArray.SaaS.Web.Controllers.BaseController).Assembly);
 
-        builder.Services.AddControllersWithViews()
-            .AddApplicationPart(typeof(BlogArray.SaaS.Web.Controllers.BaseController).Assembly)
-            .AddRazorRuntimeCompilation();
+        if (isDevelopment)
+        {
+            mvcBuilder.AddRazorRuntimeCompilation();
+        }
 
-        builder.Services.AddRazorPages()
-            .AddApplicationPart(typeof(BlogArray.SaaS.Web.Controllers.BaseController).Assembly)
-            .AddRazorRuntimeCompilation();
+        IMvcBuilder razorPagesBuilder = builder.Services.AddRazorPages()
+            .AddApplicationPart(typeof(BlogArray.SaaS.Web.Controllers.BaseController).Assembly);
+
+        if (isDevelopment)
+        {
+            razorPagesBuilder.AddRazorRuntimeCompilation();
+        }
+
+        // Automatically validate antiforgery tokens for all unsafe HTTP methods (POST, PUT,
+        // PATCH, DELETE). Actions that legitimately cannot carry a token are already marked
+        // with [IgnoreAntiforgeryToken].
+        mvcBuilder.AddMvcOptions(options => options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()));
 
         builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
@@ -63,9 +81,9 @@ public static class ConfigureBlogArrayServices
 
         builder.Services.Configure<CookiePolicyOptions>(options =>
         {
-            options.MinimumSameSitePolicy = SameSiteMode.None;
+            options.MinimumSameSitePolicy = SameSiteMode.Lax;
             options.HttpOnly = Microsoft.AspNetCore.CookiePolicy.HttpOnlyPolicy.Always;
-            options.Secure = CookieSecurePolicy.SameAsRequest;
+            options.Secure = CookieSecurePolicy.Always;
         });
 
         builder.Services.AddSingleton<IEmailTemplate, EmailTemplate>();
@@ -79,16 +97,63 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddScoped<IUserManagementService, UserManagementService>();
         builder.Services.AddScoped<ApiKeyAuthorizationFilter>();
 
+        // CORS is restricted to the origins listed in the optional "Cors:AllowedOrigins"
+        // configuration key (semicolon-separated). When it is not configured, no cross-origin
+        // request is allowed, which is the correct default for same-site MVC applications.
         builder.Services.AddCors(options =>
         {
-            options.AddPolicy("AllowAllOrigins",
-              builder =>
-              {
-                  builder
-                  .AllowAnyOrigin()
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-              });
+            options.AddPolicy("AllowedOrigins", policy =>
+            {
+                string? configuredOrigins = builder.Configuration.GetValue<string>("Cors:AllowedOrigins");
+
+                if (string.IsNullOrWhiteSpace(configuredOrigins))
+                {
+                    // No origins allowed.
+                    return;
+                }
+
+                foreach (string origin in configuredOrigins.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    policy = policy.WithOrigins(origin);
+                }
+
+                policy.AllowAnyHeader().AllowAnyMethod();
+            });
+        });
+
+        // Rate limiting for authentication- and mail-related endpoints. Policies are applied
+        // via [EnableRateLimiting] attributes; the middleware itself is added in
+        // AddBlogArrayApplication.
+        builder.Services.AddRateLimiter(options =>
+        {
+            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            options.AddPolicy("auth", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 10,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
+
+            options.AddPolicy("email", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
+
+            options.AddPolicy("api", httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 60,
+                        Window = TimeSpan.FromMinutes(1)
+                    }));
         });
 
         builder.Services.Configure<SmtpConfiguration>(builder.Configuration.GetSection("SMTP"));

@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using System.Security.Cryptography;
 using System.Text.Json;
 using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Infrastructure.Services;
@@ -79,6 +80,12 @@ public class TenantsController(OpenIdDbContext context,
         }
 
         OpenIdApplication? entity = new();
+
+        // Secrets are finalized server-side: any missing or too-short value is replaced with a
+        // cryptographically random one so weak or predictable client-side generation can never
+        // become a tenant credential.
+        openIdApplication.ClientSecret = FinalizeSecret(openIdApplication.ClientSecret);
+        openIdApplication.APIKey = FinalizeSecret(openIdApplication.APIKey);
 
         MapProperties(openIdApplication, entity);
 
@@ -337,7 +344,7 @@ public class TenantsController(OpenIdDbContext context,
 
     #region Actions
 
-    [HttpPost, RequestSizeLimit(5242880)]
+    [HttpPost, ValidateAntiForgeryToken, RequestSizeLimit(5242880)]
     public async Task<IActionResult> UpdateImage(string id, string type)
     {
         if (id == null)
@@ -352,7 +359,7 @@ public class TenantsController(OpenIdDbContext context,
             return NotFound();
         }
 
-        IFormFile file = Request.Form.Files[0];
+        IFormFile? file = Request.Form.Files.FirstOrDefault();
 
         if (file == null)
         {
@@ -364,7 +371,7 @@ public class TenantsController(OpenIdDbContext context,
 
         if (!result.Status)
         {
-            JsonError("An error occurred while uploading the file.");
+            return JsonError("An error occurred while uploading the file.");
         }
 
         if (type == "logo")
@@ -403,7 +410,7 @@ public class TenantsController(OpenIdDbContext context,
         {
             ApplicationId = id,
             Name = openIdApplication.DisplayName,
-            Key = Guid.NewGuid().ToString("N"),
+            Key = Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant(),
             Type = type
         };
 
@@ -582,7 +589,9 @@ public class TenantsController(OpenIdDbContext context,
             ClientId = entity.ClientId,
             DisplayName = entity.DisplayName,
             Legalname = entity.Legalname,
-            ConnectionString = entity.ConnectionString,
+            // Never send the stored connection string (it contains credentials) back to the
+            // browser; an empty field means "keep the existing value" on submit.
+            ConnectionString = null,
             TenantUrl = entity.TenantUrl,
             Website = entity.Website,
             Description = entity.Description,
@@ -633,12 +642,26 @@ public class TenantsController(OpenIdDbContext context,
         entity.DisplayName = model.DisplayName;
         entity.Legalname = model.Legalname;
         entity.Description = model.Description;
-        entity.ConnectionString = model.ConnectionString;
+        // The connection string is never rendered back to the browser: an empty value means
+        // "keep the existing connection string" rather than clearing it.
+        if (!string.IsNullOrWhiteSpace(model.ConnectionString))
+        {
+            entity.ConnectionString = model.ConnectionString;
+        }
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
         //entity.Permissions = JsonSerializer.Serialize(model.Permissions);
         entity.RedirectUris = string.IsNullOrEmpty(model.RedirectUri) ? null : JsonSerializer.Serialize(model.RedirectUri.Split(","));
         entity.PostLogoutRedirectUris = string.IsNullOrEmpty(model.PostLogoutRedirectUri) ? null : JsonSerializer.Serialize(model.PostLogoutRedirectUri.Split(","));
+    }
+
+    /// <summary>
+    /// Returns the supplied secret when it is strong enough, otherwise generates a new
+    /// cryptographically random 32-character value.
+    /// </summary>
+    private static string FinalizeSecret(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) && value.Length >= 32 ? value : Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
     }
 
     private void SetOptions()

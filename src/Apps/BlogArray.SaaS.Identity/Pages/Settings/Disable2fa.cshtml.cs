@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -13,8 +13,12 @@ namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class Disable2faModel(
     UserManager<ApplicationUser> userManager,
+    SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<Disable2faModel> logger) : PageModel
 {
+
+    [BindProperty]
+    public InputModel Input { get; set; }
 
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -22,6 +26,13 @@ public class Disable2faModel(
     /// </summary>
     [TempData]
     public string StatusMessage { get; set; }
+
+    public class InputModel
+    {
+        [Required(AllowEmptyStrings = false, ErrorMessage = "Enter your password")]
+        [DataType(DataType.Password)]
+        public string Password { get; set; }
+    }
 
     public async Task<IActionResult> OnGet()
     {
@@ -46,6 +57,14 @@ public class Disable2faModel(
         if (user == null)
         {
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+        }
+
+        // Security-sensitive action: require the current password to be re-entered so a stolen
+        // session cookie cannot silently strip the second factor.
+        if (!await userManager.CheckPasswordAsync(user, Input?.Password))
+        {
+            ModelState.AddModelError("Input.Password", "Incorrect password.");
+            return Page();
         }
 
         IdentityResult disable2faResult = await userManager.SetTwoFactorEnabledAsync(user, false);

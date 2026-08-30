@@ -24,7 +24,10 @@ public class CustomExceptionFilter(IModelMetadataProvider modelMetadataProvider)
             ViewData = new ViewDataDictionary(modelMetadataProvider, context.ModelState)
         };
 
-        result.ViewData.Add("Exception", context.Exception);
+        // Only pass a correlation identifier and a generic message to the view: exception
+        // objects carry stack traces and internal details that must not reach the client.
+        result.ViewData.Add("ErrorId", Guid.NewGuid().ToString("N"));
+        result.ViewData.Add("Exception", context.Exception.Message);
 
         context.ExceptionHandled = true;
         context.Result = result;

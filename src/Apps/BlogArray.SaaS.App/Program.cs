@@ -57,7 +57,7 @@ WebApplication app = builder.Build();
 
 app.UseSerilogRequestLogging();
 
-app.UseCors("AllowAllOrigins");
+app.UseCors("AllowedOrigins");
 
 app.UseCookiePolicy();
 
@@ -77,12 +77,12 @@ app.UseRouting();
 
 app.UseMultiTenant();
 
-// Skip tenant check for static files and specific paths
+// Skip tenant check for known static/resource path segments only. Matching "any path with a
+// file extension" would let unknown tenants bypass the tenant guard entirely.
 app.UseWhen(context =>
     !context.Request.Path.StartsWithSegments("/static") &&
     !context.Request.Path.StartsWithSegments("/_framework") &&
-    !context.Request.Path.StartsWithSegments("/_content") &&
-    !Path.HasExtension(context.Request.Path.Value), // skip requests with file extensions
+    !context.Request.Path.StartsWithSegments("/_content"),
     appBuilder =>
     {
         appBuilder.Use(async (context, next) =>
@@ -99,6 +99,8 @@ app.UseWhen(context =>
             await next();
         });
     });
+
+app.UseRateLimiter();
 
 app.UseStaticFiles();
 

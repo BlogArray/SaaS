@@ -30,9 +30,13 @@
                         @if (currentProvider != null)
                         {
                             <form id="@($"remove-login-{currentProvider.LoginProvider}")" asp-page-handler="RemoveLogin" method="post">
-                                <div>
-                                    <input asp-for="@currentProvider.LoginProvider" name="LoginProvider" type="hidden" />
-                                    <input asp-for="@currentProvider.ProviderKey" name="ProviderKey" type="hidden" />
+                                <div class="d-flex gap-2 align-items-center">
+                                    <div>
+                                        <input asp-for="@currentProvider.LoginProvider" name="LoginProvider" type="hidden" />
+                                        <input asp-for="@currentProvider.ProviderKey" name="ProviderKey" type="hidden" />
+                                        <input asp-for="Input.Password" class="form-control form-control-sm" type="password" autocomplete="current-password" placeholder="Password" style="max-width: 150px;" />
+                                        <span asp-validation-for="Input.Password" class="text-danger"></span>
+                                    </div>
                                     <button type="submit" class="btn" title="Remove this @provider.Name login from your account">Remove</button>
                                 </div>
                             </form>

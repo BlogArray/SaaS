@@ -140,6 +140,12 @@ public class UsersController(OpenIdDbContext context,
     public async Task<IActionResult> Toolbar(string id)
     {
         ApplicationUser? appUser = await userManager.FindByIdAsync(id);
+
+        if (appUser is null)
+        {
+            return NotFound();
+        }
+
         ViewBag.CurrentUserId = LoggedInUserID;
         return PartialView("_UserToolbar", new UserToolbar
         {

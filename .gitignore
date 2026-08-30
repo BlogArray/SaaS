@@ -357,6 +357,10 @@ App_Data/
 
 appsettings.Development.json
 
+# OpenIddict application seeding file contains generated secrets and must never be committed.
+# Copy OpenIddictApplications.template.json to OpenIddictApplications.json for local use.
+OpenIddictApplications.json
+
 dist
 
 package-lock.json

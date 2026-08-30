@@ -36,9 +36,14 @@ public static class CustomHtmlHelpers
         TagBuilder scriptBuilder = new("script");
         scriptBuilder.MergeAttribute("type", "text/javascript");
 
+        // JSON-encode the interpolated values so a caller-supplied divId or url can never
+        // break out of the JavaScript string context.
+        string safeDivId = System.Text.Json.JsonSerializer.Serialize(divId);
+        string safeUrl = System.Text.Json.JsonSerializer.Serialize(url ?? string.Empty);
+
         scriptBuilder.InnerHtml.AppendHtml($@"
             $(document).ready(function () {{
-                $('#{divId}').load('{url}');
+                $({safeDivId}).load({safeUrl});
             }});
         ");
 

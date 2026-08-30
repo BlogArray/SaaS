@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("email")]
 public class ForgotPasswordModel(UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate, IConfiguration configuration) : PageModel
 {

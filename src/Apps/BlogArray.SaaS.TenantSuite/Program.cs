@@ -60,72 +60,84 @@ builder.Services.AddAuthentication(o =>
 
     options.GetClaimsFromUserInfoEndpoint = true;
 
-    options.Events = new OpenIdConnectEvents
-    {
-        //There are other events can be found here https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.authentication.openidconnect.openidconnectevents?view=aspnetcore-9.0
-        OnTokenValidated = async context =>
+        options.Events = new OpenIdConnectEvents
         {
-            //Triggered after the tokens(ID token, access token) have been successfully validated. This is a common place to add or manipulate user claims.
-            //Use Cases:
-            //Performing additional validation on the tokens like tenant validation, user exists in the tenant.
-            //Adding custom claims to the user�s principal.
-            var identity = context?.Principal?.Identity as ClaimsIdentity;
-
-            if (identity != null && !identity.IsAuthenticated)
+            //There are other events can be found here https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.authentication.openidconnect.openidconnectevents?view=aspnetcore-9.0
+            OnTokenValidated = async context =>
             {
-                context?.HandleResponse();
-                context?.Response.Redirect("/error?message=User is not authenticated.");
-            }
-            else
+                //Triggered after the tokens(ID token, access token) have been successfully validated. This is a common place to add or manipulate user claims.
+                //Use Cases:
+                //Performing additional validation on the tokens like tenant validation, user exists in the tenant.
+                //Adding custom claims to the user’s principal.
+                var identity = context?.Principal?.Identity as ClaimsIdentity;
+
+                if (identity != null && !identity.IsAuthenticated)
+                {
+                    context?.HandleResponse();
+                    context?.Response.Redirect("/error?message=User is not authenticated.");
+                    await Task.CompletedTask;
+                    return;
+                }
+                else
+                {
+                    string? audience = identity?.FindFirst(Claims.Audience)?.Value;
+                    string? name = identity?.FindFirst(Claims.Name)?.Value;
+
+                    identity?.AddClaim(new Claim(Claims.Audience, audience ?? ""));
+                    identity?.AddClaim(new Claim(ClaimTypes.GivenName, name ?? ""));
+                }
+                await Task.CompletedTask;
+            },
+            OnUserInformationReceived = async context =>
             {
-                string? audience = identity?.FindFirst(Claims.Audience)?.Value;
-                string? name = identity?.FindFirst(Claims.Name)?.Value;
+                //Triggered when user information is retrieved from the IdP’s userinfo endpoint.
+                //Use Cases:
+                //Adding claims from the userinfo response to the user’s principal.
+                //Logging or processing additional user information.
+                System.Text.Json.JsonElement userInfo = context.User.RootElement;
 
-                identity?.AddClaim(new Claim(Claims.Audience, audience ?? ""));
-                identity?.AddClaim(new Claim(ClaimTypes.GivenName, name ?? ""));
+                string? image = userInfo.GetString("image");
+
+                var allClaims = userInfo.EnumerateObject()
+                    .ToDictionary(p => p.Name, p => p.Value.ToString());
+
+                var identity = context?.Principal?.Identity as ClaimsIdentity;
+
+                identity?.AddClaim(new Claim("image", image ?? ""));
+
+                await Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                //Triggered when authentication fails for any reason, such as invalid tokens or a mismatch in state values.
+                //Use Cases:
+                //Logging authentication errors.
+                //Redirecting users to a custom error page.
+                //Log the real exception server-side; never disclose it to the user.
+                context.HttpContext.RequestServices
+                    .GetRequiredService<ILogger<Program>>()
+                    .LogError(context.Exception, "OpenID Connect authentication failed.");
+
+                context.Response.Redirect("/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
+                context.HandleResponse(); // Prevent further processing
+                return Task.CompletedTask;
+            },
+            OnRemoteFailure = context =>
+            {
+                //Triggered when there is a failure in the remote authentication process(e.g., a network issue or IdP error).
+                //Use Cases:
+                //Logging errors related to remote authentication.
+                //Redirecting users to a fallback error page.
+                //Log the real failure server-side; never disclose it to the user.
+                context.HttpContext.RequestServices
+                    .GetRequiredService<ILogger<Program>>()
+                    .LogError(context.Failure, "Remote authentication failed.");
+
+                context.Response.Redirect("/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
+                context.HandleResponse();
+                return Task.CompletedTask;
             }
-            await Task.CompletedTask;
-        },
-        OnUserInformationReceived = async context =>
-        {
-            //Triggered when user information is retrieved from the IdP�s userinfo endpoint.
-            //Use Cases:
-            //Adding claims from the userinfo response to the user�s identity.
-            //Logging or processing additional user information.
-            System.Text.Json.JsonElement userInfo = context.User.RootElement;
-
-            string? image = userInfo.GetString("image");
-
-            var allClaims = userInfo.EnumerateObject()
-                .ToDictionary(p => p.Name, p => p.Value.ToString());
-
-            var identity = context?.Principal?.Identity as ClaimsIdentity;
-
-            identity?.AddClaim(new Claim("image", image ?? ""));
-
-            await Task.CompletedTask;
-        },
-        OnAuthenticationFailed = context =>
-        {
-            //Triggered when authentication fails for any reason, such as invalid tokens or a mismatch in state values.
-            //Use Cases:
-            //Logging authentication errors.
-            //Redirecting users to a custom error page.
-            context.Response.Redirect("/error?message=" + context.Exception.Message);
-            context.HandleResponse(); // Prevent further processing
-            return Task.CompletedTask;
-        },
-        OnRemoteFailure = context =>
-        {
-            //Triggered when there is a failure in the remote authentication process(e.g., a network issue or IdP error).
-            //Use Cases:
-            //Logging errors related to remote authentication.
-            //Redirecting users to a fallback page.
-            context.Response.Redirect("/error?message=" + context.Failure?.Message);
-            context.HandleResponse();
-            return Task.CompletedTask;
-        }
-    };
+        };
 });
 
 builder.AddIdentityCore();

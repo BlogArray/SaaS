@@ -1,4 +1,4 @@
-ï»¿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -15,9 +15,8 @@ namespace BlogArray.SaaS.Web.Controllers;
 [AllowAnonymous]
 public class ErrorController : Controller
 {
-    private const int CacheDuration = 30672000;
-
-    [ResponseCache(Duration = CacheDuration, Location = ResponseCacheLocation.Client)]
+    // Error pages reflect query-string content and must never be cached client-side.
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public IActionResult Index(string message = "")
     {
         int statusCode = HttpContext.Response.StatusCode;
@@ -33,21 +32,21 @@ public class ErrorController : Controller
         };
     }
 
-    [ResponseCache(Duration = CacheDuration, Location = ResponseCacheLocation.Client)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public IActionResult NotFound(string message = "")
     {
         return CreateErrorView("Resource not found",
                string.IsNullOrEmpty(message)
-                  ? "The page or resource youâ€™re looking for doesnâ€™t exist. Please check the URL and try again."
+                  ? "The page or resource you’re looking for doesn’t exist. Please check the URL and try again."
                   : message);
     }
 
-    [ResponseCache(Duration = CacheDuration, Location = ResponseCacheLocation.Client)]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public IActionResult AccessDenied(string message = "")
     {
         return CreateErrorView("Access Denied",
                string.IsNullOrEmpty(message)
-                  ? "You donâ€™t have permission to access this resource. Please contact your administrator if needed."
+                  ? "You don’t have permission to access this resource. Please contact your administrator if needed."
                   : message);
     }
 

@@ -15,7 +15,10 @@ using Refit;
 
 namespace BlogArray.SaaS.App.Controllers;
 
-[Microsoft.AspNetCore.Authorization.Authorize]
+// Personnel management creates identity users and grants/revokes tenant access, so it is
+// restricted to tenant administrators. Grant users the "TenantAdmin" role (or "Superuser")
+// in the tenant suite to manage personnel.
+[Microsoft.AspNetCore.Authorization.Authorize(Roles = "Superuser,TenantAdmin")]
 public class PersonnelsController(SaasAppDbContext context,
      IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor,
      IMembershipClient membershipClient, ILogger<PersonnelsController> logger) : BaseController
@@ -37,6 +40,7 @@ public class PersonnelsController(SaasAppDbContext context,
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(CreateUserVM userVM)
     {
         if (!ModelState.IsValid)

@@ -10,8 +10,10 @@
 using BlogArray.SaaS.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Security.Cryptography.X509Certificates;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BlogArray.SaaS.OpenId;
@@ -69,11 +71,31 @@ public static class ConfigureOpenIdServices
 
                           if (isProduction)
                           {
-                              // Encryption and signing of tokens in prod
-                              //Todo Add certificates AddEncryptionCertificate and AddSigningCertificate
-                              options.AddEphemeralEncryptionKey()
-                                .AddEphemeralSigningKey()
-                                .DisableAccessTokenEncryption();
+                              // Prefer persistent X.509 certificates. When certificates are configured
+                              // (certificate store thumbprint or PFX path), they are used for signing and
+                              // encryption and access tokens are encrypted. Without certificates the
+                              // ephemeral fallback keeps the service running, but every restart invalidates
+                              // previously issued tokens and multi-instance deployments will disagree.
+                              X509Certificate2? signingCertificate = LoadCertificate(builder.Configuration, "OpenIddict:SigningCertificate");
+                              X509Certificate2? encryptionCertificate = LoadCertificate(builder.Configuration, "OpenIddict:EncryptionCertificate");
+
+                              if (signingCertificate is not null && encryptionCertificate is not null)
+                              {
+                                  options.AddSigningCertificate(signingCertificate)
+                                         .AddEncryptionCertificate(encryptionCertificate);
+                              }
+                              else
+                              {
+                                  options.AddEphemeralEncryptionKey()
+                                    .AddEphemeralSigningKey()
+                                    .DisableAccessTokenEncryption();
+
+                                  Console.WriteLine(
+                                      "CRITICAL: OpenIddict signing/encryption certificates are not configured. " +
+                                      "Set OpenIddict:SigningCertificate:Thumbprint or OpenIddict:SigningCertificate:Path " +
+                                      "(and the equivalent EncryptionCertificate keys). Falling back to ephemeral keys: " +
+                                      "tokens are invalidated on every restart and are not safe for multi-instance deployments.");
+                              }
                           }
                           else
                           {
@@ -99,6 +121,49 @@ public static class ConfigureOpenIdServices
         return builder;
     }
 
+    /// <summary>
+    /// Loads an X.509 certificate from configuration. Supports either a certificate store
+    /// lookup (section key "Thumbprint", searches CurrentUser and LocalMachine My stores) or a
+    /// PFX file (section keys "Path" and "Password"). Returns null when not configured or when
+    /// the certificate cannot be loaded with a private key.
+    /// </summary>
+    private static X509Certificate2? LoadCertificate(IConfiguration configuration, string sectionKey)
+    {
+        IConfigurationSection section = configuration.GetSection(sectionKey);
+
+        string? thumbprint = section["Thumbprint"];
+
+        if (!string.IsNullOrWhiteSpace(thumbprint))
+        {
+            foreach (StoreLocation location in new[] { StoreLocation.CurrentUser, StoreLocation.LocalMachine })
+            {
+                using X509Store store = new(StoreName.My, location);
+                store.Open(OpenFlags.ReadOnly);
+
+                X509Certificate2Collection matches = store.Certificates.Find(X509FindType.FindByThumbprint, thumbprint, validOnly: false);
+
+                if (matches.Count > 0 && matches[0].HasPrivateKey)
+                {
+                    return matches[0];
+                }
+            }
+        }
+
+        string? path = section["Path"];
+
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            X509Certificate2 certificate = new(path, section["Password"]);
+
+            if (certificate.HasPrivateKey)
+            {
+                return certificate;
+            }
+        }
+
+        return null;
+    }
+
     public static IServiceCollection AddOpenIdContext(this IServiceCollection services, string connectionString)
     {
         services.AddDbContext<OpenIdDbContext>(options =>
@@ -116,7 +181,7 @@ public static class ConfigureOpenIdServices
         //https://github.com/dotnet/aspnetcore/blob/v9.0.0/src/Identity/Core/src/IdentityServiceCollectionExtensions.cs
         builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
         {
-            options.Lockout.AllowedForNewUsers = false;
+            options.Lockout.AllowedForNewUsers = true;
             options.Lockout.MaxFailedAccessAttempts = 3;
             options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromHours(1);
             options.SignIn.RequireConfirmedEmail = true;

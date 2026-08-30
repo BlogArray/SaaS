@@ -78,11 +78,16 @@ public class EditViewApplicationViewModel : EditApplicationViewModel
 
 public class CreateApplicationViewModel : ApplicationViewModel
 {
-    [Required(AllowEmptyStrings = false)]
-    public string ClientSecret { get; set; } = default!;
+    /// <summary>
+    /// Optional. When omitted or too short, a cryptographically random secret is generated
+    /// server-side. Client-generated values must never be trusted as the sole source.
+    /// </summary>
+    public string? ClientSecret { get; set; }
 
-    [Required(AllowEmptyStrings = false)]
-    public string APIKey { get; set; } = default!;
+    /// <summary>
+    /// Optional. When omitted or too short, a cryptographically random key is generated server-side.
+    /// </summary>
+    public string? APIKey { get; set; }
 }
 
 public class RotateKeysViewModel

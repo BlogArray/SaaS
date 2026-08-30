@@ -10,6 +10,7 @@
 #nullable disable
 
 using System.Text;
+using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -22,18 +23,21 @@ public class ExternalLoginModel : PageModel
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IUserStore<ApplicationUser> _userStore;
     private readonly IUserEmailStore<ApplicationUser> _emailStore;
+    private readonly IEmailTemplate _emailTemplate;
     private readonly ILogger<ExternalLoginModel> _logger;
 
     public ExternalLoginModel(
         SignInManagerExtension<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
         IUserStore<ApplicationUser> userStore,
+        IEmailTemplate emailTemplate,
         ILogger<ExternalLoginModel> logger)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _userStore = userStore;
         _emailStore = GetEmailStore();
+        _emailTemplate = emailTemplate;
         _logger = logger;
     }
 
@@ -104,15 +108,23 @@ public class ExternalLoginModel : PageModel
         }
 
         // Sign in the user with this external login provider if the user already has a login.
-        Microsoft.AspNetCore.Identity.SignInResult result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false, bypassTwoFactor: true);
+        // Two factor authentication is NOT bypassed: users with 2FA enabled are routed through
+        // the authenticator/recovery code flow even when signing in with an external provider.
+        Microsoft.AspNetCore.Identity.SignInResult result = await _signInManager.ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, isPersistent: false, bypassTwoFactor: false);
         if (result.Succeeded)
         {
-            _logger.LogInformation("{Name} logged in with {LoginProvider} provider.", info.Principal.Identity.Name, info.LoginProvider);
+            // Log without user names/emails (PII) - the provider and outcome are enough to
+            // correlate with the request log.
+            _logger.LogInformation("User logged in with {LoginProvider} provider.", info.LoginProvider);
             return LocalRedirect(next);
         }
         if (result.IsLockedOut)
         {
             return RedirectToPage("./Lockout");
+        }
+        if (result.RequiresTwoFactor)
+        {
+            return RedirectToPage("./LoginWith2fa", new { ReturnUrl = next, RememberMe = false });
         }
         else
         {
@@ -145,8 +157,9 @@ public class ExternalLoginModel : PageModel
         {
             ApplicationUser user = CreateUser();
 
-            //string username = await _sharedRepository.GetAvailUserName(Input.Email.Split('@')[0].RemoveSpecialCharacters(), false);
-            string username = "";
+            // The username mirrors the (provider-verified) email address, matching the rest of
+            // the application where email and username are one and the same.
+            string username = Input.Email;
 
             await _userStore.SetUserNameAsync(user, username, CancellationToken.None);
             await _emailStore.SetEmailAsync(user, Input.Email, CancellationToken.None);
@@ -168,16 +181,17 @@ public class ExternalLoginModel : PageModel
                         values: new { userId, code },
                         protocol: Request.Scheme);
 
-                    //await _emailSender.SendEmailAsync(Input.Email, "Confirm your email",
-                    //    $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl)}'>clicking here</a>.");
+                    _emailTemplate.ConfirmEmail(Input.Email, user.DisplayName ?? Input.Email, callbackUrl);
 
-                    // If account confirmation is required, we need to show the link if we don't have a real email sender
+                    // If account confirmation is required, route the user to the login page with
+                    // instructions instead of a nonexistent confirmation page.
                     if (_userManager.Options.SignIn.RequireConfirmedAccount)
                     {
-                        return RedirectToPage("./RegisterConfirmation", new { Input.Email });
+                        TempData["ErrorMessage"] = "Account created. A verification link has been sent to your email address; confirm it before signing in.";
+                        return RedirectToPage("./Login", new { next });
                     }
 
-                    await _signInManager.SignInAsync(user, isPersistent: true, info.LoginProvider);
+                    await _signInManager.SignInAsync(user, isPersistent: false, info.LoginProvider);
                     return LocalRedirect(next);
                 }
             }

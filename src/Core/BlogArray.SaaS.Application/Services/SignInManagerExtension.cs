@@ -51,6 +51,11 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         //_confirmation = confirmation;
     }
 
+    public virtual async Task<bool> CheckPasswordAsync(ApplicationUser user, string password)
+    {
+        return await UserManager.CheckPasswordAsync(user, password);
+    }
+
     public virtual async Task<SignInResult> PasswordSignInAsync(ApplicationUser user, string password, bool isPersistent, bool lockoutOnFailure, List<Claim> customClaims)
     {
         ArgumentNullException.ThrowIfNull(user);

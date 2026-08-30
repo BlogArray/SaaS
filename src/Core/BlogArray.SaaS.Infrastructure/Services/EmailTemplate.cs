@@ -1,4 +1,4 @@
-ï»¿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -43,7 +43,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
     public void ConfirmEmail(string toEmail, string name, string callbackUrl)
     {
-        string template = $"Hey {name}!{newLine}" +
+        string template = $"Hey {Encode(name)}!{newLine}" +
             $"Welcome to App, your platform for connecting with mentors and advancing your developer skills through live 1:1 mentoring!{newLine}" +
             $"To kickstart your journey, we invite you to verify your email address. Just click the link below:" +
             $"{MakeLinkButton(callbackUrl, "Verify Email")}" +
@@ -54,12 +54,12 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
         string body = GenerateEmail(name, template);
 
-        Send(toEmail, "ðŸš€ Welcome to App! Please verify your email address", body);
+        Send(toEmail, "?? Welcome to App! Please verify your email address", body);
     }
 
     public void EmailVerified(string toEmail, string name)
     {
-        string template = $"Hey {name}!{newLine}" +
+        string template = $"Hey {Encode(name)}!{newLine}" +
             $"Congratulations! Your email address has been successfully verified for your App account on {DateTime.UtcNow} UTC.{newLine}" +
             $"Now that your email is verified, you can enjoy full access to all the features and benefits of App, " +
             $"including connecting with mentors, participating in coding challenges, and engaging with the community.{newLine}" +
@@ -73,7 +73,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
     public void ForgotPassword(string toEmail, string name, string callbackUrl)
     {
-        string template = $"Hey {name}!{newLine}" +
+        string template = $"Hey {Encode(name)}!{newLine}" +
             $"You are receiving this email because a request to change your password for your App account has been initiated. " +
             $"If you did not request this change, please disregard this email.{newLine}" +
             $"To complete the password change process, please click the link below:" +
@@ -88,7 +88,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
     public void PasswordChangeSuccessed(string toEmail, string name)
     {
-        string template = $"Hey {name}!{newLine}" +
+        string template = $"Hey {Encode(name)}!{newLine}" +
             $"This is to inform you that the password for your App account has been successfully changed on {DateTime.UtcNow} UTC.{newLine}" +
             $"If you did not initiate this change, please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")}. " +
             $"We also recommend reviewing your account for any unauthorized activity.{newLine}" +
@@ -102,8 +102,8 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
     public void ChangeEmail(string toEmail, string name, string callbackUrl, string newEmail)
     {
-        string template = $"Hey {name}!{newLine}" +
-            $"We have received a request to change the email address associated with your App account to {newEmail}. " +
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"We have received a request to change the email address associated with your App account to {Encode(newEmail)}. " +
             $"To complete this change, please click the link below to verify your new email address:{newLine}" +
             $"If you did not request this change, please disregard this email.{newLine}" +
             $"To complete the email change process, please click the link below:" +
@@ -118,8 +118,8 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
     public void ChangeEmailConfirmation(string toEmail, string name, string newEmail)
     {
-        string template = $"Hey {name}!{newLine}" +
-            $"This is to confirm that the email address associated with your App account has been successfully updated to {newEmail} on {DateTime.UtcNow} UTC.{newLine}" +
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"This is to confirm that the email address associated with your App account has been successfully updated to {Encode(newEmail)} on {DateTime.UtcNow} UTC.{newLine}" +
             $"If you did not initiate this change, please contact our support team immediately at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"Thank you for choosing App.";
 
@@ -130,8 +130,8 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
     public void ChangeUsernameConfirmation(string toEmail, string name, string from, string to)
     {
-        string template = $"Hey {name}!{newLine}" +
-            $"This is to confirm that the username associated with your App account has been successfully changed from {from} to {to} on {DateTime.UtcNow} UTC.{newLine}" +
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"This is to confirm that the username associated with your App account has been successfully changed from {Encode(from)} to {Encode(to)} on {DateTime.UtcNow} UTC.{newLine}" +
             $"If you did not initiate this change, please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "account/forgotpassword"), "Reset Password Link")}. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"Thank you for choosing App.";
@@ -143,40 +143,42 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
     public void InviteWithPasswordLink(string toEmail, string name, string callbackUrl, string org, string orgUrl, string invitedBy)
     {
-        string template = $"Hey {name}!{newLine}" +
-            $"You are invited to join {org} on App. " +
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"You are invited to join {Encode(org)} on App. " +
             $"To get started, please set up your account by creating a password using the link below:" +
             $"{MakeLinkButton(callbackUrl, "Change password")}" +
-            $"If youâ€™ve already set a password, you can log in directly to your account here:" +
+            $"If you’ve already set a password, you can log in directly to your account here:" +
             $"{MakeLinkButton(orgUrl, "Login")}" +
-            $"Once inside, youâ€™ll gain access to your organizationâ€™s resources. " +
+            $"Once inside, you’ll gain access to your organization’s resources. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
-            $"Weâ€™re excited to have you on board!";
+            $"We’re excited to have you on board!";
 
         string body = GenerateEmail(name, template);
 
-        Send(toEmail, $"You're Invited to Join {org} on App", body);
+        Send(toEmail, $"You're Invited to Join {Encode(org)} on App", body);
     }
 
     public void Invite(string toEmail, string name, string org, string orgUrl, string invitedBy)
     {
-        string template = $"Hey {name}!{newLine}" +
-            $"You are invited to join {org} on App. " +
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"You are invited to join {Encode(org)} on App. " +
             $"You can log in directly to your account here:" +
             $"{MakeLinkButton(orgUrl, "Login")}" +
-            $"Once inside, youâ€™ll gain access to your organizationâ€™s resources. " +
+            $"Once inside, you’ll gain access to your organization’s resources. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
-            $"Weâ€™re excited to have you on board!";
+            $"We’re excited to have you on board!";
 
         string body = GenerateEmail(name, template);
 
-        Send(toEmail, $"You're Invited to Join {org} on App", body);
+        Send(toEmail, $"You're Invited to Join {Encode(org)} on App", body);
     }
 
 
-    private static string MakeLink(string link, string name) => $"<a href=\"{HtmlEncoder.Default.Encode(link)}\">{name}</a>";
+    private static string Encode(string value) => HtmlEncoder.Default.Encode(value ?? string.Empty);
 
-    private static string MakeLinkButton(string link, string name) => $"{newLine}<a href=\"{HtmlEncoder.Default.Encode(link)}\" class=\"btn\">{name}</a>{newLine}";
+    private static string MakeLink(string link, string name) => $"<a href=\"{HtmlEncoder.Default.Encode(link)}\">{Encode(name)}</a>";
+
+    private static string MakeLinkButton(string link, string name) => $"{newLine}<a href=\"{HtmlEncoder.Default.Encode(link)}\" class=\"btn\">{Encode(name)}</a>{newLine}";
 
     private static string MakeList(List<string> list)
     {
@@ -200,7 +202,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         html += "<meta charset=\"UTF-8\" />";
         html += "<meta http-equiv=\"X-UA-Compatible\" content=\"IE=edge\" />";
         html += "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />";
-        html += $"<title>{title}</title>";
+        html += $"<title>{Encode(title)}</title>";
         html += "<style>";
         html += "body {";
         html += "font-family: -apple-system,system-ui,BlinkMacSystemFont,Segoe UI,SegoeUI,Helvetica Neue,sans-serif;";

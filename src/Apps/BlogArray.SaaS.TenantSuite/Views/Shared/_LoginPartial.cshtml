@@ -70,10 +70,12 @@
                 </li>
                 <li><hr class="dropdown-divider"></li>
                 <li>
-                    <a class="dropdown-item gap-2 py-2 px-3 lh-sm" asp-controller="Authentication" asp-action="LogOut">
-                        <i class="bi bi-box-arrow-right"></i>
-                        Logout
-                    </a>
+                    <form asp-controller="Authentication" asp-action="LogOut" method="post">
+                        <button type="submit" class="dropdown-item gap-2 py-2 px-3 lh-sm border-0 bg-transparent w-100 text-start">
+                            <i class="bi bi-box-arrow-right"></i>
+                            Logout
+                        </button>
+                    </form>
                 </li>
             </ul>
         </div>

@@ -27,7 +27,10 @@ public class AuthenticationController(IConfiguration configuration) : Controller
         return Challenge(properties, OpenIdConnectDefaults.AuthenticationScheme);
     }
 
-    [HttpGet("logout"), HttpPost("logout"), IgnoreAntiforgeryToken]
+    // Logout is POST-only and antiforgery-protected: a third-party page must not be able to
+    // force a signed-in user out of the application (or trigger remote IdP sign-out) with a
+    // simple GET request or a cross-site form post.
+    [HttpPost("logout"), ValidateAntiForgeryToken]
     public async Task<ActionResult> LogOut(string next)
     {
         // Retrieve the identity stored in the local authentication cookie. If it's not available,

@@ -7,9 +7,13 @@
 
 @if (User.Identity.IsAuthenticated)
 {
+    var imageClaim = User.FindFirst("image")?.Value;
     <div class="alert alert-success p-5">
         <div class="d-flex align-items-center mb-3">
-            <img src="@User.FindFirst("image").Value" alt="Profile" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+            @if (!string.IsNullOrEmpty(imageClaim))
+            {
+                <img src="@imageClaim" alt="Profile" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+            }
             <div>
                 <h5 class="mb-0">Welcome back, @User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value!</h5>
                 <p class="mb-0">
@@ -20,16 +24,11 @@
         <p>
             <strong>Authentication Type:</strong> @User.Identity.AuthenticationType
         </p>
-        <p><strong>Your Claims:</strong></p>
-        <ul>
-            @foreach (var claim in User.Claims)
-            {
-                <li><strong>@claim.Type:</strong> @claim.Value</li>
-            }
-        </ul>
-        <a asp-action="LogOut" asp-controller="Authentication" class="btn btn-danger">
-            <i class="bi bi-box-arrow-right"></i> Logout
-        </a>
+        <form asp-action="LogOut" asp-controller="Authentication" method="post" class="d-inline">
+            <button type="submit" class="btn btn-danger">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </button>
+        </form>
     </div>
 }
 else

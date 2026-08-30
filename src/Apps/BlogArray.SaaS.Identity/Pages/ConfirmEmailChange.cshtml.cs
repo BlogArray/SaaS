@@ -37,12 +37,12 @@ public class ConfirmEmailChangeModel(
 
         ApplicationUser user = await userManager.FindByIdAsync(userId);
 
-        string oldEmail = user.Email;
-
         if (user == null)
         {
             return NotFound($"Unable to load user with ID '{userId}'.");
         }
+
+        string oldEmail = user.Email;
 
         code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
         IdentityResult result = await userManager.ChangeEmailAsync(user, email, code);

@@ -1,4 +1,4 @@
-﻿@model EditApplicationViewModel
+@model EditApplicationViewModel
 
 @using (Html.AjaxBeginForm(new AjaxOptions
  {
@@ -34,7 +34,7 @@
                 <label asp-for="ConnectionString" class="form-label">Connection string</label>
                 <textarea asp-for="ConnectionString" aria-describedby="secretCS" class="form-control"></textarea>
                 <div id="secretCS" class="form-text">
-                    The connection string to your database instance, e.g. Server=localhost;Database=[db_name];User Id=username;Password=password.
+                    The connection string to your database instance, e.g. Server=localhost;Database=[db_name];User Id=username;Password=password. Leave blank to keep the existing connection string.
                 </div>
                 <span asp-validation-for="ConnectionString" class="text-danger"></span>
             </div>
@@ -86,7 +86,7 @@
 
         redirectUrlChoice = new Choices('#RedirectUri', {
             placeholderValue: 'Please enter redirect url',
-            allowHTML: true,
+            allowHTML: false,
             allowHtmlUserInput:false,
             editItems: true,
             duplicateItemsAllowed: false,
@@ -103,7 +103,7 @@
         });
         postLogoutUriChoice = new Choices('#PostLogoutRedirectUri', {
             placeholderValue: 'Please enter post logout redirect url',
-            allowHTML: true,
+            allowHTML: false,
             allowHtmlUserInput:false,
             editItems: true,
             duplicateItemsAllowed: false,

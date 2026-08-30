@@ -16,7 +16,7 @@ public static class ConfigureBlogArrayApplication
 {
     public static IApplicationBuilder AddBlogArrayApplication(this IApplicationBuilder app, bool isDevelopment)
     {
-        app.UseCors("AllowAllOrigins");
+        app.UseCors("AllowedOrigins");
 
         app.UseCookiePolicy();
 
@@ -33,6 +33,8 @@ public static class ConfigureBlogArrayApplication
         app.UseHttpsRedirection();
 
         app.UseRouting();
+
+        app.UseRateLimiter();
 
         app.UseStaticFiles();
 

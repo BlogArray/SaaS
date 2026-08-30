@@ -8,7 +8,8 @@
     <div class="position-relative p-5 text-center">
         <i class="state-icon text-primary bi bi-box-arrow-right"></i>
         <h3 class="mt-5 mb-3">@ViewData["Title"]</h3><br />
-        <form class="form-inline" asp-page="/Logout" method="post">
+        <form class="form-inline" method="post" action="/connect/logout">
+            @Html.AntiForgeryToken()
             <button type="submit" class="btn btn-primary">Yes, Logout</button>
         </form>
     </div>

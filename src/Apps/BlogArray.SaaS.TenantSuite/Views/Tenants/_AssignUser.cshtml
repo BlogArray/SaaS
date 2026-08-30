@@ -32,6 +32,15 @@
 }
 
 <script>
+	function escapeHtml(value) {
+		return value == null ? '' : String(value)
+			.replace(/&/g, '&amp;')
+			.replace(/</g, '&lt;')
+			.replace(/>/g, '&gt;')
+			.replace(/"/g, '&quot;')
+			.replace(/'/g, '&#39;');
+	}
+
 	$(document).ready(function() {
 		Unobtrusive.reInit($("#saveAssignForm"));
 
@@ -48,18 +57,18 @@
 					item: (classNames, data) => {
 						return template(`
 				<div class="${classNames.item} ${data.highlighted ? classNames.highlightedState : classNames.itemSelectable}" data-item data-id="${data.id}" data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''}>
-				  ${data.label}
+				  ${escapeHtml(data.label)}
 				</div>
 			  `);
 					},
 					choice: (classNames, data) => {
 						return template(`
 				<div class="d-flex gap-3 p-3 ${classNames.item} ${classNames.itemChoice}" data-select-text="${this.config.itemSelectText}" data-choice data-id="${data.id}" data-value="${data.value}" ${data.active ? 'aria-selected="true"' : ''} ${data.disabled ? 'aria-disabled="true"' : ''}>
-				<img alt="profile icon" src="${data.customProperties?.profileUrl || '/default-profile.png'}" alt="${data.label}" width="32" height="32" class="rounded-circle flex-shrink-0">
+				<img src="${escapeHtml(data.customProperties?.profileUrl || '/default-profile.png')}" alt="profile icon" width="32" height="32" class="rounded-circle flex-shrink-0">
 				  <div class="d-flex gap-2 w-100 justify-content-between">
 					<div>
-					  <h6 class="mb-0">${data.label}</h6>
-					  <p class="mb-0 opacity-75">${data.customProperties?.email}</p>
+					  <h6 class="mb-0">${escapeHtml(data.label)}</h6>
+					  <p class="mb-0 opacity-75">${escapeHtml(data.customProperties?.email)}</p>
 					</div>
 				  </div>
 				</div>
@@ -103,16 +112,38 @@
 			const userDiv = document.createElement('div');
 			userDiv.classList.add('list-group-item', 'list-group-item-action', 'd-flex', 'gap-3', 'py-3');
 
-			userDiv.innerHTML = `
-				<img alt="profile icon" src="${selectedUser.customProperties?.profileUrl || '/default-profile.png'}" alt="${selectedUser.label}" width="32" height="32" class="rounded-circle flex-shrink-0">
-				<div class="d-flex gap-2 w-100 justify-content-between">
-				  <div>
-					<h6 class="mb-0">${selectedUser.label}</h6>
-					<p class="mb-0 opacity-75">${selectedUser.customProperties?.email}</p>
-				  </div>
-				  <button type="button" class="btn-close remove-user" aria-label="Remove"></button>
-				</div>
-			  `;
+			const img = document.createElement('img');
+			img.src = selectedUser.customProperties?.profileUrl || '/default-profile.png';
+			img.alt = 'profile icon';
+			img.width = 32;
+			img.height = 32;
+			img.classList.add('rounded-circle', 'flex-shrink-0');
+			userDiv.appendChild(img);
+
+			const textWrapper = document.createElement('div');
+			textWrapper.classList.add('d-flex', 'gap-2', 'w-100', 'justify-content-between');
+
+			const textContainer = document.createElement('div');
+
+			const nameHeading = document.createElement('h6');
+			nameHeading.classList.add('mb-0');
+			nameHeading.textContent = selectedUser.label;
+			textContainer.appendChild(nameHeading);
+
+			const emailParagraph = document.createElement('p');
+			emailParagraph.classList.add('mb-0', 'opacity-75');
+			emailParagraph.textContent = selectedUser.customProperties?.email;
+			textContainer.appendChild(emailParagraph);
+
+			textWrapper.appendChild(textContainer);
+
+			const removeButton = document.createElement('button');
+			removeButton.type = 'button';
+			removeButton.classList.add('btn-close', 'remove-user');
+			removeButton.setAttribute('aria-label', 'Remove');
+			textWrapper.appendChild(removeButton);
+
+			userDiv.appendChild(textWrapper);
 
 			usersList.appendChild(userDiv);
 			userDiv.querySelector('.remove-user').addEventListener('click', function() {

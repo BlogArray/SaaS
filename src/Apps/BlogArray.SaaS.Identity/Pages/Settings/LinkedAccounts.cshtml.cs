@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -42,6 +42,15 @@ public class LinkedAccountsModel(
     [TempData]
     public string StatusMessage { get; set; }
 
+    [BindProperty]
+    public InputModel Input { get; set; }
+
+    public class InputModel
+    {
+        [DataType(DataType.Password)]
+        public string Password { get; set; }
+    }
+
     public async Task<IActionResult> OnGetAsync()
     {
         ApplicationUser user = await userManager.GetUserAsync(User);
@@ -75,6 +84,14 @@ public class LinkedAccountsModel(
         if (user == null)
         {
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+        }
+
+        // Security-sensitive action: require the current password to be re-entered before a
+        // recovery login path is removed from the account.
+        if (string.IsNullOrEmpty(Input?.Password) || !await userManager.CheckPasswordAsync(user, Input.Password))
+        {
+            StatusMessage = "Error: enter your account password to remove a login.";
+            return RedirectToPage();
         }
 
         IdentityResult result = await userManager.RemoveLoginAsync(user, loginProvider, providerKey);

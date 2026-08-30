@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -11,6 +11,7 @@
 
 namespace BlogArray.SaaS.Identity.Pages;
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWithRecoveryCodeModel(
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<LoginWithRecoveryCodeModel> logger) : PageModel

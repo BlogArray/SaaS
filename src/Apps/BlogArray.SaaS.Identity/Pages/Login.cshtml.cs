@@ -100,14 +100,9 @@ public class LoginModel(
             return Page();
         }
 
-        ApplicationUser user = await userManager.FindByEmailAsync(Input.Email);
-
-        if (user == null || !user.IsActive)
-        {
-            ModelState.AddModelError("Input.Email", "This account cannot be found. Please use a different account.");
-            return Page();
-        }
-
+        // Always proceed to the password step, whether or not the account exists. The password
+        // step returns the same generic error for unknown emails, unknown-account emails, and
+        // wrong passwords, which prevents account enumeration at this step.
         //TODO: Check user for SSO and redirect to sso
 
         return RedirectToPage("./LoginWithPassword", new { email = Input.Email, next });

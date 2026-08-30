@@ -114,14 +114,24 @@ Ensure you have the following installed:
    }
    ```
 
-5. **Apply Migrations**
+5. **Create the OpenIddict Applications Seeding File**
+   The Identity application seeds OpenIddict clients from `OpenIddictApplications.json`. This file is **not committed** to the repository because it can contain secrets. Copy the provided template in `src/Apps/BlogArray.SaaS.Identity/`:
+
+   ```bash
+   cd src/Apps/BlogArray.SaaS.Identity
+   cp OpenIddictApplications.template.json OpenIddictApplications.json
+   ```
+
+   The `ClientSecret` field is optional: when left empty, a cryptographically random client secret and API key are generated server-side at seeding time (retrieve them from the tenant administration console). Never commit the real `OpenIddictApplications.json` file.
+
+6. **Apply Migrations**
    Run the following command in each application directory that uses a database:
 
    ```bash
    dotnet ef database update
    ```
 
-6. **Update Hosts File**
+7. **Update Hosts File**
    To enable a real-time experience, update the `hosts` file at `C:\Windows\System32\drivers\etc\hosts` with the following entries:
 
    ```plaintext
@@ -139,7 +149,7 @@ Ensure you have the following installed:
    127.0.0.1 www.auth.blogarray.dev
    ```
 
-7. **Run Multiple Applications in Visual Studio**
+8. **Run Multiple Applications in Visual Studio**
    - Open the `BlogArray.SaaS.slnx` solution in Visual Studio.
    - Set multiple startup projects by:
      1. Right-click the solution in Solution Explorer and select **Properties**.
@@ -166,6 +176,64 @@ Ensure you have the following installed:
   ```
 
   Refer to the documentation for more details and supported strategies.
+
+---
+
+## Security
+
+This release includes an important security hardening pass. The changes below affect configuration, startup behavior, and role requirements.
+
+### Bootstrap Superuser Credential
+
+The seeded `admin@blogarray.net` Superuser account no longer ships with a password in source control. At first startup (and on any database where the account still carries the historically committed password hash), the Identity application:
+
+- Generates a unique random password using `RandomNumberGenerator`.
+- Enables lockout for the account.
+- Writes the one-time temporary password to a local file under the current user's profile instead of the logs: `%LOCALAPPDATA%\BlogArray.SaaS\bootstrap-superuser.txt` (Linux: `~/.local/share/BlogArray.SaaS/`).
+
+Sign in with that password and change it immediately, then delete the file. The rotation is atomic and safe when multiple instances start concurrently.
+
+### Automatic Rotation of Exposed Credentials
+
+Applications that were originally seeded from the previously committed `OpenIddictApplications.json` (with now-public client secrets or where the API key equaled the client secret) have those credentials rotated automatically at startup. Retrieve the new values from the tenant administration console (or use **Rotate keys**) and update any dependent configuration.
+
+### API Keys Are Bound to Their Tenant
+
+The Membership API (`api/membership`) now resolves the tenant from the presented `X-API-Key` and rejects requests (HTTP 403) whose body names a different tenant. One tenant's API key can no longer invite, assign, or remove users in another tenant.
+
+### Production Token Signing and Encryption Certificates
+
+Configure persistent X.509 certificates for the Identity application in production so tokens survive restarts and work across multiple instances. Add one of the following to the Identity application's configuration:
+
+```json
+{
+  "OpenIddict": {
+    "SigningCertificate": {
+      "Thumbprint": "ABC123..."
+    },
+    "EncryptionCertificate": {
+      "Path": "certs/encryption.pfx",
+      "Password": "..."
+    }
+  }
+}
+```
+
+- `Thumbprint` searches the CurrentUser and LocalMachine `My` certificate stores.
+- `Path` + `Password` loads a PFX file.
+
+When both certificates are configured, access tokens are also encrypted. Without certificates the server falls back to ephemeral keys and prints a CRITICAL warning: tokens are invalidated on every restart and this is not safe for multi-instance deployments.
+
+### Personnel Management Requires a Role
+
+`PersonnelsController` in `BlogArray.SaaS.App` (which creates identity users and grants tenant access) now requires the `TenantAdmin` or `Superuser` role. Grant users the `TenantAdmin` role in the tenant suite before they can manage personnel.
+
+### Other Hardening Changes
+
+- **Two-factor authentication is no longer bypassed for external/social logins**: users with 2FA enabled are routed through the authenticator/recovery-code flow regardless of the sign-in provider.
+- **Account lockout is enabled for new users** (`Lockout.AllowedForNewUsers = true`), so repeated failed sign-in attempts lock accounts as configured.
+- **Tenant connection strings are never rendered back to the browser**: the edit form shows an empty field, and leaving it blank keeps the existing connection string.
+- **Client secrets and API keys are finalized server-side**: missing or too-short values posted from the tenant creation form are replaced with cryptographically random ones, and client-side generation uses `crypto.getRandomValues` instead of `Math.random`.
 
 ---
 

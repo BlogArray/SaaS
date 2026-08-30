@@ -9,6 +9,7 @@
 
 namespace BlogArray.SaaS.Identity.Pages;
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<LoginWithPasswordModel> logger,
     UserManager<ApplicationUser> userManager) : PageModel
@@ -133,7 +134,9 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
                 new Claim("Locale", user.LocaleCode),
             ];
 
-            Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.PasswordSignInAsync(user, Input.Password, true, true, customClaims);
+            // The session cookie is not persistent: it ends with the browser session unless the
+            // user explicitly opts in later. Password failures count towards lockout.
+            Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.PasswordSignInAsync(user, Input.Password, false, true, customClaims);
 
             if (result.Succeeded)
             {

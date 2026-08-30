@@ -25,7 +25,9 @@ public class AuthenticationController(IConfiguration configuration, IMultiTenant
         return Challenge(properties, OpenIdConnectDefaults.AuthenticationScheme);
     }
 
-    [HttpGet, HttpPost, IgnoreAntiforgeryToken]
+    // Logout is POST-only and antiforgery-protected to prevent forced logout via GET links
+    // or cross-site form posts.
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<ActionResult> LogOut(string next)
     {
         // Retrieve the identity stored in the local authentication cookie. If it's not available,

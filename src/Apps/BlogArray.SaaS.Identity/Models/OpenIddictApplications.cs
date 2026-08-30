@@ -12,10 +12,19 @@ namespace BlogArray.SaaS.Identity.Models;
 public class Application
 {
     public string ClientId { get; set; } = default!;
-    public string ClientSecret { get; set; } = default!;
+
+    /// <summary>
+    /// Optional. When omitted, a cryptographically random secret is generated at seeding time.
+    /// Never commit real secrets to source control.
+    /// </summary>
+    public string? ClientSecret { get; set; }
+
     public string DisplayName { get; set; } = default!;
+
     public string RedirectUri { get; set; } = default!;
+
     public string? LogoutUri { get; set; }
+
     public List<string>? Users { get; set; }
 }
 

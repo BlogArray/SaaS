@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -11,6 +11,7 @@
 
 namespace BlogArray.SaaS.Identity.Pages;
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWith2faModel(
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<LoginWith2faModel> logger) : PageModel
@@ -103,7 +104,7 @@ public class LoginWith2faModel(
             new Claim("Locale", user.LocaleCode),
         ];
 
-        Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorAuthenticatorSignInAsync(authenticatorCode, true, Input.RememberMachine, customClaims);
+        Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorAuthenticatorSignInAsync(authenticatorCode, false, Input.RememberMachine, customClaims);
 
         //var userId = await _userManager.GetUserIdAsync(user);
 
