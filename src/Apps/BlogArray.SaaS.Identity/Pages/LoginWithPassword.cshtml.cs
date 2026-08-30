@@ -7,6 +7,9 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using System.Text;
+using Microsoft.AspNetCore.WebUtilities;
+
 namespace BlogArray.SaaS.Identity.Pages;
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
@@ -128,10 +131,10 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             List<Claim> customClaims =
             [
                 new Claim(ClaimTypes.GivenName, user.DisplayName),
-                new Claim("Icon", user.ProfileImage),
-                new Claim(ClaimTypes.Gender, user.Gender),
-                new Claim("Timezone", user.TimeZone),
-                new Claim("Locale", user.LocaleCode),
+                new Claim("Icon", user.ProfileImage??""),
+                new Claim(ClaimTypes.Gender, user.Gender??""),
+                new Claim("Timezone", user.TimeZone??""),
+                new Claim("Locale", user.LocaleCode??""),
             ];
 
             // The session cookie is not persistent: it ends with the browser session unless the
@@ -141,6 +144,17 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             if (result.Succeeded)
             {
                 logger.LogInformation("User logged in.");
+
+                // A temporary password (assigned by an administrator or bootstrap) only grants
+                // access to the reset-password flow: redirect there with a valid token.
+                if (user.MustChangePassword)
+                {
+                    string token = await userManager.GeneratePasswordResetTokenAsync(user);
+                    string code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+                    return RedirectToPage("./ResetPassword", new { code, email = user.Email });
+                }
+
                 return LocalRedirect(next);
             }
 

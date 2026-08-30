@@ -458,11 +458,25 @@ public class UsersController(OpenIdDbContext context,
                 return JsonError("Failed to remove the current password");
             }
 
+            // AddPasswordAsync validates the password against the existing password policy.
             IdentityResult addPasswordResult = await userManager.AddPasswordAsync(entity, resetPassword.Password);
 
-            return !addPasswordResult.Succeeded
-                ? JsonError("Failed to set the new password")
-                : JsonSuccess("Password has been changed successfully");
+            if (!addPasswordResult.Succeeded)
+            {
+                return JsonError("Failed to set the new password");
+            }
+
+            // An admin-assigned password is a temporary credential: flag the account so the
+            // user is taken to the reset-password flow at the next sign-in. The administrator
+            // vouches for the email address, so it is marked confirmed at the same time
+            // (otherwise RequireConfirmedEmail would block the sign-in with NotAllowed).
+            entity.MustChangePassword = true;
+            entity.EmailConfirmed = true;
+            entity.UpdatedOn = DateTime.UtcNow;
+            entity.UpdatedById = LoggedInUserID;
+            await userManager.UpdateAsync(entity);
+
+            return JsonSuccess("A temporary password has been set. The user must set a new password the next time they sign in.");
         }
         else
         {

@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate) : PageModel
 {
@@ -67,20 +68,29 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
 
     }
 
-    public IActionResult OnGet(string code = null)
+    /// <summary>
+    /// True when the user arrived from the sign-in flow with a temporary password: the email
+    /// query parameter is only passed by that flow, so an explanatory message is shown.
+    /// Bound through a hidden field so the distinction survives the POST.
+    /// </summary>
+    [BindProperty]
+    public bool IsTemporaryPasswordSignIn { get; set; }
+
+    public IActionResult OnGet(string code = null, string email = null)
     {
         if (code == null)
         {
             return BadRequest("A code must be supplied for password reset.");
         }
-        else
+
+        IsTemporaryPasswordSignIn = !string.IsNullOrEmpty(email);
+
+        Input = new InputModel
         {
-            Input = new InputModel
-            {
-                Code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code))
-            };
-            return Page();
-        }
+            Code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code)),
+            Email = email
+        };
+        return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
@@ -101,6 +111,29 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
 
         if (result.Succeeded)
         {
+            bool updated = false;
+
+            // Completing a reset through an emailed one-time link proves mailbox ownership,
+            // so the email is considered confirmed. (The in-session temporary-password flow
+            // involves no email and does not confirm anything.)
+            if (!IsTemporaryPasswordSignIn && !user.EmailConfirmed)
+            {
+                user.EmailConfirmed = true;
+                updated = true;
+            }
+
+            // The temporary-password requirement is fulfilled once a new password is set.
+            if (user.MustChangePassword)
+            {
+                user.MustChangePassword = false;
+                updated = true;
+            }
+
+            if (updated)
+            {
+                await userManager.UpdateAsync(user);
+            }
+
             //TODO: Check for tenant and login
 
             emailTemplate.PasswordChangeSuccessed(user.Email, user.DisplayName);

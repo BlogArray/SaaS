@@ -143,6 +143,9 @@ public static class OpenIdDbContextExtensions
                     ProfileImage = "/_content/BlogArray.SaaS.Resources/resources/images/user-icon.webp",
                     AccessFailedCount = 0,
                     LockoutEnabled = true,
+                    // The bootstrap password is temporary: the first login redirects to the
+                    // reset-password flow until a new password is set.
+                    MustChangePassword = true,
                     CreatedOn = new DateTime(2022, 7, 8, 16, 37, 32, 163, DateTimeKind.Utc).AddTicks(7893),
                     EmailConfirmed = true,
                     ConcurrencyStamp = "828849a7-8073-4635-bbff-800e707074d4",

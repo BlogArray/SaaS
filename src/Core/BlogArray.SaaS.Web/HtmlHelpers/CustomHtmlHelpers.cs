@@ -38,12 +38,12 @@ public static class CustomHtmlHelpers
 
         // JSON-encode the interpolated values so a caller-supplied divId or url can never
         // break out of the JavaScript string context.
-        string safeDivId = System.Text.Json.JsonSerializer.Serialize(divId);
+        string safeDivId = System.Text.Json.JsonSerializer.Serialize($"#{divId}");
         string safeUrl = System.Text.Json.JsonSerializer.Serialize(url ?? string.Empty);
 
         scriptBuilder.InnerHtml.AppendHtml($@"
             $(document).ready(function () {{
-                $('#{safeDivId}').load('{safeUrl}');
+                $({safeDivId}).load({safeUrl});
             }});
         ");
 

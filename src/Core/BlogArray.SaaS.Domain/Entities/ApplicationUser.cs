@@ -36,6 +36,13 @@ public class ApplicationUser : IdentityUser
 
     public bool IsActive { get; set; } = true;
 
+    /// <summary>
+    /// True when the current password is a temporary credential assigned by an administrator.
+    /// The user is redirected to the reset-password flow at the next login until a new
+    /// password is set.
+    /// </summary>
+    public bool MustChangePassword { get; set; } = false;
+
     public DateTime CreatedOn { get; set; }
 
     public string? CreatedById { get; set; }
