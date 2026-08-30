@@ -134,13 +134,15 @@ public static class OpenIdDbContextExtensions
                     DisplayName = "BlogArray Admin",
                     UserName = "admin@blogarray.net",
                     NormalizedUserName = "admin@blogarray.net".ToUpper(),
-                    PasswordHash = "AQAAAAIAAYagAAAAEMphxjtx+fKVBJSZzLJT93uQaoXqSWVatXtuQbcetTm74FKfrS991vNxb1nbZJkudw==",
+                    // No password is seeded: OIDCHostedService generates a unique random password
+                    // at first startup, so no bootstrap credential is ever committed to source
+                    // control or baked into a migration.
                     Gender = "Male",
                     TimeZone = "AUS Eastern Standard Time",
                     LocaleCode = "en-IN",
                     ProfileImage = "/_content/BlogArray.SaaS.Resources/resources/images/user-icon.webp",
                     AccessFailedCount = 0,
-                    LockoutEnabled = false,
+                    LockoutEnabled = true,
                     CreatedOn = new DateTime(2022, 7, 8, 16, 37, 32, 163, DateTimeKind.Utc).AddTicks(7893),
                     EmailConfirmed = true,
                     ConcurrencyStamp = "828849a7-8073-4635-bbff-800e707074d4",

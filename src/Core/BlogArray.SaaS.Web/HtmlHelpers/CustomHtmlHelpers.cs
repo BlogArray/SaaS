@@ -43,7 +43,7 @@ public static class CustomHtmlHelpers
 
         scriptBuilder.InnerHtml.AppendHtml($@"
             $(document).ready(function () {{
-                $({safeDivId}).load({safeUrl});
+                $('#{safeDivId}').load('{safeUrl}');
             }});
         ");
 

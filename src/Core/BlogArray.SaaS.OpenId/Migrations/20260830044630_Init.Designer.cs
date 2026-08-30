@@ -12,15 +12,15 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlogArray.SaaS.OpenId.Migrations
 {
     [DbContext(typeof(OpenIdDbContext))]
-    [Migration("20241230165838_TenantUrl")]
-    partial class TenantUrl
+    [Migration("20260830044630_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "9.0.0")
+                .HasAnnotation("ProductVersion", "10.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -203,10 +203,9 @@ namespace BlogArray.SaaS.OpenId.Migrations
                             IsActive = true,
                             LastName = "Admin",
                             LocaleCode = "en-IN",
-                            LockoutEnabled = false,
+                            LockoutEnabled = true,
                             NormalizedEmail = "ADMIN@BLOGARRAY.NET",
                             NormalizedUserName = "ADMIN@BLOGARRAY.NET",
-                            PasswordHash = "AQAAAAIAAYagAAAAEMphxjtx+fKVBJSZzLJT93uQaoXqSWVatXtuQbcetTm74FKfrS991vNxb1nbZJkudw==",
                             PhoneNumberConfirmed = false,
                             ProfileImage = "/_content/BlogArray.SaaS.Resources/resources/images/user-icon.webp",
                             SecurityStamp = "6OSIMZ5JEKWSK7SC7ZSANW3WTV2KPCA7",
@@ -473,8 +472,8 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         .HasColumnType("nvarchar(400)");
 
                     b.Property<string>("Type")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.HasKey("Id");
 
