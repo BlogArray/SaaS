@@ -61,12 +61,17 @@
                         </div>
                     }
                     <a asp-page="./GenerateRecoveryCodes" class="btn btn-primary">Generate recovery codes</a>
-                    if (Model.IsMachineRemembered)
+
+                    <hr class="my-5">
+                    <h6 id="trusted-browsers" class="mb-4">
+                        Trusted browsers
+                    </h6>
+                    @if (Model.IsMachineRemembered)
                     {
-                        <hr class="my-5">
-                        <h6 id="password" class="mb-4">
-                            Browser is saved
-                        </h6>
+                        <div class="alert alert-success">
+                            <strong>This browser is trusted.</strong>
+                            <p class="mb-0">You are not asked for a two-factor code when signing in from this browser.</p>
+                        </div>
                         <p>
                             If you click Forget this browser, you will be prompted for your two-factor authentication code when you login again from this browser.
                         </p>
@@ -74,6 +79,22 @@
                             <button type="submit" class="btn btn-primary">Forget this browser</button>
                         </form>
                     }
+                    else
+                    {
+                        <div class="alert alert-secondary">
+                            <strong>This browser is not trusted.</strong>
+                            <p class="mb-0">You are asked for a two-factor code at every sign-in from this browser.</p>
+                        </div>
+                    }
+                    <p class="mt-3 mb-2">
+                        Revoking all trusted browsers forgets every remembered browser at once (browsers cannot be
+                        listed individually). For your security it also signs out your other active sessions -
+                        your current session stays signed in.
+                    </p>
+                    <form method="post" asp-page-handler="ForgetAllTrustedBrowsers"
+                          onsubmit="return confirm('Revoke all trusted browsers? All other active sessions will also be signed out.');">
+                        <button type="submit" class="btn btn-outline-danger">Revoke all trusted browsers</button>
+                    </form>
 
                     <hr class="my-5">
                     <h6 id="password" class="mb-4">

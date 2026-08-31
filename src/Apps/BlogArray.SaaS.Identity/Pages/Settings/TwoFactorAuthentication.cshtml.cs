@@ -70,4 +70,26 @@ public class TwoFactorAuthenticationModel(
         StatusMessage = "Your current browser has been forgotten. You will be prompted to enter your 2FA code when you log in again from this browser.";
         return RedirectToPage();
     }
+
+    /// <summary>
+    /// Revokes every trusted browser: rotating the security stamp invalidates all remembered
+    /// two-factor browser cookies (they embed the old stamp). The current session is
+    /// re-issued with the new stamp so it survives; all other sessions are signed out
+    /// within the security stamp validation window.
+    /// </summary>
+    public async Task<IActionResult> OnPostForgetAllTrustedBrowsersAsync()
+    {
+        ApplicationUser user = await userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+        }
+
+        await userManager.UpdateSecurityStampAsync(user);
+        await signInManager.ForgetTwoFactorClientAsync();
+        await signInManager.RefreshSignInAsync(user);
+
+        StatusMessage = "All trusted browsers have been revoked: every browser will be asked for a two-factor code at the next sign-in. Other active sessions are signed out.";
+        return RedirectToPage();
+    }
 }
