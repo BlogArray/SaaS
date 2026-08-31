@@ -72,6 +72,17 @@ public static class OpenIdDbContextExtensions
             entity.Property(s => s.UserId).HasMaxLength(400);
         });
 
+        builder.Entity<PasswordHistory>(entity =>
+        {
+            entity.Property(history => history.Id).HasMaxLength(400);
+            entity.Property(history => history.UserId).HasMaxLength(400);
+            entity.HasIndex(history => history.UserId);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(history => history.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
     }
 
     public static void AddOpenIdModifications(this ModelBuilder builder)

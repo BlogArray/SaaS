@@ -23,6 +23,8 @@ public class OpenIdDbContext(DbContextOptions<OpenIdDbContext> options) : Identi
 
     public DbSet<OpenIdToken> Tokens { get; set; }
 
+    public DbSet<PasswordHistory> PasswordHistories { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

@@ -451,6 +451,30 @@ public class UsersController(OpenIdDbContext context,
 
         if (resetPassword.CreatePassword)
         {
+            // Record the outgoing password in the reuse-prevention history before it is
+            // removed: RemovePasswordAsync clears the hash without running the validator
+            // that would normally record it.
+            if (!string.IsNullOrEmpty(entity.PasswordHash))
+            {
+                string? lastRecordedHash = await context.PasswordHistories
+                    .Where(history => history.UserId == entity.Id)
+                    .OrderByDescending(history => history.CreatedOn)
+                    .Select(history => history.PasswordHash)
+                    .FirstOrDefaultAsync();
+
+                if (lastRecordedHash != entity.PasswordHash)
+                {
+                    context.PasswordHistories.Add(new PasswordHistory
+                    {
+                        UserId = entity.Id,
+                        PasswordHash = entity.PasswordHash,
+                        CreatedOn = DateTime.UtcNow
+                    });
+
+                    await context.SaveChangesAsync();
+                }
+            }
+
             IdentityResult removePasswordResult = await userManager.RemovePasswordAsync(entity);
 
             if (!removePasswordResult.Succeeded)

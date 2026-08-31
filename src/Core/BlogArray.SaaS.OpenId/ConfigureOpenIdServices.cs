@@ -200,6 +200,8 @@ public static class ConfigureOpenIdServices
             options.Password.RequireUppercase = true;
         }).AddSignInManager<TSignInManager>()
         .AddEntityFrameworkStores<OpenIdDbContext>()
+        .AddPasswordValidator<PasswordHistoryValidator>()
+        .AddPasswordValidator<BreachedPasswordValidator>()
         .AddDefaultTokenProviders();
 
         return builder;
@@ -211,6 +213,8 @@ public static class ConfigureOpenIdServices
         builder.Services.AddIdentityCore<ApplicationUser>()
             .AddRoles<ApplicationRole>()
             .AddEntityFrameworkStores<OpenIdDbContext>()
+            .AddPasswordValidator<PasswordHistoryValidator>()
+            .AddPasswordValidator<BreachedPasswordValidator>()
             .AddDefaultTokenProviders();
 
         return builder;
