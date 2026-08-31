@@ -36,6 +36,10 @@
 
         <div class="text-center mt-3">
             <p>
+                @if (Url.IsLocalUrl(Model.ReturnUrl))
+                {
+                    <a href="@Model.ReturnUrl" class="btn btn-primary">Continue</a>
+                }
                 <a asp-page="./TwoFactorAuthentication">Go back to settings</a>
             </p>
         </div>

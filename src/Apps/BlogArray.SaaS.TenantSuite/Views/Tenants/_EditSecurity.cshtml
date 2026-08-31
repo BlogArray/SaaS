@@ -54,13 +54,13 @@
                 <span asp-validation-for="SsoX509Certificate" class="text-danger"></span>
             </div>
 
-            @* <div class="mb-3 form-check form-switch">
-        <input class="form-check-input" aria-describedby="ssoutCS" asp-for="IsSingleSignOutEnabled" type="checkbox" role="switch">
-        <label class="form-check-label" hide-indicator="true" asp-for="IsSingleSignOutEnabled">Single logout</label>
-        <div id="ssoutCS" class="form-text">
-            Enable if you want the users to get signed out from the identity provider when they sign out from App.
-        </div>
-    </div> *@
+            <div class="mb-3 form-check form-switch">
+                <input class="form-check-input" aria-describedby="ssoutCS" asp-for="IsSingleSignOutEnabled" type="checkbox" role="switch">
+                <label class="form-check-label" hide-indicator="true" asp-for="IsSingleSignOutEnabled">Single logout</label>
+                <div id="ssoutCS" class="form-text">
+                    Enable if you want the users to get signed out from the identity provider when they sign out from App.
+                </div>
+            </div>
         </div>
         <div class="offcanvas-header border-top">
             <div>

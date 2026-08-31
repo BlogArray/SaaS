@@ -32,9 +32,12 @@ public class ShowRecoveryCodesModel : PageModel
     public string StatusMessage { get; set; }
 
     /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
+    ///     Optional local URL the user continues to after saving the codes (set when the
+    /// enrollment was forced by an application's MFA policy).
     /// </summary>
+    [BindProperty(SupportsGet = true)]
+    public string ReturnUrl { get; set; }
+
     public IActionResult OnGet()
     {
         return RecoveryCodes == null || RecoveryCodes.Length == 0 ? RedirectToPage("./TwoFactorAuthentication") : Page();

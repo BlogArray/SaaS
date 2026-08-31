@@ -69,6 +69,12 @@ public static class ConfigureOpenIdServices
                             .SetTokenEndpointUris("/connect/token")
                             .SetUserInfoEndpointUris("/connect/userinfo");
 
+                          // Explicit token lifetime policy (documented as platform policy rather
+                          // than relying on library defaults): one-hour access tokens and
+                          // fourteen-day rolling refresh tokens with rotation.
+                          options.SetAccessTokenLifetime(TimeSpan.FromHours(1));
+                          options.SetRefreshTokenLifetime(TimeSpan.FromDays(14));
+
                           if (isProduction)
                           {
                               // Prefer persistent X.509 certificates. When certificates are configured

@@ -7,12 +7,23 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 namespace BlogArray.SaaS.App.Controllers;
 
 public class AuthenticationController(IConfiguration configuration, IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor) : Controller
 {
+    // Front-channel logout endpoint (openid-connect-frontchannel-1_0): the identity server
+    // renders this URL in a hidden iframe during single sign-out, which clears the tenant's
+    // local session cookie in the user's browser. Returns an empty response suited for iframes.
+    [HttpGet("/authentication/frontchannellogout")]
+    public async Task<IActionResult> FrontChannelLogout()
+    {
+        await HttpContext.SignOutAsync();
+        return NoContent();
+    }
+
     public ActionResult LogIn(string next)
     {
         AuthenticationProperties properties = new()

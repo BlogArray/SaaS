@@ -24,6 +24,7 @@ public class AuthorizationController(
     OpenIddictApplicationManager<OpenIdApplication> applicationManager,
     IOpenIddictAuthorizationManager authorizationManager,
     IOpenIddictScopeManager scopeManager,
+    IOpenIddictTokenManager tokenManager,
     SignInManagerExtension<ApplicationUser> signInManager,
     UserManager<ApplicationUser> userManager, IConfiguration configuration) : Controller
 {
@@ -93,6 +94,18 @@ public class AuthorizationController(
         OpenIdApplication application = await applicationManager.FindByClientIdAsync(request.ClientId) ??
             throw new InvalidOperationException("Details concerning the calling client application cannot be found.");
 
+        // Enforce the per-application MFA policy: instead of denying access, route users
+        // without two-factor authentication to MFA enrollment. After enrolling (and saving
+        // their recovery codes) they are returned to the original authorization request to
+        // continue signing in to the application.
+        if (application.Security.IsMfaEnforced && !await userManager.GetTwoFactorEnabledAsync(user))
+        {
+            TempData["StatusMessage"] = "This application requires multi-factor authentication. Set up your authenticator app to continue.";
+
+            return Redirect(Url.Page("/Settings/EnableAuthenticator",
+                new { returnUrl = Request.PathBase + Request.Path + Request.QueryString }) ?? "/");
+        }
+
         // Retrieve the permanent authorizations associated with the user and the calling client application.
         List<object> authorizations = await authorizationManager.FindAsync(
             subject: await userManager.GetUserIdAsync(user),
@@ -153,20 +166,129 @@ public class AuthorizationController(
     [ActionName(nameof(Logout)), HttpPost("~/connect/logout"), ValidateAntiForgeryToken]
     public async Task<IActionResult> LogoutPost()
     {
+        string? userId = userManager.GetUserId(User);
+
+        // Revoke every valid access/refresh token issued to the signing-out user so the
+        // logout takes effect immediately for API clients instead of waiting for natural
+        // expiration. Valid tokens also identify the applications the user is signed in to,
+        // which are the participants of the single sign-out notification below.
+        List<string> frontChannelLogoutUrls = [];
+
+        if (!string.IsNullOrEmpty(userId))
+        {
+            HashSet<string> participatingApplications = new(StringComparer.Ordinal);
+
+            // Valid tokens identify the applications the user is currently signed in to:
+            // the participants of the single sign-out notification below.
+            await foreach (object token in tokenManager.FindBySubjectAsync(userId))
+            {
+                if (await tokenManager.GetStatusAsync(token) == Statuses.Valid
+                    && await tokenManager.GetApplicationIdAsync(token) is string applicationId)
+                {
+                    participatingApplications.Add(applicationId);
+                }
+            }
+
+            // Revoke every token (access/refresh) issued to the signing-out user so the
+            // logout takes effect immediately for API clients instead of waiting for natural
+            // expiration.
+            await tokenManager.RevokeAsync(userId, null, null, null);
+
+            // Front-channel logout (openid-connect-frontchannel-1_0): notify every
+            // participating application that opted into single sign-out by rendering its
+            // logout URL in a hidden iframe, so its local session cookie is cleared in the
+            // user's browser. Back-channel logout is not applicable: the relying parties use
+            // cookie sessions without server-side session state.
+            foreach (string applicationId in participatingApplications)
+            {
+                if (await applicationManager.FindByIdAsync(applicationId) is OpenIdApplication application
+                    && application.Security.IsSingleSignOutEnabled
+                    && ResolveFrontChannelLogoutUri(application) is string logoutUrl)
+                {
+                    frontChannelLogoutUrls.Add(logoutUrl);
+                }
+            }
+        }
+
         // Ask ASP.NET Core Identity to delete the local and external cookies created
         // when the user agent is redirected from the external identity provider
         // after a successful authentication flow (e.g Google or Facebook).
         await signInManager.SignOutAsync();
 
-        // Returning a SignOutResult will ask OpenIddict to redirect the user agent
-        // to the post_logout_redirect_uri specified by the client application or to
-        // the RedirectUri specified in the authentication properties if none was set.
-        return SignOut(
-            authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
-            properties: new AuthenticationProperties
+        // The end-session request has already been validated by OpenIddict (id_token_hint and
+        // post_logout_redirect_uri checks) before this action was invoked, so the values can
+        // be trusted here. Redirect to the client's post-logout URL with its state, if any.
+        string redirectUrl = BuildPostLogoutRedirectUrl(HttpContext.GetOpenIddictServerRequest());
+
+        if (frontChannelLogoutUrls.Count > 0)
+        {
+            return View("FrontChannelLogout", new FrontChannelLogoutViewModel
             {
-                RedirectUri = "/"
+                LogoutUrls = frontChannelLogoutUrls,
+                RedirectUrl = redirectUrl
             });
+        }
+
+        return Redirect(redirectUrl);
+    }
+
+    /// <summary>
+    /// Builds the final post-logout URL from the (already validated) end-session request:
+    /// the client's post_logout_redirect_uri with the state parameter when provided,
+    /// or the local root when the logout was initiated by the identity server itself.
+    /// </summary>
+    private static string BuildPostLogoutRedirectUrl(OpenIddictRequest? request)
+    {
+        if (string.IsNullOrEmpty(request?.PostLogoutRedirectUri))
+        {
+            return "/";
+        }
+
+        string url = request.PostLogoutRedirectUri;
+
+        return string.IsNullOrEmpty(request.State)
+            ? url
+            : url + (url.Contains('?') ? "&" : "?") + "state=" + Uri.EscapeDataString(request.State);
+    }
+
+    /// <summary>
+    /// Resolves an application's front-channel logout URL from its registered URIs: the
+    /// application base (origin, plus the first path segment for route-based tenants) with
+    /// the conventional "/authentication/frontchannellogout" endpoint appended.
+    /// </summary>
+    private static string? ResolveFrontChannelLogoutUri(OpenIdApplication application)
+    {
+        string? registeredUri = DeserializeFirstUri(application.PostLogoutRedirectUris)
+            ?? DeserializeFirstUri(application.RedirectUris)
+            ?? application.TenantUrl;
+
+        if (string.IsNullOrWhiteSpace(registeredUri) || !Uri.TryCreate(registeredUri, UriKind.Absolute, out Uri? uri))
+        {
+            return null;
+        }
+
+        string tenantSegment = uri.Segments.Length > 1 ? uri.Segments[1].TrimEnd('/') : string.Empty;
+
+        string baseUrl = uri.GetLeftPart(UriPartial.Authority) + (tenantSegment.Length > 0 ? "/" + tenantSegment : string.Empty);
+
+        return baseUrl.TrimEnd('/') + "/authentication/frontchannellogout";
+    }
+
+    private static string? DeserializeFirstUri(string? serializedUris)
+    {
+        if (string.IsNullOrWhiteSpace(serializedUris))
+        {
+            return null;
+        }
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<string[]>(serializedUris)?.FirstOrDefault();
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 
     [HttpPost("~/connect/token"), IgnoreAntiforgeryToken, Produces("application/json")]
@@ -347,6 +469,21 @@ public class AuthorizeViewModel
 
     [Display(Name = "Scope")]
     public required string Scope { get; set; }
+}
+
+public class FrontChannelLogoutViewModel
+{
+    /// <summary>
+    /// Logout URLs of the participating relying parties, rendered as hidden iframes so each
+    /// application clears its local session cookie in the user's browser.
+    /// </summary>
+    public required IReadOnlyList<string> LogoutUrls { get; init; }
+
+    /// <summary>
+    /// Final destination after all logout notifications fired: the client's validated
+    /// post_logout_redirect_uri (with state) or the identity server root.
+    /// </summary>
+    public required string RedirectUrl { get; init; }
 }
 
 public sealed class FormValueRequiredAttribute(string name) : ActionMethodSelectorAttribute

@@ -1,0 +1,30 @@
+@model BlogArray.SaaS.Identity.Controllers.FrontChannelLogoutViewModel
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Signing out</title>
+    <meta http-equiv="refresh" content="3;url=@Model.RedirectUrl" />
+</head>
+<body>
+    <p>Signing you out of all applications&hellip;</p>
+
+    @foreach (string url in Model.LogoutUrls)
+    {
+        <iframe src="@url" style="display:none" title="single sign-out" aria-hidden="true"></iframe>
+    }
+
+    <script>
+        // Give the hidden iframes a moment to clear each application's session cookie,
+        // then continue to the post-logout destination. The meta refresh above is the
+        // no-JavaScript fallback.
+        window.setTimeout(function () {
+            window.location.replace(@System.Text.Json.JsonSerializer.Serialize(Model.RedirectUrl));
+        }, 2000);
+    </script>
+</body>
+</html>

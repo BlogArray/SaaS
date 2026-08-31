@@ -318,8 +318,11 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
-        if (!securityViewModel.IsSsoEnabled)
+        if (securityViewModel.IsSsoEnabled)
         {
+            // When SAML SSO is enabled it takes precedence over the local social-login and
+            // MFA policies (the UI disables those switches in this state, and disabled
+            // checkboxes are not submitted at all).
             securityViewModel.IsSocialAuthEnabled = false;
             securityViewModel.IsMfaEnforced = false;
         }

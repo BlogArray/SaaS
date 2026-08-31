@@ -173,6 +173,55 @@ let Unobtrusive = function () {
     }
 }();
 
+// Client-side rule for the server-side RequiredIf attribute. site.js is loaded before the
+// jquery-validate scripts (rendered in the Scripts section), so registration waits for ready.
+$(function () {
+    if (typeof $.validator === 'undefined' || typeof $.validator.unobtrusive === 'undefined') {
+        return;
+    }
+
+    $.validator.addMethod('requiredif', function (value, element, params) {
+        let dependentValue;
+
+        const $dependent = $(element).closest('form')
+            .find('[name="' + params.dependentProperty + '"]');
+
+        if ($dependent.length === 0) {
+            // Dependent control is not on the page: defer to server-side validation.
+            return true;
+        }
+
+        if ($dependent.is(':radio')) {
+            dependentValue = $dependent.filter(':checked').val();
+        } else if ($dependent.is(':checkbox')) {
+            dependentValue = $dependent.is(':checked');
+        } else {
+            dependentValue = $dependent.val();
+        }
+
+        const actual = String(dependentValue ?? '').toLowerCase();
+        const target = String(params.targetValue ?? '').toLowerCase();
+
+        // Required only when the dependency is met; otherwise the field is optional.
+        if (actual !== target) {
+            return true;
+        }
+
+        return value !== null && value !== undefined && String(value).trim().length > 0;
+    }, '');
+
+    $.validator.unobtrusive.adapters.add('requiredif', ['dependentproperty', 'targetvalue'], function (options) {
+        options.rules['requiredif'] = {
+            dependentProperty: options.params.dependentproperty,
+            targetValue: options.params.targetvalue
+        };
+
+        if (options.message) {
+            options.messages['requiredif'] = options.message;
+        }
+    });
+});
+
 let AppCrypto = function () {
     /**
      * Generates a unique code with a specified length using cryptographically secure randomness.

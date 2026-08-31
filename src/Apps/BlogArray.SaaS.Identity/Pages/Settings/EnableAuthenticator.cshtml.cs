@@ -48,6 +48,13 @@ public class EnableAuthenticatorModel(
     public string StatusMessage { get; set; }
 
     /// <summary>
+    ///     Optional local URL the user is returned to after completing enrollment. Set when the
+    /// user was sent here by the MFA-enforcement policy of an application authorization.
+    /// </summary>
+    [BindProperty(SupportsGet = true)]
+    public string ReturnUrl { get; set; }
+
+    /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
     /// </summary>
@@ -121,11 +128,18 @@ public class EnableAuthenticatorModel(
         {
             IEnumerable<string> recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
             RecoveryCodes = recoveryCodes.ToArray();
-            return RedirectToPage("./ShowRecoveryCodes");
+            // Show the recovery codes before continuing; after saving them the user is
+            // returned to the original authorization request (when enrolling on demand).
+            return RedirectToPage("./ShowRecoveryCodes", new
+            {
+                returnUrl = Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : null
+            });
         }
         else
         {
-            return RedirectToPage("./TwoFactorAuthentication");
+            return Url.IsLocalUrl(ReturnUrl)
+                ? Redirect(ReturnUrl)
+                : RedirectToPage("./TwoFactorAuthentication");
         }
     }
 

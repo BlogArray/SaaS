@@ -17,7 +17,11 @@ public class ConfigureSecurityStampOptions : IConfigureOptions<SecurityStampVali
 {
     public void Configure(SecurityStampValidatorOptions options)
     {
-        options.ValidationInterval = TimeSpan.FromSeconds(30); // Default interval is 30 minutes
+        // Validate the security stamp periodically (framework default: 30 minutes). A short
+        // interval means password changes / security-stamp updates terminate existing
+        // sessions almost immediately; five minutes balances that protection against the
+        // per-request database cost of revalidating every authenticated request.
+        options.ValidationInterval = TimeSpan.FromMinutes(5);
 
         // When refreshing the principal, ensure custom claims that
         // might have been set with an external identity continue
