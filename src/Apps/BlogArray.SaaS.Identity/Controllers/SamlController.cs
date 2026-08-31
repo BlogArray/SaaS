@@ -8,6 +8,7 @@
 //
 
 using System.Web;
+using BlogArray.SaaS.Identity.Infrastructure;
 using OpenIddict.Core;
 using Saml;
 
@@ -32,6 +33,22 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         AuthRequest request = new(client.Security.SsoEntityId, samlConsumer);
 
+        // Remember the request ID so the assertion consumer service can verify the response's
+        // InResponseTo (all flows are SP-initiated; unsolicited responses are rejected).
+        // SameSite=None is required because the Acs POST arrives cross-site from the IdP.
+        System.Xml.XmlDocument requestDocument = new() { XmlResolver = null };
+        requestDocument.LoadXml(request.GetRequest());
+
+        Response.Cookies.Append(SamlRequestCookieName(tenant), requestDocument.DocumentElement?.GetAttribute("ID"), new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            IsEssential = true,
+            Path = "/saml",
+            MaxAge = TimeSpan.FromMinutes(10)
+        });
+
         return Redirect(request.GetRedirectUrl(client.Security.SsoSignInUrl));
     }
 
@@ -45,9 +62,29 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             return RedirectToAction("Index", "Error", new { message = "The specified tenant is not configured to use Single Sign-On (SSO). Please verify the tenant's configuration or contact your system administrator for assistance." });
         }
 
+        string? requestCookie = Request.Cookies[SamlRequestCookieName(tenant)];
+
+        Response.Cookies.Delete(SamlRequestCookieName(tenant), new CookieOptions { Path = "/saml" });
+
         Response samlResponse = new(client.Security.SsoX509Certificate, Request.Form["SAMLResponse"]);
 
         if (!samlResponse.IsValid())
+        {
+            return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
+        }
+
+        // Defense in depth beyond the library's signature check: audience, recipient,
+        // InResponseTo, validity window and single-assertion structure are enforced
+        // (see SamlAssertionValidator). Fails closed when no outstanding request exists.
+        try
+        {
+            SamlAssertionValidator.Validate(
+                Request.Form["SAMLResponse"].ToString(),
+                client.Security.SsoEntityId,
+                $"{Request.Scheme}://{Request.Host}/saml/{tenant}/acs",
+                requestCookie);
+        }
+        catch (SamlValidationException)
         {
             return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
         }
@@ -119,6 +156,11 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         );
 
         return Redirect(request.GetRedirectUrl(samlEndpoint));
+    }
+
+    private static string SamlRequestCookieName(string tenant)
+    {
+        return $"saml_request_{tenant}";
     }
 
     private string ExtractReturnUrl(string relayState)

@@ -58,61 +58,66 @@ public static class ConfigureTenantStoreServices
 
            options.GetClaimsFromUserInfoEndpoint = true;
 
+           // Align the tenant's local session cookie with the received tokens: it expires
+           // absolutely with the identity token instead of sliding forever, so a local
+           // session can never outlive the identity provider session.
+           options.UseTokenLifetime = true;
+
            options.Events = new OpenIdConnectEvents
            {
                //There are other events can be found here https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.authentication.openidconnect.openidconnectevents?view=aspnetcore-9.0
-                OnTokenValidated = async context =>
-                {
-                    //Triggered after the tokens(ID token, access token) have been successfully validated. This is a common place to add or manipulate user claims.
-                    //Use Cases:
-                    //Performing additional validation on the tokens like tenant validation, user exists in the tenant.
-                    //Adding custom claims to the user’s principal.
-                    var identity = context?.Principal?.Identity as ClaimsIdentity;
+               OnTokenValidated = async context =>
+               {
+                   //Triggered after the tokens(ID token, access token) have been successfully validated. This is a common place to add or manipulate user claims.
+                   //Use Cases:
+                   //Performing additional validation on the tokens like tenant validation, user exists in the tenant.
+                   //Adding custom claims to the user’s principal.
+                   var identity = context?.Principal?.Identity as ClaimsIdentity;
 
-                    AppTenantInfo? multiTenantContext = context.HttpContext.RequestServices.GetRequiredService<IMultiTenantContextAccessor<AppTenantInfo>>().MultiTenantContext.TenantInfo;
+                   AppTenantInfo? multiTenantContext = context.HttpContext.RequestServices.GetRequiredService<IMultiTenantContextAccessor<AppTenantInfo>>().MultiTenantContext.TenantInfo;
 
-                    //using IServiceScope scopeServices = builder.Services.scop.ApplicationServices.CreateScope();
+                   //using IServiceScope scopeServices = builder.Services.scop.ApplicationServices.CreateScope();
 
-                    //SaasAppDbContext dbContext = scopeServices.ServiceProvider.GetRequiredService<SaasAppDbContext>();
-                    SaasAppDbContext dbContext = context.HttpContext.RequestServices.GetRequiredService<SaasAppDbContext>();
+                   //SaasAppDbContext dbContext = scopeServices.ServiceProvider.GetRequiredService<SaasAppDbContext>();
+                   SaasAppDbContext dbContext = context.HttpContext.RequestServices.GetRequiredService<SaasAppDbContext>();
 
-                    if (identity != null && !identity.IsAuthenticated)
-                    {
-                        context?.HandleResponse();
-                        context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=Unable to retrive the User details. Please contact your administrator if the issue persists.");
-                        await Task.CompletedTask;
-                        return;
-                    }
-                    else
-                    {
-                        string? email = identity?.FindFirst(ClaimTypes.Email)?.Value;
+                   if (identity != null && !identity.IsAuthenticated)
+                   {
+                       context?.HandleResponse();
+                       context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=Unable to retrive the User details. Please contact your administrator if the issue persists.");
+                       await Task.CompletedTask;
+                       return;
+                   }
+                   else
+                   {
+                       string? email = identity?.FindFirst(ClaimTypes.Email)?.Value;
 
-                        if (string.IsNullOrEmpty(email))
-                        {
-                            context?.HandleResponse();
-                            context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=Unable to retrive the user email. Please contact your administrator if the issue persists.");
-                            await Task.CompletedTask;
-                            return;
-                        }
+                       if (string.IsNullOrEmpty(email))
+                       {
+                           context?.HandleResponse();
+                           context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=Unable to retrive the user email. Please contact your administrator if the issue persists.");
+                           await Task.CompletedTask;
+                           return;
+                       }
 
-                        AppPersonnel? appuser = dbContext.AppPersonnels.SingleOrDefault(s => s.Email == email);
+                       AppPersonnel? appuser = dbContext.AppPersonnels.SingleOrDefault(s => s.Email == email);
 
-                        if (appuser is null || appuser.IsActive is false)
-                        {
-                            context?.HandleResponse();
-                            context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=User details not found in BlogArray. Please contact your administrator if the issue persists.");
-                            await Task.CompletedTask;
-                            return;
-                        }
+                       if (appuser is null || appuser.IsActive is false)
+                       {
+                           context?.HandleResponse();
+                           context?.Response.Redirect($"{multiTenantContext.Identifier}/error/accessdenied?message=User details not found in BlogArray. Please contact your administrator if the issue persists.");
+                           await Task.CompletedTask;
+                           return;
+                       }
 
-                        string? audience = identity?.FindFirst(Claims.Audience)?.Value;
-                        string? name = identity?.FindFirst(Claims.Name)?.Value;
-                        identity?.AddClaim(new Claim("tenant", audience ?? ""));
-                        identity?.AddClaim(new Claim(ClaimTypes.GivenName, name ?? ""));
-                        identity?.AddClaim(new Claim(ClaimTypes.Name, name ?? ""));
-                    }
-                    await Task.CompletedTask;
-                },
+                       string? audience = identity?.FindFirst(Claims.Audience)?.Value;
+                       string? name = identity?.FindFirst(Claims.Name)?.Value;
+                       identity?.AddClaim(new Claim("tenant", audience ?? ""));
+                       identity?.AddClaim(new Claim(ClaimTypes.GivenName, name ?? ""));
+                       identity?.AddClaim(new Claim(ClaimTypes.Name, name ?? ""));
+                   }
+                   await Task.CompletedTask;
+               },
                OnUserInformationReceived = async context =>
                {
                    //Triggered when user information is retrieved from the IdP’s userinfo endpoint.
@@ -132,40 +137,40 @@ public static class ConfigureTenantStoreServices
 
                    await Task.CompletedTask;
                },
-                OnAuthenticationFailed = context =>
-                {
-                    //Triggered when authentication fails for any reason, such as invalid tokens or a mismatch in state values.
-                    //Use Cases:
-                    //Logging authentication errors.
-                    //Redirecting users to a custom error page.
-                    //Log the real exception server-side; never disclose it to the user.
-                    AppTenantInfo? multiTenantContext = context.HttpContext.RequestServices.GetRequiredService<IMultiTenantContextAccessor<AppTenantInfo>>().MultiTenantContext.TenantInfo;
+               OnAuthenticationFailed = context =>
+               {
+                   //Triggered when authentication fails for any reason, such as invalid tokens or a mismatch in state values.
+                   //Use Cases:
+                   //Logging authentication errors.
+                   //Redirecting users to a custom error page.
+                   //Log the real exception server-side; never disclose it to the user.
+                   AppTenantInfo? multiTenantContext = context.HttpContext.RequestServices.GetRequiredService<IMultiTenantContextAccessor<AppTenantInfo>>().MultiTenantContext.TenantInfo;
 
-                    context.HttpContext.RequestServices
-                        .GetRequiredService<ILoggerFactory>().CreateLogger("TenantStoreAuthentication")
-                        .LogError(context.Exception, "OpenID Connect authentication failed.");
+                   context.HttpContext.RequestServices
+                       .GetRequiredService<ILoggerFactory>().CreateLogger("TenantStoreAuthentication")
+                       .LogError(context.Exception, "OpenID Connect authentication failed.");
 
-                    context.Response.Redirect($"{multiTenantContext.Identifier}/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
-                    context.HandleResponse(); // Prevent further processing
-                    return Task.CompletedTask;
-                },
-                OnRemoteFailure = context =>
-                {
-                    //Triggered when there is a failure in the remote authentication process(e.g., a network issue or IdP error).
-                    //Use Cases:
-                    //Logging errors related to remote authentication.
-                    //Redirecting users to a fallback error page.
-                    //Log the real failure server-side; never disclose it to the user.
-                    AppTenantInfo? multiTenantContext = context.HttpContext.RequestServices.GetRequiredService<IMultiTenantContextAccessor<AppTenantInfo>>().MultiTenantContext.TenantInfo;
+                   context.Response.Redirect($"{multiTenantContext.Identifier}/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
+                   context.HandleResponse(); // Prevent further processing
+                   return Task.CompletedTask;
+               },
+               OnRemoteFailure = context =>
+               {
+                   //Triggered when there is a failure in the remote authentication process(e.g., a network issue or IdP error).
+                   //Use Cases:
+                   //Logging errors related to remote authentication.
+                   //Redirecting users to a fallback error page.
+                   //Log the real failure server-side; never disclose it to the user.
+                   AppTenantInfo? multiTenantContext = context.HttpContext.RequestServices.GetRequiredService<IMultiTenantContextAccessor<AppTenantInfo>>().MultiTenantContext.TenantInfo;
 
-                    context.HttpContext.RequestServices
-                        .GetRequiredService<ILoggerFactory>().CreateLogger("TenantStoreAuthentication")
-                        .LogError(context.Failure, "Remote authentication failed.");
+                   context.HttpContext.RequestServices
+                       .GetRequiredService<ILoggerFactory>().CreateLogger("TenantStoreAuthentication")
+                       .LogError(context.Failure, "Remote authentication failed.");
 
-                    context.Response.Redirect($"{multiTenantContext.Identifier}/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
-                    context.HandleResponse();
-                    return Task.CompletedTask;
-                }
+                   context.Response.Redirect($"{multiTenantContext.Identifier}/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
+                   context.HandleResponse();
+                   return Task.CompletedTask;
+               }
            };
        });
 
@@ -180,7 +185,7 @@ public static class ConfigureTenantStoreServices
             options.Cookie.Path = $"/{tenantInfo.Identifier}";
             options.Cookie.Name = "Cookie-" + tenantInfo.Identifier;
         });
-        
+
         builder.Services.ConfigurePerTenant<OpenIdConnectOptions, AppTenantInfo>(OpenIdConnectDefaults.AuthenticationScheme, (options, tenantInfo) =>
         {
             options.ClientId = tenantInfo.Identifier;
