@@ -5,6 +5,10 @@
 }
 <partial name="_StatusMessage" for="StatusMessage" />
 
+@* Antiforgery token for the fetch-based registration calls: always rendered, independent of
+   the per-credential remove forms (of which there are none on a fresh account). *@
+@Html.AntiForgeryToken()
+
 <div class="card">
     <div class="card-header">
         <h3 class="mb-0">Passkeys</h3>
@@ -91,14 +95,14 @@
                 message.style.display = '';
             }
 
-            async function postJson(url, body) {
+            async function postForm(url, fields) {
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
                         'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
                     },
-                    body: JSON.stringify(body || {})
+                    // Razor Pages handlers bind simple parameters from form fields.
+                    body: new URLSearchParams(fields || {})
                 });
                 if (!response.ok) throw new Error('Request failed: ' + response.status);
                 return response.json();
@@ -108,7 +112,7 @@
                 const button = this;
                 button.disabled = true;
                 try {
-                    const optionsResult = await postJson('@Url.Page("/Settings/Passkeys", "RegistrationOptions")', { name: 'Passkey' });
+                    const optionsResult = await postForm('@Url.Page("/Settings/Passkeys", "RegistrationOptions")', { name: 'Passkey' });
                     const creationOptions = JSON.parse(optionsResult.options);
 
                     // Translate base64url fields to ArrayBuffers for the browser API.
@@ -132,7 +136,7 @@
                         }
                     };
 
-                    const registrationResult = await postJson('@Url.Page("/Settings/Passkeys", "Register")', {
+                    const registrationResult = await postForm('@Url.Page("/Settings/Passkeys", "Register")', {
                         response: JSON.stringify(response),
                         options: optionsResult.options
                     });

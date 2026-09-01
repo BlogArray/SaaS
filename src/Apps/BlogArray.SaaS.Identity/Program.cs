@@ -46,11 +46,26 @@ string fido2Origin = Configuration.GetValue<string>("Links:Issuer")
 
 Uri fido2OriginUri = new(fido2Origin);
 
+// Additional accepted origins (semicolon-separated, e.g. local IIS bindings like
+// "https://localhost:44399"). The RP id stays the Links:Issuer host; every origin the
+// browser may present during a ceremony must be listed.
+string? extraOrigins = Configuration.GetValue<string>("Fido2:Origins");
+
+ISet<string> fido2Origins = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { $"{fido2OriginUri.Scheme}://{fido2OriginUri.Authority}" };
+
+if (!string.IsNullOrWhiteSpace(extraOrigins))
+{
+    foreach (string origin in extraOrigins.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+    {
+        fido2Origins.Add(origin.TrimEnd('/'));
+    }
+}
+
 builder.Services.AddFido2(options =>
 {
     options.ServerDomain = fido2OriginUri.Host;
     options.ServerName = "BlogArray";
-    options.Origins = new HashSet<string> { $"{fido2OriginUri.Scheme}://{fido2OriginUri.Authority}" };
+    options.Origins = (IReadOnlySet<string>)fido2Origins;
     options.TimestampDriftTolerance = 5000;
 });
 

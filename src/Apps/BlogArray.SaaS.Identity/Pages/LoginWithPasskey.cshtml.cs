@@ -21,7 +21,8 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class LoginWithPasskeyModel(
     SignInManagerExtension<ApplicationUser> signInManager,
     ISecurityAuditLogger auditLogger,
-    PasskeyService passkeyService) : PageModel
+    PasskeyService passkeyService,
+    ILogger<LoginWithPasskeyModel> logger) : PageModel
 {
     [TempData]
     public string StatusMessage { get; set; }
@@ -71,8 +72,9 @@ public class LoginWithPasskeyModel(
         {
             await passkeyService.VerifyAssertionAsync(user, response, AssertionOptions);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            logger.LogError(ex, "Passkey assertion failed for user {UserId}.", user.Id);
             ModelState.AddModelError(string.Empty, "The passkey could not be verified. Please try again.");
             return RedirectToPage(new { next });
         }

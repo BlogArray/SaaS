@@ -13,6 +13,7 @@ using System.Text.Json;
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.OpenId;
+using Fido2NetLib;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BlogArray.SaaS.Identity.Pages.Settings;
@@ -20,7 +21,8 @@ namespace BlogArray.SaaS.Identity.Pages.Settings;
 public class PasskeysModel(
     UserManager<ApplicationUser> userManager,
     ISecurityAuditLogger auditLogger,
-    PasskeyService passkeyService) : PageModel
+    PasskeyService passkeyService,
+    ILogger<PasskeysModel> logger) : PageModel
 {
     public List<WebAuthnCredential> Credentials { get; set; } = [];
 
@@ -70,13 +72,32 @@ public class PasskeysModel(
         {
             WebAuthnCredential credential = await passkeyService.VerifyRegistrationAsync(user, $"Passkey {DateTime.UtcNow:yyyy-MM-dd HH:mm}", response, options);
 
+            // Registering a second factor IS enabling MFA: without TwoFactorEnabled the
+            // sign-in flow never reaches the second-factor step, so a passkey-only user
+            // would never be prompted for it.
+            if (!await userManager.GetTwoFactorEnabledAsync(user))
+            {
+                await userManager.SetTwoFactorEnabledAsync(user, true);
+                await auditLogger.LogAsync(user.Id, SecurityEventTypes.MfaEnabled, "passkey");
+            }
+
             await auditLogger.LogAsync(user.Id, SecurityEventTypes.PasskeyRegistered, credential.Name);
 
             return new JsonResult(new { succeeded = true });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return new JsonResult(new { succeeded = false, error = "The passkey could not be registered. Please try again." });
+            logger.LogError(ex, "Passkey registration failed for user {UserId}.", user.Id);
+
+            // Verification failures carry actionable reasons (challenge/origin/type mismatch);
+            // anything else stays generic so internals are not leaked.
+            return new JsonResult(new
+            {
+                succeeded = false,
+                error = ex is Fido2VerificationException
+                    ? $"The passkey could not be verified: {ex.Message}"
+                    : "The passkey could not be registered. Please try again."
+            });
         }
     }
 
