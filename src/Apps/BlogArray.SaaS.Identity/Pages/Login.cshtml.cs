@@ -10,14 +10,16 @@
 #nullable disable
 
 using System.Web;
+using BlogArray.SaaS.OpenId;
+using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
-using Saml;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
 public class LoginModel(
     UserManager<ApplicationUser> userManager,
-    OpenIddictApplicationManager<OpenIdApplication> appManager) : PageModel
+    OpenIddictApplicationManager<OpenIdApplication> appManager,
+    OpenIdDbContext context) : PageModel
 {
 
     /// <summary>
@@ -78,11 +80,10 @@ public class LoginModel(
 
             if (client != null && client.Security.IsSsoEnabled)
             {
-                string samlConsumer = $"{Request.Scheme}://{Request.Host}/saml/{clientId}/acs";
-
-                AuthRequest request = new(client.Security.SsoEntityId, samlConsumer);
-                string relayState = $"next={HttpUtility.UrlEncode(next)}";
-                return Redirect(request.GetRedirectUrl(client.Security.SsoSignInUrl, relayState));
+                // Route through the SAML login action: it builds the AuthnRequest, records its
+                // id in RelayState (and the fallback cookie) for InResponseTo validation, and
+                // forwards this return URL.
+                return Redirect($"/saml/{clientId}/login?next={Uri.EscapeDataString(next)}");
             }
         }
 
@@ -100,10 +101,26 @@ public class LoginModel(
             return Page();
         }
 
-        // Always proceed to the password step, whether or not the account exists. The password
-        // step returns the same generic error for unknown emails, unknown-account emails, and
-        // wrong passwords, which prevents account enumeration at this step.
-        //TODO: Check user for SSO and redirect to sso
+        // Users of an SSO-enabled tenant are routed to that tenant's identity provider (SAML)
+        // instead of the local password step. Unknown or non-SSO emails continue to the
+        // password step, which returns the same generic error for unknown emails, so account
+        // enumeration is not possible here.
+        ApplicationUser user = await userManager.FindByEmailAsync(Input.Email);
+
+        if (user is not null && user.IsActive)
+        {
+            OpenIdApplication ssoTenant = await context.Authorizations
+                .Where(authorization => authorization.Subject == user.Id
+                    && authorization.Status == "valid"
+                    && authorization.Application.Security.IsSsoEnabled)
+                .Select(authorization => authorization.Application)
+                .FirstOrDefaultAsync();
+
+            if (ssoTenant is not null)
+            {
+                return Redirect($"/saml/{ssoTenant.ClientId}/login?next={Uri.EscapeDataString(next)}");
+            }
+        }
 
         return RedirectToPage("./LoginWithPassword", new { email = Input.Email, next });
     }

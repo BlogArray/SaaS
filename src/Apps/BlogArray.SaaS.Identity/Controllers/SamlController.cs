@@ -20,7 +20,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     ISecurityAuditLogger auditLogger, IConfiguration configuration) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
-    public async Task<IActionResult> Login(string tenant)
+    public async Task<IActionResult> Login(string tenant, string next = null)
     {
         OpenIdApplication? client = await appManager.FindByClientIdAsync(tenant);
 
@@ -33,13 +33,36 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         AuthRequest request = new(client.Security.SsoEntityId, samlConsumer);
 
-        // Remember the request ID so the assertion consumer service can verify the response's
-        // InResponseTo (all flows are SP-initiated; unsolicited responses are rejected).
-        // SameSite=None is required because the Acs POST arrives cross-site from the IdP.
-        System.Xml.XmlDocument requestDocument = new() { XmlResolver = null };
-        requestDocument.LoadXml(request.GetRequest());
+        // GetRequest() returns the URL-ready base64(deflate(xml)) SAMLRequest value; inflate
+        // it to read the generated request id for the InResponseTo correlation.
+        string requestXml;
 
-        Response.Cookies.Append(SamlRequestCookieName(tenant), requestDocument.DocumentElement?.GetAttribute("ID"), new CookieOptions
+        byte[] encodedRequest = Convert.FromBase64String(request.GetRequest());
+
+        using (MemoryStream compressedStream = new(encodedRequest))
+        using (System.IO.Compression.DeflateStream deflateStream = new(compressedStream, System.IO.Compression.CompressionMode.Decompress))
+        using (StreamReader streamReader = new(deflateStream, System.Text.Encoding.UTF8))
+        {
+            requestXml = streamReader.ReadToEnd();
+        }
+
+        System.Xml.XmlDocument requestDocument = new() { XmlResolver = null };
+        requestDocument.LoadXml(requestXml);
+
+        string requestId = requestDocument.DocumentElement?.GetAttribute("ID");
+
+        // The return URL the user should land on after the SSO flow completes (only local
+        // URLs are honored).
+        string returnUrl = Url.IsLocalUrl(next) ? next : Url.Content("~/");
+
+        // RelayState round-trips through the IdP with the response (the SAML 2.0 bindings
+        // require an exact echo) and is the primary way to correlate the response with this
+        // request: unlike a cookie it survives the cross-site Acs POST regardless of browser
+        // cookie policy. The same request id is also mirrored in a SameSite=None cookie as a
+        // fallback for IdPs that drop RelayState.
+        string relayState = $"inResponseTo={Uri.EscapeDataString(requestId ?? string.Empty)}&next={Uri.EscapeDataString(returnUrl)}";
+
+        Response.Cookies.Append(SamlRequestCookieName(tenant), requestId, new CookieOptions
         {
             HttpOnly = true,
             Secure = true,
@@ -49,7 +72,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             MaxAge = TimeSpan.FromMinutes(10)
         });
 
-        return Redirect(request.GetRedirectUrl(client.Security.SsoSignInUrl));
+        return Redirect(request.GetRedirectUrl(client.Security.SsoSignInUrl, relayState));
     }
 
     [HttpGet("{tenant}/acs"), HttpPost("{tenant}/acs"), IgnoreAntiforgeryToken]
@@ -66,9 +89,22 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         Response.Cookies.Delete(SamlRequestCookieName(tenant), new CookieOptions { Path = "/saml" });
 
+        // RelayState is the primary correlation channel (it was sent with the AuthnRequest and
+        // echoed back by the IdP); the cookie is only a fallback. Both carry the request id
+        // and, in RelayState, the post-login return URL.
+        System.Collections.Specialized.NameValueCollection relay = HttpUtility.ParseQueryString(Request.Form["RelayState"]);
+
+        string? expectedInResponseTo = relay["inResponseTo"];
+
+        if (string.IsNullOrEmpty(expectedInResponseTo))
+        {
+            expectedInResponseTo = requestCookie;
+        }
+
         Response samlResponse = new(client.Security.SsoX509Certificate, Request.Form["SAMLResponse"]);
 
-        if (!samlResponse.IsValid())
+        // Validating with audience
+        if (!samlResponse.IsValid(client.Security.SsoEntityId))
         {
             return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
         }
@@ -82,7 +118,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
                 Request.Form["SAMLResponse"].ToString(),
                 client.Security.SsoEntityId,
                 $"{Request.Scheme}://{Request.Host}/saml/{tenant}/acs",
-                requestCookie);
+                expectedInResponseTo);
         }
         catch (SamlValidationException)
         {
@@ -119,7 +155,9 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         Microsoft.Extensions.Primitives.StringValues relayState = Request.Form["RelayState"];
 
-        string returnUrl = ExtractReturnUrl(relayState);
+        System.Collections.Specialized.NameValueCollection relayStateParams = HttpUtility.ParseQueryString(relayState);
+
+        string returnUrl = string.IsNullOrEmpty(relayStateParams["next"]) ? Url.Content("~/") : relayStateParams["next"];
 
         //Silent view to post the form to tenant's Logon action
         return View(new SamlAuth
@@ -163,11 +201,5 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     private static string SamlRequestCookieName(string tenant)
     {
         return $"saml_request_{tenant}";
-    }
-
-    private string ExtractReturnUrl(string relayState)
-    {
-        System.Collections.Specialized.NameValueCollection queryParams = HttpUtility.ParseQueryString(relayState);
-        return queryParams["next"] ?? Url.Content("~/");
     }
 }
