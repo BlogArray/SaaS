@@ -68,14 +68,9 @@ public class PasskeysModel(
         {
             WebAuthnCredential credential = await passkeyService.VerifyRegistrationAsync(user, $"Passkey {DateTime.UtcNow:yyyy-MM-dd HH:mm}", response, options);
 
-            // Registering a second factor IS enabling MFA: without TwoFactorEnabled the
-            // sign-in flow never reaches the second-factor step, so a passkey-only user
-            // would never be prompted for it.
-            if (!await userManager.GetTwoFactorEnabledAsync(user))
-            {
-                await userManager.SetTwoFactorEnabledAsync(user, true);
-                await auditLogger.LogAsync(user.Id, SecurityEventTypes.MfaEnabled, "passkey");
-            }
+            // Passkeys are a standalone passwordless authentication method and are
+            // intentionally independent of the TwoFactorEnabled flag: registering one does
+            // not enable traditional 2FA, and disabling 2FA does not remove passkeys.
 
             await auditLogger.LogAsync(user.Id, SecurityEventTypes.PasskeyRegistered, credential.Name);
 
