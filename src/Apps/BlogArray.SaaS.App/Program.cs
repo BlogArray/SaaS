@@ -36,7 +36,10 @@ if (string.IsNullOrEmpty(connectionString))
     throw new InvalidOperationException("No connection string was provided.");
 }
 
-builder.Services.AddOpenIdContext(connectionString);
+// Core-only OpenIddict registration: registers the application/authorization/token managers
+// over the identity store (needed by the shared management services) without hosting an
+// OpenIddict server in this app.
+builder.AddOpenIdCore(connectionString);
 
 builder.Services.AddDbContext<SaasAppDbContext>();
 
