@@ -22,9 +22,26 @@
             By clicking "Next", you agree to BlogArray <a href="https://help.blogarray.com/docs/site-policy/terms-of-use/" target="_blank">Terms of use</a> and <a href="https://help.blogarray.com/docs/site-policy/privacy-policy/" target="_blank">Privacy Policy</a>.
         </p>
         <button id="login-submit" type="submit" class="w-100 btn btn-primary">Next</button>
+
+        <div class="d-flex align-items-center my-3">
+            <hr class="flex-grow-1">
+            <span class="small text-secondary px-2">or</span>
+            <hr class="flex-grow-1">
+        </div>
+
+        <a id="passkey-signin" asp-page="./LoginWithPasskey" asp-route-next="@Model.Next"
+           class="w-100 btn btn-outline-primary" style="display:none;">
+            <i class="bi bi-fingerprint me-1"></i> Sign in with a passkey
+        </a>
     </form>
 </section>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Show the passkey option only where the WebAuthn API is available.
+        if (window.PublicKeyCredential) {
+            document.getElementById('passkey-signin').style.display = '';
+        }
+    </script>
 }

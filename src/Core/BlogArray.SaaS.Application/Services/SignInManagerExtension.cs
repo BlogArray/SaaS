@@ -214,27 +214,6 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         return SignInResult.Failed;
     }
 
-    /// <summary>
-    /// Signs in the user without two factor authentication after a successful WebAuthn
-    /// (passkey) assertion. The assertion itself is verified by the caller; this method
-    /// completes the two-factor flow (clears the two-factor cookie, adds the "mfa" claim),
-    /// mirroring TwoFactorAuthenticatorSignInAsync.
-    /// </summary>
-    /// <param name="user">The user whose passkey assertion was verified.</param>
-    /// <param name="isPersistent">Flag indicating whether the sign-in cookie should persist.</param>
-    /// <param name="rememberClient">Flag indicating whether the current browser should be remembered.</param>
-    /// <param name="customClaims">Additional claims to add to the sign-in principal.</param>
-    public virtual async Task<SignInResult> TwoFactorPasskeySignInAsync(ApplicationUser user, bool isPersistent, bool rememberClient, List<Claim> customClaims)
-    {
-        TwoFactorAuthenticationInfo? twoFactorInfo = await RetrieveTwoFactorInfoAsync();
-        if (twoFactorInfo == null)
-        {
-            return SignInResult.Failed;
-        }
-
-        return await DoTwoFactorSignInAsync(user, twoFactorInfo, isPersistent, rememberClient, customClaims);
-    }
-
     protected virtual async Task<SignInResult> SignInOrTwoFactorAsync(ApplicationUser user, bool isPersistent, List<Claim> customClaims, string? loginProvider = null, bool bypassTwoFactor = false)
     {
         customClaims ??= [];

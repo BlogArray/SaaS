@@ -18,10 +18,13 @@ using Microsoft.EntityFrameworkCore;
 namespace BlogArray.SaaS.Identity.Infrastructure;
 
 /// <summary>
-/// WebAuthn (passkey) ceremonies built on the fido2-net-lib: registration of new passkeys
-/// and verification of assertions during the two-factor sign-in step. Ceremonies follow the
-/// library's documented patterns: options are generated server-side, round-tripped through
-/// the browser's WebAuthn API, and verified against the original challenge.
+/// WebAuthn (passkey) ceremonies built on the fido2-net-lib.
+///
+/// Passkeys are a standalone passwordless authentication method: the login ceremony is
+/// started without any user context, with an empty credential allow-list so the browser/OS
+/// presents the account chooser with every saved passkey for this site. Credentials are
+/// registered as discoverable with user verification required, so completing the ceremony
+/// (biometric/PIN) both identifies the user and proves presence - no password involved.
 /// </summary>
 public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
 {
@@ -40,7 +43,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
 
     public async Task<string> CreateRegistrationOptionsJsonAsync(ApplicationUser user)
     {
-        var existingKeys = (await GetCredentialsAsync(user.Id))
+        List<PublicKeyCredentialDescriptor> existingKeys = (await GetCredentialsAsync(user.Id))
             .Select(credential => new PublicKeyCredentialDescriptor(Convert.FromBase64String(credential.CredentialId)))
             .ToList();
 
@@ -55,7 +58,15 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
         {
             User = fido2User,
             ExcludeCredentials = existingKeys,
-            AuthenticatorSelection = AuthenticatorSelection.Default,
+            AuthenticatorSelection = new AuthenticatorSelection
+            {
+                // Discoverable credentials: the authenticator stores the user identity so the
+                // passkey can be offered in the account chooser during passwordless login,
+                // without the server naming a user first.
+                ResidentKey = ResidentKeyRequirement.Required,
+                // Biometric/PIN is the passwordless replacement for the password.
+                UserVerification = UserVerificationRequirement.Required
+            },
             AttestationPreference = AttestationConveyancePreference.None,
             Extensions = new AuthenticationExtensionsClientInputs
             {
@@ -70,7 +81,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
     {
         AuthenticatorAttestationRawResponse? response = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(responseJson);
 
-        var options = CredentialCreateOptions.FromJson(originalOptionsJson);
+        CredentialCreateOptions options = CredentialCreateOptions.FromJson(originalOptionsJson);
 
         RegisteredPublicKeyCredential result = await fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
         {
@@ -101,39 +112,46 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
         return credential;
     }
 
-    public async Task<string> CreateAssertionOptionsJsonAsync(ApplicationUser user)
+    /// <summary>
+    /// Passwordless login ceremony: assertion options are issued without any user context and
+    /// without an allow-list, so the browser/OS offers every discoverable passkey saved for
+    /// this site and the user picks one.
+    /// </summary>
+    public Task<string> CreatePasswordlessAssertionOptionsJsonAsync()
     {
-        var allowedCredentials = (await GetCredentialsAsync(user.Id))
-            .Select(credential => new PublicKeyCredentialDescriptor(Convert.FromBase64String(credential.CredentialId)))
-            .ToList();
-
         AssertionOptions options = fido2.GetAssertionOptions(new GetAssertionOptionsParams
         {
-            AllowedCredentials = allowedCredentials,
-            UserVerification = UserVerificationRequirement.Preferred
+            // Empty allow-list + required user verification = the native passkey chooser.
+            AllowedCredentials = [],
+            UserVerification = UserVerificationRequirement.Required
         });
 
-        return options.ToJson();
+        return Task.FromResult(options.ToJson());
     }
 
-    public async Task<WebAuthnCredential> VerifyAssertionAsync(ApplicationUser user, string responseJson, string originalOptionsJson)
+    /// <summary>
+    /// Verifies a passwordless login assertion and resolves the authenticated user from the
+    /// credential (the assertion's user handle is bound to the stored credential's owner).
+    /// </summary>
+    public async Task<ApplicationUser> VerifyPasswordlessAssertionAsync(string responseJson, string originalOptionsJson)
     {
         AuthenticatorAssertionRawResponse? response = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(responseJson);
 
-        var options = AssertionOptions.FromJson(originalOptionsJson);
+        AssertionOptions options = AssertionOptions.FromJson(originalOptionsJson);
 
         // The raw response's Id is base64url-encoded (the raw model types use strings for
         // identifiers while stored credentials use base64).
         string credentialId = Convert.ToBase64String(FromBase64Url(response!.Id));
 
         WebAuthnCredential credential = await context.WebAuthnCredentials
-            .SingleOrDefaultAsync(stored => stored.CredentialId == credentialId && stored.UserId == user.Id)
-            ?? throw new InvalidOperationException("The presented passkey is not registered for this account.");
+            .SingleOrDefaultAsync(stored => stored.CredentialId == credentialId)
+            ?? throw new InvalidOperationException("The presented passkey is not registered on this site.");
 
-        byte[] userHandle = Encoding.UTF8.GetBytes(user.Id);
+        byte[] userHandle = Encoding.UTF8.GetBytes(credential.UserId);
 
         // A failed verification throws Fido2VerificationException; a returned result is a
-        // successful assertion.
+        // successful assertion (challenge matches, origin matches, signature and counter ok,
+        // user verification satisfied).
         VerifyAssertionResult result = await fido2.MakeAssertionAsync(new MakeAssertionParams
         {
             AssertionResponse = response,
@@ -142,7 +160,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
             StoredSignatureCounter = credential.SignatureCounter,
             IsUserHandleOwnerOfCredentialIdCallback = (args, cancellationToken) =>
             {
-                // The credential must belong to the user completing the second factor.
+                // The credential must belong to the user identified by the assertion.
                 return Task.FromResult(args.UserHandle.AsSpan().SequenceEqual(userHandle));
             }
         });
@@ -151,14 +169,16 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
         credential.LastUsedOn = DateTime.UtcNow;
         await context.SaveChangesAsync();
 
-        return credential;
-    }
+        ApplicationUser user = await context.Users
+            .SingleOrDefaultAsync(u => u.Id == credential.UserId)
+            ?? throw new InvalidOperationException("The passkey owner account no longer exists.");
 
-    private static byte[] FromBase64Url(string value)
-    {
-        string base64 = value.Replace('-', '+').Replace('_', '/');
+        if (!user.IsActive)
+        {
+            throw new InvalidOperationException("The user account is inactive.");
+        }
 
-        return Convert.FromBase64String(base64.PadRight(base64.Length + (4 - base64.Length % 4) % 4, '='));
+        return user;
     }
 
     public async Task RemoveCredentialAsync(string userId, string credentialRecordId)
@@ -171,5 +191,12 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
             context.WebAuthnCredentials.Remove(credential);
             await context.SaveChangesAsync();
         }
+    }
+
+    private static byte[] FromBase64Url(string value)
+    {
+        string base64 = value.Replace('-', '+').Replace('_', '/');
+
+        return Convert.FromBase64String(base64.PadRight(base64.Length + ((4 - base64.Length % 4) % 4), '='));
     }
 }

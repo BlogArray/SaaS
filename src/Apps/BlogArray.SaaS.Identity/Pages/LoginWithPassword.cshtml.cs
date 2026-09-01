@@ -10,7 +10,6 @@
 using System.Text;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.EntityFrameworkCore;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
@@ -18,8 +17,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<LoginWithPasswordModel> logger,
     UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger,
-    OpenIdDbContext context) : PageModel
+    ISecurityAuditLogger auditLogger) : PageModel
 {
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -165,13 +163,6 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
             if (result.RequiresTwoFactor)
             {
-                // Users with registered passkeys complete the second factor with a WebAuthn
-                // assertion instead of an authenticator one-time code.
-                if (await context.WebAuthnCredentials.AnyAsync(credential => credential.UserId == user.Id))
-                {
-                    return RedirectToPage("./LoginWithPasskey", new { next });
-                }
-
                 return RedirectToPage("./LoginWith2fa", new { next });
             }
             if (result.IsLockedOut)

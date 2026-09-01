@@ -13,13 +13,14 @@
 <div class="alert alert-secondary" role="alert" id="passkeyMessage" style="display:none"></div>
 
 <form id="passkey-form" method="post">
-    <input type="hidden" name="response" id="passkeyResponse" />
+    <input type="hidden" asp-for="Input.Response" />
+    <input type="hidden" asp-for="Next" />
     <input type="hidden" asp-for="AssertionOptions" />
     <button type="button" class="w-100 btn btn-primary" id="usePasskey">
         <i class="bi bi-fingerprint me-1"></i> Use passkey
     </button>
     <div class="text-center mt-3">
-        <a asp-page="./LoginWith2fa" asp-route-next="@Model.StatusMessage">Use an authenticator code instead</a>
+        <a asp-page="./LoginWithPassword" asp-route-next="@Model.Next">Use your password instead</a>
     </div>
 </form>
 
@@ -55,16 +56,13 @@
                 const optionsField = document.querySelector('input[name="AssertionOptions"]');
                 const options = JSON.parse(optionsField.value);
 
+                // No allowCredentials: the browser/OS shows the account chooser with every
+                // saved passkey for this site. User verification (biometric/PIN) is required.
                 options.challenge = base64UrlToArrayBuffer(options.challenge);
-                if (options.allowCredentials) {
-                    options.allowCredentials = options.allowCredentials.map(function (item) {
-                        return { id: base64UrlToArrayBuffer(item.id), type: item.type };
-                    });
-                }
 
                 const credential = await navigator.credentials.get({ publicKey: options });
 
-                document.getElementById('passkeyResponse').value = JSON.stringify({
+                document.getElementById('Input_Response').value = JSON.stringify({
                     id: credential.id,
                     rawId: arrayBufferToBase64Url(credential.rawId),
                     type: credential.type,
@@ -90,7 +88,9 @@
             // Offer the ceremony automatically on page load.
             window.addEventListener('load', function () {
                 if (window.PublicKeyCredential) {
-                    runAssertion().catch(function () { /* the button remains available */ });
+                    runAssertion().catch(function (error) {
+                        showMessage('The passkey could not be used: ' + error.message);
+                    });
                 }
             });
         })();

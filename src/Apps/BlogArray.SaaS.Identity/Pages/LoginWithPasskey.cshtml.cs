@@ -9,74 +9,60 @@
 
 #nullable disable
 
-using System.Text.Json;
 using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.OpenId;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
+/// <summary>
+/// Passwordless passkey login. This is a standalone authentication path: no password and no
+/// two-factor step are involved. The ceremony starts without any user context and without an
+/// allow-list, so the browser/OS presents its native passkey chooser; the resolved assertion
+/// identifies the user directly.
+/// </summary>
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWithPasskeyModel(
     SignInManagerExtension<ApplicationUser> signInManager,
     ISecurityAuditLogger auditLogger,
-    PasskeyService passkeyService,
-    ILogger<LoginWithPasskeyModel> logger) : PageModel
+    PasskeyService passkeyService) : PageModel
 {
-    [TempData]
-    public string StatusMessage { get; set; }
-
     /// <summary>
-    /// Assertion options for the browser's WebAuthn API (serialized, camelCase).
+    ///     Serialized assertion options for the browser's WebAuthn API (round-tripped through
+    /// TempData so the challenge the server issued is the challenge that gets verified).
     /// </summary>
     [TempData]
     public string AssertionOptions { get; set; }
 
-    public async Task<IActionResult> OnGetAsync(string next = null)
+    /// <summary>
+    ///     Optional local URL the user is returned to after signing in.
+    /// </summary>
+    [BindProperty(SupportsGet = true)]
+    public string Next { get; set; }
+
+    public IActionResult OnGet()
     {
-        // The two-factor cookie (set when the password step succeeded) identifies the user.
-        ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
-        if (user == null)
-        {
-            return RedirectToPage("./Login");
-        }
-
-        if (!await passkeyService.HasCredentialsAsync(user.Id))
-        {
-            return RedirectToPage("./LoginWith2fa", new { next });
-        }
-
-        AssertionOptions = await passkeyService.CreateAssertionOptionsJsonAsync(user);
+        AssertionOptions = passkeyService.CreatePasswordlessAssertionOptionsJsonAsync().Result;
 
         return Page();
     }
 
-    /// <summary>
-    /// Returns the assertion options generated in OnGetAsync to the browser script.
-    /// </summary>
-    public IActionResult OnGetAssertionOptions()
+    public async Task<IActionResult> OnPostAsync()
     {
-        return new JsonResult(new { options = AssertionOptions });
-    }
-
-    public async Task<IActionResult> OnPostAsync(string response, string next = null)
-    {
-        ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
-        if (user == null)
+        if (string.IsNullOrEmpty(AssertionOptions))
         {
             return RedirectToPage("./Login");
         }
 
+        ApplicationUser user;
+
         try
         {
-            await passkeyService.VerifyAssertionAsync(user, response, AssertionOptions);
+            user = await passkeyService.VerifyPasswordlessAssertionAsync(Input?.Response, AssertionOptions);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            logger.LogError(ex, "Passkey assertion failed for user {UserId}.", user.Id);
-            ModelState.AddModelError(string.Empty, "The passkey could not be verified. Please try again.");
-            return RedirectToPage(new { next });
+            ModelState.AddModelError(string.Empty, "The passkey could not be verified. Please try again or use your password to sign in.");
+            return Page();
         }
 
         List<System.Security.Claims.Claim> customClaims =
@@ -86,23 +72,30 @@ public class LoginWithPasskeyModel(
             new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Gender, user.Gender ?? string.Empty),
             new System.Security.Claims.Claim("Timezone", user.TimeZone ?? string.Empty),
             new System.Security.Claims.Claim("Locale", user.LocaleCode ?? string.Empty),
+            new System.Security.Claims.Claim("amr", "webauthn"),
         ];
 
-        Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorPasskeySignInAsync(user, isPersistent: false, rememberClient: false, customClaims);
+        // Creates the normal authenticated session (roles/claims via the principal factory).
+        // No two-factor or lockout logic applies: the verified assertion IS the authentication.
+        await signInManager.SignInAsync(user, isPersistent: false, customClaims, authenticationMethod: "webauthn");
 
-        if (result.Succeeded)
-        {
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded, "passkey");
-            return LocalRedirect(string.IsNullOrEmpty(next) ? Url.Content("~/") : next);
-        }
+        await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded, "passkey");
 
-        if (result.IsLockedOut)
-        {
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LockedOut);
-            return RedirectToPage("./Lockout");
-        }
+        return LocalRedirect(Url.IsLocalUrl(Next) ? Next : Url.Content("~/"));
+    }
 
-        ModelState.AddModelError(string.Empty, "The passkey could not be verified. Please try again.");
-        return Page();
+    /// <summary>
+    ///     The authenticator's assertion response (JSON string posted by the page script).
+    /// </summary>
+    [BindProperty]
+    public InputModel Input { get; set; }
+
+    /// <summary>
+    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
+    ///     directly from your code. This API may change or be removed in future releases.
+    /// </summary>
+    public class InputModel
+    {
+        public string Response { get; set; }
     }
 }
