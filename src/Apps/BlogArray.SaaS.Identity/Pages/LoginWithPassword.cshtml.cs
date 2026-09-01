@@ -8,6 +8,7 @@
 //
 
 using System.Text;
+using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;
@@ -16,8 +17,20 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<LoginWithPasswordModel> logger,
     UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger) : PageModel
+    ISecurityAuditLogger auditLogger,
+    ICaptchaService captcha) : PageModel
 {
+    /// <summary>
+    ///     True when the Cloudflare Turnstile challenge is configured (Captcha:SiteKey and
+    ///     Captcha:SecretKey). When false the widget is not rendered and tokens are not checked.
+    /// </summary>
+    public bool CaptchaEnabled => captcha.IsEnabled;
+
+    /// <summary>
+    ///     The Turnstile site key for rendering the widget (empty when disabled).
+    /// </summary>
+    public string CaptchaSiteKey => captcha.SiteKey;
+
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
@@ -72,6 +85,12 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
         /// </summary>
         //[Display(Name = "Remember me?")]
         //public bool RememberMe { get; set; }
+
+        /// <summary>
+        ///     Turnstile widget response token (bound from the widget's response field).
+        /// </summary>
+        [Required(AllowEmptyStrings = false, ErrorMessage = "Please complete the verification")]
+        public string CaptchaToken { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(string email, string next)
@@ -112,6 +131,14 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
         if (ModelState.IsValid)
         {
+            // CAPTCHA step-up: when Turnstile is configured, the widget token is verified with
+            // Cloudflare before the password is evaluated.
+            if (captcha.IsEnabled && !await captcha.VerifyAsync(Input.CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
+            {
+                ModelState.AddModelError("Input.CaptchaToken", "Please complete the verification.");
+                return Page();
+            }
+
             // This doesn't count login failures towards account lockout
             // To enable password failures to trigger account lockout, set lockoutOnFailure: true
 

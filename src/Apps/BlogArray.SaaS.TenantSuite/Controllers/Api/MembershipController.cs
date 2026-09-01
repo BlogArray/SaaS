@@ -92,8 +92,9 @@ public class MembershipController(OpenIdDbContext context,
             emailTemplate.Invite(user.Email, user.DisplayName, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
         }
 
-        return JsonSuccess($"User with email {userVM.Email} is successfully created." +
-            $"The password setup link has been sent to {userVM.Email}. Please ask them to check their email.");
+        // Uniform response regardless of whether the email was new: the caller cannot use
+        // this API to enumerate which addresses have identity accounts.
+        return JsonSuccess("The invitation has been processed.");
     }
 
     [HttpPost("addusertotenant")]

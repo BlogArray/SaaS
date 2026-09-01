@@ -206,6 +206,8 @@ public static class ConfigureOpenIdServices
 
         builder.Services.AddScoped<ISecurityAuditLogger, SecurityAuditLogger>();
 
+        builder.Services.AddScoped<ICaptchaService, CaptchaService>();
+
         return builder;
     }
 

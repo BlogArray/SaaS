@@ -37,6 +37,91 @@ public static class SamlAssertionValidator
 
     private static readonly TimeSpan ClockSkew = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// Decodes a SAML message received via the redirect binding (base64 of raw DEFLATE).
+    /// </summary>
+    public static string DecodeRedirectMessage(string base64Message)
+    {
+        byte[] deflated;
+
+        try
+        {
+            deflated = Convert.FromBase64String(base64Message);
+        }
+        catch (FormatException)
+        {
+            throw new SamlValidationException("The SAML message is not valid base64 content.");
+        }
+
+        using MemoryStream compressed = new(deflated);
+        using System.IO.Compression.DeflateStream deflate = new(compressed, System.IO.Compression.CompressionMode.Decompress);
+        using StreamReader reader = new(deflate, System.Text.Encoding.UTF8);
+
+        return reader.ReadToEnd();
+    }
+
+    /// <summary>
+    /// Validates a LogoutResponse received after we sent a LogoutRequest: the status must be
+    /// Success and InResponseTo must match the ID of the logout request we issued (correlated
+    /// via RelayState). Closes the half-duplex SAML single-logout loop.
+    /// </summary>
+    public static void ValidateLogoutResponse(string responseXml, string expectedInResponseTo)
+    {
+        XmlDocument document = new() { XmlResolver = null };
+
+        using (XmlReader reader = XmlReader.Create(new StringReader(responseXml), new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            IgnoreComments = true,
+            MaxCharactersInDocument = 1_000_000
+        }))
+        {
+            document.Load(reader);
+        }
+
+        XmlNamespaceManager namespaces = new(document.NameTable);
+        namespaces.AddNamespace("samlp", SamlProtocolNamespace);
+
+        XmlElement? logoutResponse = document.SelectSingleNode("/samlp:LogoutResponse", namespaces) as XmlElement
+            ?? throw new SamlValidationException("The message is not a SAML LogoutResponse.");
+
+        string? statusCode = logoutResponse.SelectSingleNode("samlp:Status/samlp:StatusCode", namespaces)?.Attributes?["Value"]?.Value;
+
+        if (!string.Equals(statusCode, StatusCodeSuccess, StringComparison.Ordinal))
+        {
+            throw new SamlValidationException($"The identity provider returned a non-success logout status ('{statusCode}').");
+        }
+
+        string? inResponseTo = logoutResponse.GetAttribute("InResponseTo");
+
+        if (string.IsNullOrEmpty(expectedInResponseTo)
+            || !string.Equals(inResponseTo, expectedInResponseTo, StringComparison.Ordinal))
+        {
+            throw new SamlValidationException("The logout response does not correspond to the issued logout request.");
+        }
+    }
+
+    /// <summary>
+    /// Returns true when the decoded SAML message is a LogoutResponse (as opposed to a
+    /// Response carrying an authentication assertion).
+    /// </summary>
+    public static bool IsLogoutResponse(string decodedXml)
+    {
+        XmlDocument document = new() { XmlResolver = null };
+
+        using (XmlReader reader = XmlReader.Create(new StringReader(decodedXml), new XmlReaderSettings
+        {
+            DtdProcessing = DtdProcessing.Prohibit,
+            IgnoreComments = true,
+            MaxCharactersInDocument = 1_000_000
+        }))
+        {
+            document.Load(reader);
+        }
+
+        return document.DocumentElement?.LocalName == "LogoutResponse";
+    }
+
     public static void Validate(string base64Response, string expectedEntityId, string expectedAcsUrl, string? expectedInResponseTo)
     {
         byte[] raw;

@@ -85,6 +85,16 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             return RedirectToAction("Index", "Error", new { message = "The specified tenant is not configured to use Single Sign-On (SSO). Please verify the tenant's configuration or contact your system administrator for assistance." });
         }
 
+        // A GET to the Acs endpoint is the redirect-binding delivery of a SAML LogoutResponse
+        // (the reply to the LogoutRequest we sent at single sign-out). Validate it, complete
+        // the local sign-out, and continue to the post-logout return URL.
+        string? getResponse = Request.Query["SAMLResponse"].ToString();
+
+        if (!string.IsNullOrEmpty(getResponse))
+        {
+            return await ProcessLogoutResponse(getResponse, tenant, client);
+        }
+
         string? requestCookie = Request.Cookies[SamlRequestCookieName(tenant)];
 
         Response.Cookies.Delete(SamlRequestCookieName(tenant), new CookieOptions { Path = "/saml" });
@@ -167,6 +177,41 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     }
 
     /// <summary>
+    /// Validates a LogoutResponse received via the redirect binding (Success + InResponseTo
+    /// correlation with the logout request we issued), completes the local sign-out, and
+    /// continues to the post-logout return URL carried in RelayState. Failures redirect to
+    /// the error page; a failed IdP logout never blocks the local session cleanup.
+    /// </summary>
+    private async Task<IActionResult> ProcessLogoutResponse(string encodedMessage, string tenant, OpenIdApplication client)
+    {
+        string? expectedInResponseTo = Request.Cookies[SamlLogoutCookieName(tenant)];
+
+        Response.Cookies.Delete(SamlLogoutCookieName(tenant), new CookieOptions { Path = "/saml" });
+
+        string returnUrl;
+
+        try
+        {
+            string xml = SamlAssertionValidator.DecodeRedirectMessage(encodedMessage);
+
+            System.Collections.Specialized.NameValueCollection relay =
+                HttpUtility.ParseQueryString(Request.Query["RelayState"].ToString());
+
+            returnUrl = string.IsNullOrEmpty(relay["next"]) ? Url.Content("~/") : relay["next"];
+
+            SamlAssertionValidator.ValidateLogoutResponse(xml, expectedInResponseTo);
+        }
+        catch (SamlValidationException)
+        {
+            return RedirectToAction("Index", "Error", new { message = "The single sign-out response could not be validated. Please sign out again or contact your system administrator if the problem persists." });
+        }
+
+        await signInManager.SignOutAsync();
+
+        return Redirect(Url.IsLocalUrl(returnUrl) ? returnUrl : Url.Content("~/"));
+    }
+
+    /// <summary>
     /// Redirects the user to the specified URL after successful SAML authentication.
     /// </summary>
     /// <param name="samlAuth">The SAML authentication object containing the redirect URL.</param>
@@ -178,8 +223,15 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     }
 
     [HttpGet("{tenant}/logout"), HttpPost("{tenant}/logout"), IgnoreAntiforgeryToken]
-    public IActionResult Logout(string tenant)
+    public async Task<IActionResult> Logout(string tenant, string next = null)
     {
+        OpenIdApplication? client = await appManager.FindByClientIdAsync(tenant);
+
+        if (client == null || !client.Security.IsSsoEnabled)
+        {
+            return RedirectToAction("Index", "Error", new { message = "The specified tenant is not configured to use Single Sign-On (SSO). Please verify the tenant's configuration or contact your system administrator for assistance." });
+        }
+
         // SAML endpoints and the local entity id are read from configuration
         // ("Saml:IdpLogoutEndpointTemplate" uses {tenant} as a placeholder, "Links:Issuer"
         // identifies this application) instead of being hardcoded.
@@ -190,12 +242,46 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         string applicationBase = configuration["Links:Issuer"] ?? "https://www.id.blogarray.dev/";
 
-        SignoutRequest request = new(
-            applicationBase,
-            $"{applicationBase.TrimEnd('/')}/saml/{tenant}/acs"
-        );
+        string returnAddress = $"{applicationBase.TrimEnd('/')}/saml/{tenant}/acs";
 
-        return Redirect(request.GetRedirectUrl(samlEndpoint));
+        SignoutRequest request = new(applicationBase, returnAddress);
+
+        // Track the logout request id (RelayState carries the post-logout return URL) so the
+        // LogoutResponse the IdP sends back to the Acs endpoint can be correlated.
+        string logoutRequestId = DecodeRequestId(request.GetRequest());
+
+        Response.Cookies.Append(SamlLogoutCookieName(tenant), logoutRequestId, new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None,
+            IsEssential = true,
+            Path = "/saml",
+            MaxAge = TimeSpan.FromMinutes(10)
+        });
+
+        string returnUrl = Url.IsLocalUrl(next) ? next : applicationBase;
+
+        return Redirect(request.GetRedirectUrl(samlEndpoint, $"inResponseTo={Uri.EscapeDataString(logoutRequestId)}&next={Uri.EscapeDataString(returnUrl)}"));
+    }
+
+    /// <summary>
+    /// Decodes the base64(deflate(xml)) SAMLRequest/SAMLRequest value produced by the Saml
+    /// library and returns the request's ID attribute.
+    /// </summary>
+    private static string DecodeRequestId(string encodedRequest)
+    {
+        string xml = SamlAssertionValidator.DecodeRedirectMessage(encodedRequest);
+
+        System.Xml.XmlDocument document = new() { XmlResolver = null };
+        document.LoadXml(xml);
+
+        return document.DocumentElement?.GetAttribute("ID");
+    }
+
+    private static string SamlLogoutCookieName(string tenant)
+    {
+        return $"saml_logout_{tenant}";
     }
 
     private static string SamlRequestCookieName(string tenant)
