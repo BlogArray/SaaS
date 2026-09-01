@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using System.Threading.RateLimiting;
 using AspNetCore.Unobtrusive.Ajax;
 using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Application.Services;
@@ -14,7 +15,6 @@ using BlogArray.SaaS.Domain.Constants;
 using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
-using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -22,7 +22,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.Threading.RateLimiting;
 
 namespace BlogArray.SaaS.Bootstrapper;
 

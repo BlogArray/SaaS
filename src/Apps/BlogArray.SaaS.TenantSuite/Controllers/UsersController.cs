@@ -16,7 +16,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
-using OpenIddict.Core;
 using P.Pager;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;

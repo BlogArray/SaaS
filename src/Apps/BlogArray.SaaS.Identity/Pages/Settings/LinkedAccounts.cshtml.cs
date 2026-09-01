@@ -9,8 +9,6 @@
 
 #nullable disable
 
-using BlogArray.SaaS.OpenId;
-
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class LinkedAccountsModel(

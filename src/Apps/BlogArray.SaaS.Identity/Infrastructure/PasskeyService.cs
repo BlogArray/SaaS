@@ -9,8 +9,6 @@
 
 using System.Text;
 using System.Text.Json;
-using BlogArray.SaaS.Domain.Entities;
-using BlogArray.SaaS.OpenId;
 using Fido2NetLib;
 using Fido2NetLib.Objects;
 using Microsoft.EntityFrameworkCore;

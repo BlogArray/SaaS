@@ -8,7 +8,6 @@
 //
 
 using BlogArray.SaaS.Domain.Entities;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BlogArray.SaaS.OpenId;

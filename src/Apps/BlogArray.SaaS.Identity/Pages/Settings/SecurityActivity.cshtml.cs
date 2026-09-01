@@ -9,8 +9,6 @@
 
 #nullable disable
 
-using BlogArray.SaaS.Domain.Entities;
-using BlogArray.SaaS.OpenId;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlogArray.SaaS.Identity.Pages.Settings;

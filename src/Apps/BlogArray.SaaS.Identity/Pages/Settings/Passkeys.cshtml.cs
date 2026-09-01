@@ -9,12 +9,8 @@
 
 #nullable disable
 
-using System.Text.Json;
-using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Identity.Infrastructure;
-using BlogArray.SaaS.OpenId;
 using Fido2NetLib;
-using Microsoft.AspNetCore.Mvc;
 
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 

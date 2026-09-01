@@ -10,7 +10,6 @@
 #nullable disable
 
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
 
 namespace BlogArray.SaaS.Identity.Models;
 
@@ -35,7 +34,7 @@ public static class ManageNavPages
     public static string TwoFactorAuthentication => "TwoFactorAuthentication";
 
     public static string SecurityActivity => "SecurityActivity";
-    
+
     public static string Passkeys => "Passkeys";
 
     public static string AccountNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, Account, activeClass);
@@ -51,9 +50,9 @@ public static class ManageNavPages
     public static string PersonalDataNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, PersonalData, activeClass);
 
     public static string TwoFactorAuthenticationNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, TwoFactorAuthentication, activeClass);
-    
+
     public static string SecurityActivityNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, SecurityActivity, activeClass);
-    
+
     public static string PasskeysNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, Passkeys, activeClass);
 
     public static string PageNavClass(ViewContext viewContext, string page, string activeClass = "active")

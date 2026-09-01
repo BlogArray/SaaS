@@ -11,7 +11,6 @@ using AspNetCore.Unobtrusive.Ajax;
 using BlogArray.SaaS.App.Handlers;
 using BlogArray.SaaS.App.Interfaces;
 using BlogArray.SaaS.Application.Filters;
-using BlogArray.SaaS.Bootstrapper;
 using Finbuckle.MultiTenant.AspNetCore.Extensions;
 using Refit;
 using Serilog;

@@ -7,13 +7,13 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using System.Security.Cryptography.X509Certificates;
 using BlogArray.SaaS.Domain.Entities;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System.Security.Cryptography.X509Certificates;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BlogArray.SaaS.OpenId;

@@ -8,7 +8,6 @@
 //
 
 using System.Text;
-using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;

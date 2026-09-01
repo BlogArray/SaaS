@@ -19,8 +19,8 @@ using OpenIddict.Core;
 namespace BlogArray.SaaS.TenantSuite.Controllers.Api;
 
 [Route("api/[controller]")]
-    [ServiceFilter(typeof(ClientIpCheckActionFilter))]
-    [ServiceFilter(typeof(ApiKeyAuthorizationFilter))]
+[ServiceFilter(typeof(ClientIpCheckActionFilter))]
+[ServiceFilter(typeof(ApiKeyAuthorizationFilter))]
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("api")]
 [ApiController]
 public class MembershipController(OpenIdDbContext context,

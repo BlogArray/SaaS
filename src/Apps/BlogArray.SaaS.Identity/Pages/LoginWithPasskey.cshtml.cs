@@ -10,7 +10,6 @@
 #nullable disable
 
 using BlogArray.SaaS.Identity.Infrastructure;
-using BlogArray.SaaS.OpenId;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
