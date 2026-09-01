@@ -11,6 +11,7 @@
 
 using System.Text;
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -24,6 +25,7 @@ public class ExternalLoginModel : PageModel
     private readonly IUserStore<ApplicationUser> _userStore;
     private readonly IUserEmailStore<ApplicationUser> _emailStore;
     private readonly IEmailTemplate _emailTemplate;
+    private readonly ISecurityAuditLogger _auditLogger;
     private readonly ILogger<ExternalLoginModel> _logger;
 
     public ExternalLoginModel(
@@ -31,6 +33,7 @@ public class ExternalLoginModel : PageModel
         UserManager<ApplicationUser> userManager,
         IUserStore<ApplicationUser> userStore,
         IEmailTemplate emailTemplate,
+        ISecurityAuditLogger auditLogger,
         ILogger<ExternalLoginModel> logger)
     {
         _signInManager = signInManager;
@@ -38,6 +41,7 @@ public class ExternalLoginModel : PageModel
         _userStore = userStore;
         _emailStore = GetEmailStore();
         _emailTemplate = emailTemplate;
+        _auditLogger = auditLogger;
         _logger = logger;
     }
 
@@ -116,6 +120,15 @@ public class ExternalLoginModel : PageModel
             // Log without user names/emails (PII) - the provider and outcome are enough to
             // correlate with the request log.
             _logger.LogInformation("User logged in with {LoginProvider} provider.", info.LoginProvider);
+
+            string? email = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.Email);
+            ApplicationUser? auditUser = email is null ? null : await _userManager.FindByEmailAsync(email);
+
+            if (auditUser is not null)
+            {
+                await _auditLogger.LogAsync(auditUser.Id, SecurityEventTypes.LoginSucceededExternal, info.LoginProvider);
+            }
+
             return LocalRedirect(next);
         }
         if (result.IsLockedOut)

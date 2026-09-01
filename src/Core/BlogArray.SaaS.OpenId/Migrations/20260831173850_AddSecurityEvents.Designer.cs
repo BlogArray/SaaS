@@ -4,6 +4,7 @@ using BlogArray.SaaS.OpenId;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlogArray.SaaS.OpenId.Migrations
 {
     [DbContext(typeof(OpenIdDbContext))]
-    partial class OpenIdDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260831173850_AddSecurityEvents")]
+    partial class AddSecurityEvents
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -554,51 +557,6 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.ToTable("SecurityEvents");
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.WebAuthnCredential", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasMaxLength(400)
-                        .HasColumnType("nvarchar(400)");
-
-                    b.Property<DateTime>("CreatedOn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CredentialId")
-                        .IsRequired()
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
-
-                    b.Property<DateTime?>("LastUsedOn")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("PublicKey")
-                        .IsRequired()
-                        .HasMaxLength(8192)
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<long>("SignatureCounter")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasMaxLength(400)
-                        .HasColumnType("nvarchar(400)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CredentialId")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("WebAuthnCredentials");
-                });
-
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.Property<int>("Id")
@@ -876,15 +834,6 @@ namespace BlogArray.SaaS.OpenId.Migrations
                 });
 
             modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.SecurityEvent", b =>
-                {
-                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.WebAuthnCredential", b =>
                 {
                     b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", null)
                         .WithMany()

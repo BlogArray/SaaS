@@ -1,0 +1,153 @@
+@page
+@model PasskeysModel
+@{
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+}
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Passkeys</h3>
+        <p class="mb-0 form-text">
+            A passkey is a cryptographic credential stored on your device (or synced by your
+            platform) that replaces one-time codes during sign-in - phishing-resistant and
+            faster. Register it as an additional second factor for your account.
+        </p>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-secondary" role="alert" id="passkeyMessage" style="display:none"></div>
+
+        @if (Model.Credentials.Count == 0)
+        {
+            <div class="alert alert-secondary mb-3">
+                <p class="mb-0"><i class="bi bi-key me-1"></i> No passkeys are registered for your account yet.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive mb-3">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th scope="col">Name</th>
+                            <th scope="col">Registered</th>
+                            <th scope="col">Last used</th>
+                            <th scope="col" class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (WebAuthnCredential credential in Model.Credentials)
+                        {
+                            <tr>
+                                <td>@credential.Name</td>
+                                <td>@credential.CreatedOn.ToLocalTime().ToString("g")</td>
+                                <td>@(credential.LastUsedOn?.ToLocalTime().ToString("g") ?? "Never")</td>
+                                <td class="text-end">
+                                    <form method="post" asp-page-handler="Remove" class="d-inline"
+                                          onsubmit="return confirm('Remove this passkey? You will no longer be able to sign in with it.');">
+                                        <input type="hidden" name="id" value="@credential.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        <button type="button" class="btn btn-primary" id="registerPasskey">
+            <i class="bi bi-plus-circle me-1"></i> Register a passkey
+        </button>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            'use strict';
+
+            // Base64url <-> ArrayBuffer helpers for the WebAuthn API.
+            function base64UrlToArrayBuffer(value) {
+                const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+                const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+                const raw = atob(padded);
+                const output = new Uint8Array(raw.length);
+                for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+                return output.buffer;
+            }
+
+            function arrayBufferToBase64Url(buffer) {
+                const bytes = new Uint8Array(buffer);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            }
+
+            function showMessage(text, error) {
+                const message = document.getElementById('passkeyMessage');
+                message.textContent = text;
+                message.className = error ? 'alert alert-danger' : 'alert alert-success';
+                message.style.display = '';
+            }
+
+            async function postJson(url, body) {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value
+                    },
+                    body: JSON.stringify(body || {})
+                });
+                if (!response.ok) throw new Error('Request failed: ' + response.status);
+                return response.json();
+            }
+
+            document.getElementById('registerPasskey').addEventListener('click', async function () {
+                const button = this;
+                button.disabled = true;
+                try {
+                    const optionsResult = await postJson('@Url.Page("/Settings/Passkeys", "RegistrationOptions")', { name: 'Passkey' });
+                    const creationOptions = JSON.parse(optionsResult.options);
+
+                    // Translate base64url fields to ArrayBuffers for the browser API.
+                    creationOptions.challenge = base64UrlToArrayBuffer(creationOptions.challenge);
+                    creationOptions.user.id = base64UrlToArrayBuffer(creationOptions.user.id);
+                    if (creationOptions.excludeCredentials) {
+                        creationOptions.excludeCredentials = creationOptions.excludeCredentials.map(function (item) {
+                            return { id: base64UrlToArrayBuffer(item.id), type: item.type };
+                        });
+                    }
+
+                    const credential = await navigator.credentials.create({ publicKey: creationOptions });
+
+                    const response = {
+                        id: credential.id,
+                        rawId: arrayBufferToBase64Url(credential.rawId),
+                        type: credential.type,
+                        response: {
+                            attestationObject: arrayBufferToBase64Url(credential.response.attestationObject),
+                            clientDataJSON: arrayBufferToBase64Url(credential.response.clientDataJSON)
+                        }
+                    };
+
+                    const registrationResult = await postJson('@Url.Page("/Settings/Passkeys", "Register")', {
+                        response: JSON.stringify(response),
+                        options: optionsResult.options
+                    });
+
+                    if (registrationResult.succeeded) {
+                        window.location.reload();
+                    } else {
+                        showMessage(registrationResult.error || 'The passkey could not be registered.', true);
+                    }
+                } catch (error) {
+                    showMessage('The passkey could not be registered: ' + error.message, true);
+                } finally {
+                    button.disabled = false;
+                }
+            });
+        })();
+    </script>
+}

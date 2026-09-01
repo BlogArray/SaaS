@@ -17,7 +17,7 @@ namespace BlogArray.SaaS.Identity.Controllers;
 [Route("saml")]
 public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appManager,
     SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager,
-    IConfiguration configuration) : Controller
+    ISecurityAuditLogger auditLogger, IConfiguration configuration) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Login(string tenant)
@@ -114,6 +114,8 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         ];
 
         await signInManager.SignInAsync(user, false, customClaims, IdentityConstants.ApplicationScheme);
+
+        await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceededSaml, tenant);
 
         Microsoft.Extensions.Primitives.StringValues relayState = Request.Form["RelayState"];
 

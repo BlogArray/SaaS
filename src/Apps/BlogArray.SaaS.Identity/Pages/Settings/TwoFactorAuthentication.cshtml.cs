@@ -9,10 +9,13 @@
 
 #nullable disable
 
+using BlogArray.SaaS.OpenId;
+
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class TwoFactorAuthenticationModel(
     UserManager<ApplicationUser> userManager,
+    ISecurityAuditLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager
     ) : PageModel
 {
@@ -88,6 +91,7 @@ public class TwoFactorAuthenticationModel(
         await userManager.UpdateSecurityStampAsync(user);
         await signInManager.ForgetTwoFactorClientAsync();
         await signInManager.RefreshSignInAsync(user);
+        await auditLogger.LogAsync(user.Id, SecurityEventTypes.TrustedBrowsersRevoked);
 
         StatusMessage = "All trusted browsers have been revoked: every browser will be asked for a two-factor code at the next sign-in. Other active sessions are signed out.";
         return RedirectToPage();

@@ -9,11 +9,14 @@
 
 #nullable disable
 
+using BlogArray.SaaS.OpenId;
+
 namespace BlogArray.SaaS.Identity.Pages;
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWith2faModel(
     SignInManagerExtension<ApplicationUser> signInManager,
+    ISecurityAuditLogger auditLogger,
     ILogger<LoginWith2faModel> logger) : PageModel
 {
 
@@ -111,16 +114,19 @@ public class LoginWith2faModel(
         if (result.Succeeded)
         {
             logger.LogInformation("User with ID '{UserId}' logged in with 2fa.", user.Id);
+            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded);
             return LocalRedirect(next);
         }
         else if (result.IsLockedOut)
         {
             logger.LogWarning("User with ID '{UserId}' account locked out.", user.Id);
+            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LockedOut);
             return RedirectToPage("./Lockout");
         }
         else
         {
             logger.LogWarning("Invalid authenticator code entered for user with ID '{UserId}'.", user.Id);
+            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginFailed);
             ModelState.AddModelError(string.Empty, "You entered an incorrect Authenticator code.");
             return Page();
         }

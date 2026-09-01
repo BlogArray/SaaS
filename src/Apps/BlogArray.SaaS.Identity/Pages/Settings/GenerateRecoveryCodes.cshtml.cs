@@ -9,10 +9,13 @@
 
 #nullable disable
 
+using BlogArray.SaaS.OpenId;
+
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class GenerateRecoveryCodesModel(
     UserManager<ApplicationUser> userManager,
+    ISecurityAuditLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<GenerateRecoveryCodesModel> logger) : PageModel
 {
@@ -83,6 +86,7 @@ public class GenerateRecoveryCodesModel(
         }
 
         IEnumerable<string> recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
+        await auditLogger.LogAsync(user.Id, SecurityEventTypes.RecoveryCodesGenerated);
         RecoveryCodes = recoveryCodes.ToArray();
 
         logger.LogInformation("User with ID '{UserId}' has generated new 2FA recovery codes.", userId);

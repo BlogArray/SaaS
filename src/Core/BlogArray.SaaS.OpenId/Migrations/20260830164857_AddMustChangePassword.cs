@@ -2,35 +2,34 @@
 
 #nullable disable
 
-namespace BlogArray.SaaS.OpenId.Migrations
+namespace BlogArray.SaaS.OpenId.Migrations;
+
+/// <inheritdoc />
+public partial class AddMustChangePassword : Migration
 {
     /// <inheritdoc />
-    public partial class AddMustChangePassword : Migration
+    protected override void Up(MigrationBuilder migrationBuilder)
     {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.AddColumn<bool>(
-                name: "MustChangePassword",
-                table: "AspNetUsers",
-                type: "bit",
-                nullable: false,
-                defaultValue: false);
+        migrationBuilder.AddColumn<bool>(
+            name: "MustChangePassword",
+            table: "AspNetUsers",
+            type: "bit",
+            nullable: false,
+            defaultValue: false);
 
-            migrationBuilder.UpdateData(
-                table: "AspNetUsers",
-                keyColumn: "Id",
-                keyValue: "16d81679-26ad-4ea7-8f93-1a12268ba340",
-                column: "MustChangePassword",
-                value: true);
-        }
+        migrationBuilder.UpdateData(
+            table: "AspNetUsers",
+            keyColumn: "Id",
+            keyValue: "16d81679-26ad-4ea7-8f93-1a12268ba340",
+            column: "MustChangePassword",
+            value: true);
+    }
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropColumn(
-                name: "MustChangePassword",
-                table: "AspNetUsers");
-        }
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropColumn(
+            name: "MustChangePassword",
+            table: "AspNetUsers");
     }
 }

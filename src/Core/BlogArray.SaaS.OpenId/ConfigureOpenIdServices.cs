@@ -204,6 +204,8 @@ public static class ConfigureOpenIdServices
         .AddPasswordValidator<BreachedPasswordValidator>()
         .AddDefaultTokenProviders();
 
+        builder.Services.AddScoped<ISecurityAuditLogger, SecurityAuditLogger>();
+
         return builder;
     }
 

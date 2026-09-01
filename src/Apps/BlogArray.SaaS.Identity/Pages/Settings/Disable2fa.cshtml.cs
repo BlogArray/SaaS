@@ -9,10 +9,13 @@
 
 #nullable disable
 
+using BlogArray.SaaS.OpenId;
+
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class Disable2faModel(
     UserManager<ApplicationUser> userManager,
+    ISecurityAuditLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<Disable2faModel> logger) : PageModel
 {
@@ -75,6 +78,7 @@ public class Disable2faModel(
         }
 
         logger.LogInformation("User with ID '{UserId}' has disabled 2fa.", userManager.GetUserId(User));
+        await auditLogger.LogAsync(user.Id, SecurityEventTypes.MfaDisabled);
         StatusMessage = "2fa has been disabled. You can reenable 2fa when you setup an authenticator app";
         return RedirectToPage("./TwoFactorAuthentication");
     }

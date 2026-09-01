@@ -9,10 +9,13 @@
 
 #nullable disable
 
+using BlogArray.SaaS.OpenId;
+
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class ResetAuthenticatorModel(
     UserManager<ApplicationUser> userManager,
+    ISecurityAuditLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<ResetAuthenticatorModel> logger) : PageModel
 {
@@ -56,6 +59,7 @@ public class ResetAuthenticatorModel(
         }
 
         await userManager.SetTwoFactorEnabledAsync(user, false);
+        await auditLogger.LogAsync(user.Id, SecurityEventTypes.MfaDisabled);
         await userManager.ResetAuthenticatorKeyAsync(user);
         //var userId = await _userManager.GetUserIdAsync(user);
         logger.LogInformation("User with ID '{UserId}' has reset their authentication app key.", user.Id);

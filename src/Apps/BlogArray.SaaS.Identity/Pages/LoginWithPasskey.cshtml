@@ -1,0 +1,98 @@
+@page
+@model LoginWithPasskeyModel
+@{
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+
+<h6 class="text-center mb-3">
+    Sign in with your passkey
+</h6>
+
+<div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+
+<div class="alert alert-secondary" role="alert" id="passkeyMessage" style="display:none"></div>
+
+<form id="passkey-form" method="post">
+    <input type="hidden" name="response" id="passkeyResponse" />
+    <input type="hidden" asp-for="AssertionOptions" />
+    <button type="button" class="w-100 btn btn-primary" id="usePasskey">
+        <i class="bi bi-fingerprint me-1"></i> Use passkey
+    </button>
+    <div class="text-center mt-3">
+        <a asp-page="./LoginWith2fa" asp-route-next="@Model.StatusMessage">Use an authenticator code instead</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            'use strict';
+
+            function base64UrlToArrayBuffer(value) {
+                const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+                const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+                const raw = atob(padded);
+                const output = new Uint8Array(raw.length);
+                for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+                return output.buffer;
+            }
+
+            function arrayBufferToBase64Url(buffer) {
+                const bytes = new Uint8Array(buffer);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            }
+
+            function showMessage(text) {
+                const message = document.getElementById('passkeyMessage');
+                message.textContent = text;
+                message.style.display = '';
+            }
+
+            async function runAssertion() {
+                const optionsField = document.querySelector('input[name="AssertionOptions"]');
+                const options = JSON.parse(optionsField.value);
+
+                options.challenge = base64UrlToArrayBuffer(options.challenge);
+                if (options.allowCredentials) {
+                    options.allowCredentials = options.allowCredentials.map(function (item) {
+                        return { id: base64UrlToArrayBuffer(item.id), type: item.type };
+                    });
+                }
+
+                const credential = await navigator.credentials.get({ publicKey: options });
+
+                document.getElementById('passkeyResponse').value = JSON.stringify({
+                    id: credential.id,
+                    rawId: arrayBufferToBase64Url(credential.rawId),
+                    type: credential.type,
+                    response: {
+                        authenticatorData: arrayBufferToBase64Url(credential.response.authenticatorData),
+                        clientDataJSON: arrayBufferToBase64Url(credential.response.clientDataJSON),
+                        signature: arrayBufferToBase64Url(credential.response.signature),
+                        userHandle: credential.response.userHandle ? arrayBufferToBase64Url(credential.response.userHandle) : null
+                    }
+                });
+
+                document.getElementById('passkey-form').submit();
+            }
+
+            document.getElementById('usePasskey').addEventListener('click', async function () {
+                try {
+                    await runAssertion();
+                } catch (error) {
+                    showMessage('The passkey could not be used: ' + error.message);
+                }
+            });
+
+            // Offer the ceremony automatically on page load.
+            window.addEventListener('load', function () {
+                if (window.PublicKeyCredential) {
+                    runAssertion().catch(function () { /* the button remains available */ });
+                }
+            });
+        })();
+    </script>
+}

@@ -11,13 +11,15 @@
 
 using System.Text;
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
-    IEmailTemplate emailTemplate) : PageModel
+    IEmailTemplate emailTemplate,
+    ISecurityAuditLogger auditLogger) : PageModel
 {
 
     /// <summary>
@@ -133,6 +135,8 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
             {
                 await userManager.UpdateAsync(user);
             }
+
+            await auditLogger.LogAsync(user.Id, SecurityEventTypes.PasswordReset);
 
             //TODO: Check for tenant and login
 

@@ -83,6 +83,37 @@ public static class OpenIdDbContextExtensions
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<SecurityEvent>(entity =>
+        {
+            entity.Property(securityEvent => securityEvent.Id).HasMaxLength(400);
+            entity.Property(securityEvent => securityEvent.UserId).HasMaxLength(400);
+            entity.Property(securityEvent => securityEvent.EventType).HasMaxLength(100);
+            entity.Property(securityEvent => securityEvent.Details).HasMaxLength(512);
+            entity.Property(securityEvent => securityEvent.IpAddress).HasMaxLength(64);
+            entity.Property(securityEvent => securityEvent.UserAgent).HasMaxLength(512);
+            entity.HasIndex(securityEvent => securityEvent.UserId);
+            entity.HasIndex(securityEvent => securityEvent.CreatedOn);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(securityEvent => securityEvent.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<WebAuthnCredential>(entity =>
+        {
+            entity.Property(credential => credential.Id).HasMaxLength(400);
+            entity.Property(credential => credential.UserId).HasMaxLength(400);
+            entity.Property(credential => credential.Name).HasMaxLength(200);
+            entity.Property(credential => credential.CredentialId).HasMaxLength(1024);
+            entity.Property(credential => credential.PublicKey).HasMaxLength(8192);
+            entity.HasIndex(credential => credential.UserId);
+            entity.HasIndex(credential => credential.CredentialId).IsUnique();
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(credential => credential.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
     }
 
     public static void AddOpenIdModifications(this ModelBuilder builder)

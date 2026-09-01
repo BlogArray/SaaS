@@ -9,10 +9,13 @@
 
 #nullable disable
 
+using BlogArray.SaaS.OpenId;
+
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class LinkedAccountsModel(
     UserManager<ApplicationUser> userManager,
+    ISecurityAuditLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager,
     IUserStore<ApplicationUser> userStore) : PageModel
 {
@@ -102,6 +105,7 @@ public class LinkedAccountsModel(
         }
 
         await signInManager.RefreshSignInAsync(user);
+        await auditLogger.LogAsync(user.Id, SecurityEventTypes.ExternalLoginRemoved, loginProvider);
         StatusMessage = "The external login was removed.";
         return RedirectToPage();
     }

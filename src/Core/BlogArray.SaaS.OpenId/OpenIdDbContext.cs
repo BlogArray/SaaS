@@ -25,6 +25,10 @@ public class OpenIdDbContext(DbContextOptions<OpenIdDbContext> options) : Identi
 
     public DbSet<PasswordHistory> PasswordHistories { get; set; }
 
+    public DbSet<SecurityEvent> SecurityEvents { get; set; }
+
+    public DbSet<WebAuthnCredential> WebAuthnCredentials { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

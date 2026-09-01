@@ -39,6 +39,23 @@ builder.AddOpenIdServer(issuer, connectionString);
 
 builder.AddAspIdentity<SignInManagerExtension<ApplicationUser>>();
 
+// WebAuthn (passkeys): the relying party is this identity server. The origin must match the
+// HTTPS origin the browser sees (Links:Issuer), the domain is its host.
+string fido2Origin = Configuration.GetValue<string>("Links:Issuer")
+    ?? (builder.Environment.IsDevelopment() ? "https://localhost" : "https://www.id.blogarray.dev");
+
+Uri fido2OriginUri = new(fido2Origin);
+
+builder.Services.AddFido2(options =>
+{
+    options.ServerDomain = fido2OriginUri.Host;
+    options.ServerName = "BlogArray";
+    options.Origins = new HashSet<string> { $"{fido2OriginUri.Scheme}://{fido2OriginUri.Authority}" };
+    options.TimestampDriftTolerance = 5000;
+});
+
+builder.Services.AddScoped<BlogArray.SaaS.Identity.Infrastructure.PasskeyService>();
+
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Settings");
