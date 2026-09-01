@@ -36,7 +36,7 @@ public class PasswordHistoryValidator(OpenIdDbContext context, IConfiguration co
             return IdentityResult.Success;
         }
 
-        List<string> previousHashes = new();
+        List<string> previousHashes = [];
 
         if (!string.IsNullOrEmpty(user.PasswordHash))
         {

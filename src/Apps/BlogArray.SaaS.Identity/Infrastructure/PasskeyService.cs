@@ -41,7 +41,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
 
     public async Task<string> CreateRegistrationOptionsJsonAsync(ApplicationUser user)
     {
-        List<PublicKeyCredentialDescriptor> existingKeys = (await GetCredentialsAsync(user.Id))
+        var existingKeys = (await GetCredentialsAsync(user.Id))
             .Select(credential => new PublicKeyCredentialDescriptor(Convert.FromBase64String(credential.CredentialId)))
             .ToList();
 
@@ -79,7 +79,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
     {
         AuthenticatorAttestationRawResponse? response = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(responseJson);
 
-        CredentialCreateOptions options = CredentialCreateOptions.FromJson(originalOptionsJson);
+        var options = CredentialCreateOptions.FromJson(originalOptionsJson);
 
         RegisteredPublicKeyCredential result = await fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
         {
@@ -135,7 +135,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
     {
         AuthenticatorAssertionRawResponse? response = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(responseJson);
 
-        AssertionOptions options = AssertionOptions.FromJson(originalOptionsJson);
+        var options = AssertionOptions.FromJson(originalOptionsJson);
 
         // The raw response's Id is base64url-encoded (the raw model types use strings for
         // identifiers while stored credentials use base64).
