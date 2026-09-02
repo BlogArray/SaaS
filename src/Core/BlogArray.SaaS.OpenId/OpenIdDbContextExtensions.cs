@@ -149,6 +149,10 @@ public static class OpenIdDbContextExtensions
             entity.Property(s => s.CreatedById).HasMaxLength(400);
             entity.Property(s => s.UpdatedById).HasMaxLength(400);
             entity.Property(s => s.AdminEmail).HasMaxLength(1024);
+            entity.Property(s => s.APIKeyHash).HasMaxLength(64);
+            entity.Property(s => s.APIKeyProtected).HasMaxLength(1024);
+            entity.Property(s => s.APIKeyPrefix).HasMaxLength(16);
+            entity.HasIndex(s => s.APIKeyHash).IsUnique().HasFilter("[APIKeyHash] IS NOT NULL");
 
             entity.HasOne(u => u.CreatedBy)
                 .WithMany()

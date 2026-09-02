@@ -9,6 +9,8 @@
 
 using System.Text.Json;
 using BlogArray.SaaS.Identity.Models;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Configuration;
 using OpenIddict.Core;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -31,6 +33,12 @@ public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedServic
 
         OpenIddictApplicationManager<OpenIdApplication> manager = scope.ServiceProvider.GetRequiredService<OpenIddictApplicationManager<OpenIdApplication>>();
         OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager = scope.ServiceProvider.GetRequiredService<OpenIddictAuthorizationManager<OpenIdAuthorization>>();
+
+        // Convert any legacy plaintext API keys (including keys seeded just below) to the
+        // hashed storage model before anything reads them.
+        IDataProtector protector = scope.ServiceProvider.GetRequiredService<IDataProtector>();
+        int prefixLength = scope.ServiceProvider.GetRequiredService<IConfiguration>().GetValue("ApiKey:PrefixLength", 8);
+        await ApiKeySweep.ConvertPlaintextKeysAsync(context, protector, prefixLength);
 
         foreach (BlogArray.SaaS.Identity.Models.Application app in apps.Applications)
         {

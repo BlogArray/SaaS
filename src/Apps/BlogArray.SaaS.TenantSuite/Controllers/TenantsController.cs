@@ -11,9 +11,11 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json;
 using BlogArray.SaaS.Application.Services;
+using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 using P.Pager;
@@ -27,8 +29,11 @@ public class TenantsController(OpenIdDbContext context,
     ITenantManagementService tenantManagementService,
     IAzureStorageService azureStorage,
     ICacheService cacheService,
-    ITenantPersonnelService personnelService) : BaseController
+    ITenantPersonnelService personnelService,
+    IDataProtector protector,
+    IConfiguration configuration) : BaseController
 {
+    private readonly int _apiKeyPrefixLength = configuration.GetValue("ApiKey:PrefixLength", 8);
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
         ViewBag.SearchTerm = term;
@@ -97,6 +102,10 @@ public class TenantsController(OpenIdDbContext context,
         MapProperties(openIdApplication, entity);
 
         entity.AdminEmail = adminEmail;
+
+        // The plaintext API key exists only in this request (shown once in the browser and
+        // emailed); storage keeps the hash for validation and a protected copy for tenant apps.
+        SetApiKey(entity, openIdApplication.APIKey!);
 
         await manager.CreateAsync(entity, openIdApplication.ClientSecret);
 
@@ -442,7 +451,8 @@ public class TenantsController(OpenIdDbContext context,
         }
         else if (type == "apikey")
         {
-            openIdApplication.APIKey = rotateKeys.Key;
+            // Hash-on-write: the plaintext key is shown once in the response and never stored.
+            SetApiKey(openIdApplication, rotateKeys.Key);
             await manager.UpdateAsync(openIdApplication);
         }
 
@@ -673,7 +683,6 @@ public class TenantsController(OpenIdDbContext context,
         entity.ClientId = model.ClientId;
         entity.ClientSecretPlain = model.ClientSecret;
         entity.ConnectionString = model.ConnectionString;
-        entity.APIKey = model.APIKey;
         entity.AdminEmail = JsonSerializer.Serialize((model.AdminEmail ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
         entity.TenantUrl = model.TenantUrl;
         entity.Theme = new ThemeConfiguration
@@ -729,6 +738,19 @@ public class TenantsController(OpenIdDbContext context,
         return !string.IsNullOrWhiteSpace(value) && value.Length >= 32 ? value : Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
     }
 
+    /// <summary>
+    /// Stores the API key without plaintext: SHA-256 hash for validation, a
+    /// DataProtection-protected copy for tenant apps to retrieve and send, and a short
+    /// display prefix. The plaintext lives only in the current request.
+    /// </summary>
+    private void SetApiKey(OpenIdApplication entity, string plainKey)
+    {
+        entity.APIKey = null;
+        entity.APIKeyHash = ApiKeyHasher.Hash(plainKey);
+        entity.APIKeyProtected = protector.Protect(plainKey);
+        entity.APIKeyPrefix = ApiKeyHasher.GetPrefix(plainKey, _apiKeyPrefixLength);
+    }
+
     private void SetOptions()
     {
         ViewBag.Permissions = OpenIdConstants.OpenIdPermissions().ToSelectList();
@@ -754,7 +776,7 @@ public class TenantsController(OpenIdDbContext context,
             Favicon = openIdApplication.Theme.Favicon,
             Logo = openIdApplication.Theme.Logo,
             PrimaryColor = openIdApplication.Theme.PrimaryColor,
-            APIKey = openIdApplication.APIKey,
+            APIKey = openIdApplication.APIKeyProtected is null ? null : protector.Unprotect(openIdApplication.APIKeyProtected),
             ClientSecretPlain = openIdApplication.ClientSecretPlain
         };
 

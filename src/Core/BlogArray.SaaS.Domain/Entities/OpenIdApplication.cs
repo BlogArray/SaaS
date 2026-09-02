@@ -26,9 +26,28 @@ public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string
     public string ClientSecretPlain { get; set; } = default!;
 
     /// <summary>
-    /// Api Key for authentication
+    /// Api Key for authentication (plaintext). Legacy column: only populated by the one-time
+    /// startup sweep before conversion; new and rotated keys never store plaintext.
     /// </summary>
-    public string? APIKey { get; set; } = default!;
+    public string? APIKey { get; set; }
+
+    /// <summary>
+    /// SHA-256 hex hash of the API key; validation compares hashes, never plaintext.
+    /// </summary>
+    [StringLength(64)]
+    public string? APIKeyHash { get; set; }
+
+    /// <summary>
+    /// DataProtection-protected API key so tenant apps can still retrieve the value to send.
+    /// </summary>
+    [StringLength(1024)]
+    public string? APIKeyProtected { get; set; }
+
+    /// <summary>
+    /// Leading characters of the API key for display only; length configured via ApiKey:PrefixLength.
+    /// </summary>
+    [StringLength(16)]
+    public string? APIKeyPrefix { get; set; }
 
     /// <summary>
     /// DB Connection string

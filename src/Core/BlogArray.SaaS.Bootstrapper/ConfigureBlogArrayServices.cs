@@ -21,6 +21,7 @@ using BlogArray.SaaS.OpenId;
 using BlogArray.SaaS.Web.Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -207,6 +208,24 @@ public static class ConfigureBlogArrayServices
         });
 
         builder.Services.AddSingleton<IEmailTemplate, EmailTemplate>();
+
+        // Shared DataProtection key ring: every app in the suite (Identity, TenantSuite, App)
+        // uses the same application name and persisted key ring so payloads protected by one
+        // app (e.g. tenant API keys) can be unprotected by another. The key ring path comes
+        // from configuration and must point at shared storage in production deployments.
+        IDataProtectionBuilder dataProtection = builder.Services.AddDataProtection();
+
+        string? keyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
+
+        if (!string.IsNullOrEmpty(keyRingPath))
+        {
+            dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
+        }
+
+        dataProtection.SetApplicationName("BlogArray.SaaS");
+
+        builder.Services.AddSingleton<IDataProtector>(services =>
+            services.GetRequiredService<IDataProtectionProvider>().CreateProtector("BlogArray.TenantApiKeys"));
         builder.Services.AddSingleton<IEmailHelper, EmailHelper>();
         builder.Services.AddSingleton<IAzureStorageService, AzureStorageService>();
         builder.Services.AddSingleton<ICacheService, CacheService>();
