@@ -240,7 +240,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         string samlEndpoint = endpointTemplate.Replace("{tenant}", tenant);
 
-        string applicationBase = configuration["Links:Issuer"] ?? "https://www.id.blogarray.dev/";
+        string applicationBase = configuration["Links:Issuer"] ?? "https://id.blogarray.dev/";
 
         string returnAddress = $"{applicationBase.TrimEnd('/')}/saml/{tenant}/acs";
 

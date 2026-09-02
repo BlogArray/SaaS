@@ -1,19 +1,19 @@
 {
   "Applications": [
     {
-      "ClientId": "tenantsuite",
-      "ClientSecret": "",
-      "DisplayName": "Tenant Suite",
-      "RedirectUri": "https://www.console.blogarray.dev/signin-oidc",
-      "LogoutUri": "https://www.console.blogarray.dev/signout-callback-oidc",
-      "Users": [ "16d81679-26ad-4ea7-8f93-1a12268ba340" ]
+      "ClientId": "postman",
+      "ClientSecret": "postman",
+      "DisplayName": "postman",
+      "RedirectUri": "https://oauth.pstmn.io/v1/callback"
     },
     {
-      "ClientId": "tenantadmin",
+      "ClientId": "tenantconsole",
       "ClientSecret": "",
-      "DisplayName": "Tenant Admin",
-      "RedirectUri": "https://www.admin.blogarray.dev/signin-oidc",
-      "LogoutUri": "https://www.admin.blogarray.dev/signout-callback-oidc"
+      "DisplayName": "Tenant Console",
+      "TenantUrl": "https://console.blogarray.dev/",
+      "RedirectUri": "https://console.blogarray.dev/signin-oidc",
+      "LogoutUri": "https://console.blogarray.dev/signout-callback-oidc",
+      "Users": ["16d81679-26ad-4ea7-8f93-1a12268ba340"]
     }
   ]
 }

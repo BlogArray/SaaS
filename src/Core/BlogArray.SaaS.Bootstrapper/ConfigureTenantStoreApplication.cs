@@ -55,7 +55,7 @@ public static class ConfigureTenantStoreApplication
             //tenant.ChallengeScheme = "OpenIdConnect";
             //tenant.OpenIdConnectClientId = tenant.Identifier;
             //tenant.OpenIdConnectClientSecret = tenant.ClientSecretPlain;
-            //tenant.OpenIdConnectAuthority = "https://www.id.blogarray.dev/";
+            //tenant.OpenIdConnectAuthority = "https://id.blogarray.dev/";
             //tenant.OpenIdConnectResponseType = "code";
             await store.AddAsync(tenant);
         }
