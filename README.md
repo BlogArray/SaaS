@@ -197,7 +197,12 @@ The seeded `admin@blogarray.net` Superuser account ships **without a password** 
 
 ### OpenIddictApplications.json Seeding
 
-The Identity application seeds OIDC clients from `OpenIddictApplications.json`. This file is committed with your repository so deployments seed consistently, but the `ClientSecret` values in it must be treated as environment-specific credentials:
+The Identity application seeds OIDC clients from `OpenIddictApplications.json`. This file is **not committed** (it carries environment-specific client secrets and is gitignored) - copy the tracked template on a fresh clone:
+
+- `cp src/Apps/BlogArray.SaaS.Identity/OpenIddictApplications.template.json src/Apps/BlogArray.SaaS.Identity/OpenIddictApplications.json`
+- When the file is absent, seeding is skipped with a startup warning instead of failing.
+
+Credential handling:
 
 - Keep development secrets only in this file - never reuse them in production.
 - When `ClientSecret` is omitted, a cryptographically random secret and API key are generated server-side at seeding time (retrieve them from the tenant administration console).

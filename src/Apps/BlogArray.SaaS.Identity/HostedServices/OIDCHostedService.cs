@@ -11,16 +11,28 @@ using System.Text.Json;
 using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Identity.Models;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OpenIddict.Core;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BlogArray.SaaS.Identity.HostedServices;
 
-public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedService
+public class OIDCHostedService(IServiceProvider serviceProvider, ILogger<OIDCHostedService> logger) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         string filePath = Path.Combine(Directory.GetCurrentDirectory(), "OpenIddictApplications.json");
+
+        // The seeding file is environment-specific (it carries client secrets) and is not
+        // committed: fresh clones copy OpenIddictApplications.template.json. Absence is a
+        // valid state - skip seeding instead of failing startup.
+        if (!File.Exists(filePath))
+        {
+            logger.LogWarning(
+                "OpenIddictApplications.json was not found. Skipping OpenIddict client seeding. Copy OpenIddictApplications.template.json to OpenIddictApplications.json to enable it.");
+            return;
+        }
 
         string json = File.ReadAllText(filePath);
 
