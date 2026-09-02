@@ -324,7 +324,7 @@ API keys are never stored in plaintext: validation compares a SHA-256 hash, tena
 | Setting | Purpose |
 |---|---|
 | `ApiKey:PrefixLength` | Number of leading key characters kept for display (default `8`). Change per environment without affecting already-stored keys. |
-| `DataProtection:KeyRingPath` | Shared folder persisting the DataProtection key ring. Must point at the same storage for Identity, TenantSuite and App (all use application name `BlogArray.SaaS`), and must be backed up: losing the ring makes protected keys unrecoverable. |
+| `DataProtection:KeyRingPath` | Shared folder persisting the DataProtection key ring. Must point at the same storage for Identity, TenantSuite and App (all use application name `BlogArray.SaaS`), must be writable by all three app pool identities, and must be backed up: losing the ring makes protected keys unrecoverable. |
 
 > **Upgrade note:** deploy the commit that introduced the startup key-conversion sweep before deploying the commit that drops the legacy `APIKey` column. Jumping straight to the final schema leaves pre-existing keys without a protected copy; those tenants must rotate their API key once.
 
