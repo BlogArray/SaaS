@@ -13,13 +13,10 @@ using System.Text.Json;
 using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Infrastructure.Services;
-using BlogArray.SaaS.OpenId;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using OpenIddict.Core;
 using P.Pager;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -746,14 +743,14 @@ public class TenantsController(OpenIdDbContext context,
     /// </summary>
     private static bool TrySerializeEmails(string? joined, out string serialized, out string error)
     {
-        List<string> emails = (joined ?? string.Empty)
+        var emails = (joined ?? string.Empty)
             .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 
         EmailAddressAttribute validator = new();
 
-        List<string> invalid = emails.Where(email => !validator.IsValid(email)).ToList();
+        var invalid = emails.Where(email => !validator.IsValid(email)).ToList();
 
         if (emails.Count == 0)
         {
@@ -815,6 +812,7 @@ public class TenantsController(OpenIdDbContext context,
         entity.DisplayName = model.DisplayName;
         entity.Legalname = model.Legalname;
         entity.Description = model.Description;
+        entity.TenantUrl = model.TenantUrl;
         // The connection string is never rendered back to the browser: an empty value means
         // "keep the existing connection string" rather than clearing it.
         if (!string.IsNullOrWhiteSpace(model.ConnectionString))

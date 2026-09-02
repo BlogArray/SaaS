@@ -22,6 +22,7 @@ public class Application
     public string DisplayName { get; set; } = default!;
 
     public string RedirectUri { get; set; } = default!;
+    public string TenantUrl { get; set; } = default!;
 
     public string? LogoutUri { get; set; }
 

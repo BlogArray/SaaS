@@ -19,7 +19,6 @@
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="ClientId" />
-            <input type="hidden" asp-for="TenantUrl" />
             <div class="mb-3">
                 <label asp-for="DisplayName" class="form-label">Display name</label>
                 <input asp-for="DisplayName" class="form-control" />
@@ -29,6 +28,14 @@
                 <label asp-for="Legalname" class="form-label">Legal name</label>
                 <input asp-for="Legalname" class="form-control" />
                 <span asp-validation-for="Legalname" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="TenantUrl" class="form-label">Tenant Url</label>
+                <input asp-for="TenantUrl" class="form-control" />
+                <div class="form-text">
+                    Client Id is used to determine tenant. Example: If Client Id is "site1", the tenant URL prefix is "https://example.com/site1".
+                </div>
+                <span asp-validation-for="TenantUrl" class="text-danger"></span>
             </div>
             <div class="mb-3">
                 <label asp-for="ConnectionString" class="form-label">Connection string</label>

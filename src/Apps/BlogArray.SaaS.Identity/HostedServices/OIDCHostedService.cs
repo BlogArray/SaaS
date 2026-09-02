@@ -11,7 +11,6 @@ using System.Text.Json;
 using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Identity.Models;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Configuration;
 using OpenIddict.Core;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -54,6 +53,7 @@ public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedServic
                     Description = app.DisplayName,
                     CreatedOn = new DateTime(2024, 11, 8, 7, 23, 2, 837, DateTimeKind.Utc).AddTicks(2866),
                     Legalname = app.DisplayName,
+                    TenantUrl = app.TenantUrl,
                     ClientSecretPlain = app.ClientSecret,
                     // Seeded keys go straight to the hashed storage model: hash for API
                     // validation, protected copy for tenant apps, prefix for display.
