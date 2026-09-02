@@ -27,11 +27,7 @@ public static class ConfigureTenantStoreApplication
 
         OpenIdDbContext context = scopeServices.ServiceProvider.GetRequiredService<OpenIdDbContext>();
 
-        // Convert any legacy plaintext API keys to the hashed storage model before building
-        // the tenant list; the store then decrypts the protected copy into memory.
         IDataProtector protector = scopeServices.ServiceProvider.GetRequiredService<IDataProtector>();
-        int prefixLength = scopeServices.ServiceProvider.GetRequiredService<IConfiguration>().GetValue("ApiKey:PrefixLength", 8);
-        await ApiKeySweep.ConvertPlaintextKeysAsync(context, protector, prefixLength);
 
         List<OpenIdApplication> applications = await context.Applications.ToListAsync();
 

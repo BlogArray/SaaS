@@ -845,7 +845,6 @@ public class TenantsController(OpenIdDbContext context,
     /// </summary>
     private void SetApiKey(OpenIdApplication entity, string plainKey)
     {
-        entity.APIKey = null;
         entity.APIKeyHash = ApiKeyHasher.Hash(plainKey);
         entity.APIKeyProtected = protector.Protect(plainKey);
         entity.APIKeyPrefix = ApiKeyHasher.GetPrefix(plainKey, _apiKeyPrefixLength);

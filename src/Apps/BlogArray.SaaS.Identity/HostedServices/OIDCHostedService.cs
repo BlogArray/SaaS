@@ -8,6 +8,7 @@
 //
 
 using System.Text.Json;
+using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Identity.Models;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
@@ -34,11 +35,8 @@ public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedServic
         OpenIddictApplicationManager<OpenIdApplication> manager = scope.ServiceProvider.GetRequiredService<OpenIddictApplicationManager<OpenIdApplication>>();
         OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager = scope.ServiceProvider.GetRequiredService<OpenIddictAuthorizationManager<OpenIdAuthorization>>();
 
-        // Convert any legacy plaintext API keys (including keys seeded just below) to the
-        // hashed storage model before anything reads them.
         IDataProtector protector = scope.ServiceProvider.GetRequiredService<IDataProtector>();
         int prefixLength = scope.ServiceProvider.GetRequiredService<IConfiguration>().GetValue("ApiKey:PrefixLength", 8);
-        await ApiKeySweep.ConvertPlaintextKeysAsync(context, protector, prefixLength);
 
         foreach (BlogArray.SaaS.Identity.Models.Application app in apps.Applications)
         {
@@ -57,7 +55,11 @@ public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedServic
                     CreatedOn = new DateTime(2024, 11, 8, 7, 23, 2, 837, DateTimeKind.Utc).AddTicks(2866),
                     Legalname = app.DisplayName,
                     ClientSecretPlain = app.ClientSecret,
-                    APIKey = app.ClientSecret,
+                    // Seeded keys go straight to the hashed storage model: hash for API
+                    // validation, protected copy for tenant apps, prefix for display.
+                    APIKeyHash = ApiKeyHasher.Hash(app.ClientSecret),
+                    APIKeyProtected = protector.Protect(app.ClientSecret),
+                    APIKeyPrefix = ApiKeyHasher.GetPrefix(app.ClientSecret, prefixLength),
                     ClientType = ClientTypes.Confidential,
                     ConsentType = ConsentTypes.External,
                     RedirectUris = JsonSerializer.Serialize(new List<string>

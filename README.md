@@ -317,6 +317,17 @@ Self-signed certificates are acceptable for token signing because the relying pa
 
 `PersonnelsController` in `BlogArray.SaaS.App` (which creates identity users and grants tenant access) now requires the `TenantAdmin` or `Superuser` role. Grant users the `TenantAdmin` role in the tenant suite before they can manage personnel.
 
+### Tenant API Keys
+
+API keys are never stored in plaintext: validation compares a SHA-256 hash, tenant apps read a DataProtection-protected copy, and only a short display prefix is shown in the admin UI. Tenant credentials (client secret and API key) are emailed to the tenant admin addresses on creation and on API key rotation; a delivery failure never blocks the operation because the secrets are also shown once in the browser.
+
+| Setting | Purpose |
+|---|---|
+| `ApiKey:PrefixLength` | Number of leading key characters kept for display (default `8`). Change per environment without affecting already-stored keys. |
+| `DataProtection:KeyRingPath` | Shared folder persisting the DataProtection key ring. Must point at the same storage for Identity, TenantSuite and App (all use application name `BlogArray.SaaS`), and must be backed up: losing the ring makes protected keys unrecoverable. |
+
+> **Upgrade note:** deploy the commit that introduced the startup key-conversion sweep before deploying the commit that drops the legacy `APIKey` column. Jumping straight to the final schema leaves pre-existing keys without a protected copy; those tenants must rotate their API key once.
+
 ### Authentication Methods
 
 | Method | Description |
