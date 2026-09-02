@@ -107,6 +107,24 @@ public class RotateKeysViewModel
     public string Name { get; set; } = default!;
 
     public string Key { get; set; } = default!;
+
+    /// <summary>
+    /// Set when the notification email could not be delivered; the dialog urges the admin to
+    /// copy the key since it will not be shown again.
+    /// </summary>
+    public string? EmailError { get; set; }
+}
+
+public class RotateApiKeysPromptViewModel
+{
+    public string ApplicationId { get; set; } = default!;
+
+    public string Name { get; set; } = default!;
+
+    /// <summary>
+    /// Comma-joined recipient emails (choices UI), pre-populated from the stored AdminEmail.
+    /// </summary>
+    public string Emails { get; set; } = default!;
 }
 
 public class AssignViewModel

@@ -7,11 +7,16 @@
             <input type="hidden" name="type" value="secret" />
             <button type="submit" class="btn btn-outline-secondary" title="Rotate client secret">Rotate client secret</button>
         </form>
-        <form asp-controller="Tenants" asp-action="RotateKeys" method="post" data-ajax="true" data-ajax-method="post" data-ajax-update="#changeTenantInfo" data-ajax-confirm="Rotating the api key may disrupt access for some applications. Are you sure you want to proceed?" data-ajax-success="onKeysGenerateSuccess" class="d-inline">
+        <form asp-controller="Tenants" asp-action="RotateKeys" method="post" data-ajax="true" data-ajax-method="post" data-ajax-update="#changeTenantInfo" data-ajax-confirm="Rotating the client secret may disrupt access for some applications. Are you sure you want to proceed?" data-ajax-success="onKeysGenerateSuccess" class="d-inline">
             <input type="hidden" name="id" value="@Model.Id" />
-            <input type="hidden" name="type" value="apikey" />
-            <button type="submit" class="btn btn-outline-secondary" title="Rotate api key">Rotate api key</button>
+            <input type="hidden" name="type" value="secret" />
+            <button type="submit" class="btn btn-outline-secondary" title="Rotate client secret">Rotate client secret</button>
         </form>
+        @Html.AjaxActionLink("Rotate api key", "RotateApiKeys", "Tenants", new { id = Model.Id }, new AjaxOptions
+   {
+       UpdateTargetId = "changeTenantInfo",
+       OnSuccess = "rotatePromptLoaded"
+   }, new { @class = "btn btn-outline-secondary", title = "Rotate api key" })
     </div>
     <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
         @Html.AjaxActionLink($"Users ({Model.UsersCount})", "Unassign", new { id = Model.Id }, new AjaxOptions

@@ -1,0 +1,56 @@
+@model RotateApiKeysPromptViewModel
+
+<div class="modal fade" id="rotatePromptModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="rotatePromptModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form asp-controller="Tenants" asp-action="RotateKeys" method="post" data-ajax="true" data-ajax-method="post" data-ajax-update="#changeTenantInfo" data-ajax-success="onKeysGenerateSuccess">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="rotatePromptModalLabel">Rotate API key for @Model.Name</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" value="@Model.ApplicationId" />
+                    <input type="hidden" name="type" value="apikey" />
+                    <p class="form-text">
+                        Rotating immediately invalidates the current API key. The new key is emailed to the addresses below; pick one or more recipients.
+                    </p>
+                    <div class="mb-3">
+                        <label for="emails" class="form-label">Email the new key to</label>
+                        <input type="text" name="emails" id="emails" class="form-control" value="@Model.Emails" placeholder="admin@example.com" />
+                    </div>
+                    <div class="form-text">
+                        Leave empty to skip the email - the new key is still shown once after rotating.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Rotate API key</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    var rotatePromptEmailsChoice;
+
+    $(document).ready(function () {
+        rotatePromptEmailsChoice = new Choices('#emails', {
+            placeholderValue: 'Please enter admin email',
+            allowHTML: false,
+            allowHtmlUserInput: false,
+            editItems: true,
+            duplicateItemsAllowed: false,
+            uniqueItemText: 'Only unique email addresses can be added',
+            customAddItemText: 'Enter a valid email address',
+            addItemFilter: function (value) {
+            if (!value) {
+              return false;
+            }
+            const emailRegex = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
+            const expression = new RegExp(emailRegex.source, 'i');
+            return expression.test(value);
+          }
+        });
+    });
+</script>

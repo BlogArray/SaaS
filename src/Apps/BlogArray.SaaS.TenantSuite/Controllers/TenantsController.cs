@@ -13,10 +13,13 @@ using System.Text.Json;
 using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.OpenId;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OpenIddict.Core;
 using P.Pager;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -31,7 +34,10 @@ public class TenantsController(OpenIdDbContext context,
     ICacheService cacheService,
     ITenantPersonnelService personnelService,
     IDataProtector protector,
-    IConfiguration configuration) : BaseController
+    IConfiguration configuration,
+    IEmailTemplate emailTemplate,
+    ISecurityAuditLogger auditLogger,
+    ILogger<TenantsController> logger) : BaseController
 {
     private readonly int _apiKeyPrefixLength = configuration.GetValue("ApiKey:PrefixLength", 8);
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
@@ -110,6 +116,21 @@ public class TenantsController(OpenIdDbContext context,
         await manager.CreateAsync(entity, openIdApplication.ClientSecret);
 
         await AddToCache(entity);
+
+        // Deliver the credentials by email, but never let a mail failure fail the creation:
+        // the secrets are also shown once in the browser so the admin can hand them over.
+        List<string> recipients = DeserializeEmailList(entity.AdminEmail);
+
+        List<string> failures = SendEach(recipients, email => emailTemplate.TenantWelcome(email, entity.DisplayName, entity.TenantUrl ?? string.Empty, openIdApplication.ClientSecret!, openIdApplication.APIKey!));
+
+        TempData["CreatedTenantName"] = entity.DisplayName;
+        TempData["CreatedApiKey"] = openIdApplication.APIKey;
+        TempData["CreatedClientSecret"] = openIdApplication.ClientSecret;
+
+        if (failures.Count != 0)
+        {
+            TempData["EmailFailed"] = $"The credentials could not be emailed to: {string.Join(", ", failures)}. Copy them from the dialog now - they will not be shown again.";
+        }
 
         return RedirectToAction(nameof(Index));
     }
@@ -419,9 +440,32 @@ public class TenantsController(OpenIdDbContext context,
         return result.Status ? JsonSuccess(result.Result) : JsonError("An error occurred while saving your information.");
     }
 
+    [HttpGet]
+    public async Task<IActionResult> RotateApiKeys(string id)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return NotFound();
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+        if (openIdApplication is null)
+        {
+            return NotFound();
+        }
+
+        return PartialView("_RotateApiKeysPrompt", new RotateApiKeysPromptViewModel
+        {
+            ApplicationId = openIdApplication.Id,
+            Name = openIdApplication.DisplayName,
+            Emails = DeserializeEmails(openIdApplication.AdminEmail)
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RotateKeys(string id, string type)
+    public async Task<IActionResult> RotateKeys(string id, string type, string? emails)
     {
         if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(type))
         {
@@ -454,6 +498,26 @@ public class TenantsController(OpenIdDbContext context,
             // Hash-on-write: the plaintext key is shown once in the response and never stored.
             SetApiKey(openIdApplication, rotateKeys.Key);
             await manager.UpdateAsync(openIdApplication);
+
+            await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.ApiKeyRotated,
+                $"{openIdApplication.DisplayName} ({openIdApplication.ClientId})");
+
+            // Email the new key to the addresses chosen in the rotation prompt, falling back
+            // to the stored tenant admin emails. A mail failure never fails the rotation: the
+            // new key is shown once in the response dialog.
+            List<string> recipients = DeserializeEmailList(emails);
+
+            if (recipients.Count == 0)
+            {
+                recipients = DeserializeEmailList(openIdApplication.AdminEmail);
+            }
+
+            List<string> failures = SendEach(recipients, email => emailTemplate.ApiKeyRotated(email, openIdApplication.DisplayName, rotateKeys.Key, User.Identity?.Name ?? "an administrator"));
+
+            if (failures.Count != 0)
+            {
+                rotateKeys.EmailError = $"The new key could not be emailed to: {string.Join(", ", failures)}. Copy it now - it will not be shown again.";
+            }
         }
 
         await AddToCache(openIdApplication);
@@ -638,6 +702,42 @@ public class TenantsController(OpenIdDbContext context,
     private static string DeserializeEmails(string? serialized)
     {
         return serialized != null ? string.Join(",", JsonSerializer.Deserialize<string[]>(serialized) ?? []) : "";
+    }
+
+    /// <summary>
+    /// Parses a comma-joined email list (from the choices UI) into distinct, trimmed entries.
+    /// </summary>
+    private static List<string> DeserializeEmailList(string? joined)
+    {
+        return (joined ?? string.Empty)
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Sends the same notification to every recipient. A failure for one address is logged
+    /// and reported to the caller but never thrown: credential delivery must not break the
+    /// tenant operation, and the secrets are always shown once in the browser as fallback.
+    /// </summary>
+    private List<string> SendEach(List<string> recipients, Action<string> send)
+    {
+        List<string> failures = [];
+
+        foreach (string recipient in recipients)
+        {
+            try
+            {
+                send(recipient);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send notification email to {Recipient}.", recipient);
+                failures.Add(recipient);
+            }
+        }
+
+        return failures;
     }
 
     /// <summary>
