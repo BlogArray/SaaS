@@ -180,6 +180,15 @@ public static class OpenIdDbContextExtensions
                 ConcurrencyStamp = "828849a7-8073-4635-bbff-800e707074d4",
                 Description = "Has access to all portals and all operations",
                 SystemDefined = true
+            },
+            new ApplicationRole
+            {
+                Id = "910e3de8-1c0c-40c9-b19f-20dcf072bdd6",
+                Name = "TenantAdmin",
+                NormalizedName = "TENANTADMIN",
+                ConcurrencyStamp = "eed7af6e-1c4d-4ab1-8ed2-1f03e4cef8d8",
+                Description = "Manage tenant personnel",
+                SystemDefined = true
             });
 
         builder.Entity<ApplicationUser>().HasData(

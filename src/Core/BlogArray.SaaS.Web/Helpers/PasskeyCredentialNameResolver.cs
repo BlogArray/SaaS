@@ -2,6 +2,7 @@
 
 public static class PasskeyCredentialNameResolver
 {
+    //https://raw.githubusercontent.com/passkeydeveloper/passkey-authenticator-aaguids/refs/heads/main/aaguid.json
     private static readonly Dictionary<Guid, string> CredentialNames =
         new()
         {
