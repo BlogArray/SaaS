@@ -324,7 +324,10 @@ API keys are never stored in plaintext: validation compares a SHA-256 hash, tena
 | Setting | Purpose |
 |---|---|
 | `ApiKey:PrefixLength` | Number of leading key characters kept for display (default `8`). Change per environment without affecting already-stored keys. |
-| `DataProtection:KeyRingPath` | Shared folder persisting the DataProtection key ring. Must point at the same storage for Identity, TenantSuite and App (all use application name `BlogArray.SaaS`), must be writable by all three app pool identities, and must be backed up: losing the ring makes protected keys unrecoverable. |
+| `DataProtection:Mode` | `Local` (self-hosted/IIS, uses `KeyRingPath`) or `AzureKeyVault` (App Service/multi-instance, uses `BlobUri` plus optional `KeyVaultKeyId`). |
+| `DataProtection:KeyRingPath` | Shared folder persisting the key ring in `Local` mode. Must point at the same storage for Identity, TenantSuite and App (all use application name `BlogArray.SaaS`), must be writable by all three app pool identities, and must be backed up: losing the ring makes protected keys unrecoverable. |
+| `DataProtection:BlobUri` | Azure blob URI persisting the key ring in `AzureKeyVault` mode. See the Azure App Service section below. |
+| `DataProtection:KeyVaultKeyId` | Optional version-less Key Vault key URI encrypting the persisted ring at rest (used in `AzureKeyVault` mode). |
 
 #### Creating the DataProtection key ring
 
@@ -367,17 +370,31 @@ Two things change on App Service: local disk paths do not survive scale-out/rede
 
 1. Create a storage account with a file share (e.g. `dataprotection`).
 2. For each of the three App Services: **Configuration → Path mappings → New Azure File Share mount**, pointing at that share, mounted to a fixed custom path (Windows: `C:\mounts\dpkeys`; Linux: `/mnt/dpkeys`). Access is via the storage account connection configured in the mount - no `icacls` work.
-3. Set the app setting (double underscore syntax) on all three apps:
+3. Set the app settings (double underscore syntax) on all three apps:
 
 ```
+DataProtection__Mode       = Local
 DataProtection__KeyRingPath = C:\mounts\dpkeys     (or /mnt/dpkeys on Linux)
 ```
 
 4. Start the Identity app first; verify `key-*.xml` appears in the share. Back up the share with storage account backups/snapshots.
 
-**Option B - Azure Blob Storage + Key Vault (production-grade, requires a small code change):**
+**Option B - Azure Blob Storage + Key Vault (production-grade, `Mode: AzureKeyVault`):**
 
-`PersistKeysToAzureBlobStorage` on a single blob (same blob URI for all three apps) combined with `ProtectKeysWithAzureKeyVault`, authenticated by each app's managed identity. Needed roles: *Storage Blob Data Contributor* on the storage account and *Key Vault Crypto User* on the vault. Advantages: no mount dependency, keys encrypted at rest by Key Vault, survives slot swaps and multi-region deployments. Ask for this to be wired into `ConfigureBlogArrayServices` when needed (it is a ~10-line addition plus two packages and two settings: `DataProtection:BlobUri`, `DataProtection:KeyVaultUri`).
+1. Create a storage account blob container (e.g. `dataprotection`) and a Key Vault key (version-less).
+2. Choose authentication:
+   - **Managed identity**: enable a system-assigned identity on all three App Services and grant each *Storage Blob Data Contributor* on the storage account and *Key Vault Crypto User* on the vault. Set `DataProtection__BlobUri` to the plain blob URI (e.g. `https://<account>.blob.core.windows.net/dataprotection/keys.xml`).
+   - **SAS**: set `DataProtection__BlobUri` to the blob URI with a SAS token in its query string (no roles needed).
+3. Optional but recommended - set `DataProtection__KeyVaultKeyId` to the version-less key URI (e.g. `https://<vault>.vault.azure.net/keys/dataprotection`) so keys are encrypted at rest with Key Vault.
+4. Set the app settings on all three apps:
+
+```
+DataProtection__Mode         = AzureKeyVault
+DataProtection__BlobUri      = https://<account>.blob.core.windows.net/dataprotection/keys.xml
+DataProtection__KeyVaultKeyId = https://<vault>.vault.azure.net/keys/dataprotection
+```
+
+Advantages: no mount dependency, keys encrypted at rest by Key Vault, survives slot swaps and multi-region deployments. `ConfigureBlogArrayServices` fails fast at startup when `Mode` is `AzureKeyVault` but `BlobUri` is missing; with `Mode: Local` it uses `KeyRingPath`.
 
 > **Upgrade note:** deploy the commit that introduced the startup key-conversion sweep before deploying the commit that drops the legacy `APIKey` column. Jumping straight to the final schema leaves pre-existing keys without a protected copy; those tenants must rotate their API key once.
 

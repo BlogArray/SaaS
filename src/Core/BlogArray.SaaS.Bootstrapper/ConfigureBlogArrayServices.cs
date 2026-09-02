@@ -211,15 +211,51 @@ public static class ConfigureBlogArrayServices
 
         // Shared DataProtection key ring: every app in the suite (Identity, TenantSuite, App)
         // uses the same application name and persisted key ring so payloads protected by one
-        // app (e.g. tenant API keys) can be unprotected by another. The key ring path comes
-        // from configuration and must point at shared storage in production deployments.
+        // app (e.g. tenant API keys) can be unprotected by another. DataProtection:Mode picks
+        // the persistence location:
+        //   Local         - shared file-system folder (self-hosted/IIS), DataProtection:KeyRingPath.
+        //   AzureKeyVault - Azure App Service / multi-instance: persists to the blob at
+        //                   DataProtection:BlobUri (SAS URI or managed identity) and optionally
+        //                   encrypts the ring at rest with DataProtection:KeyVaultKeyId.
         IDataProtectionBuilder dataProtection = builder.Services.AddDataProtection();
 
+        string? mode = builder.Configuration["DataProtection:Mode"];
         string? keyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
+        string? blobUri = builder.Configuration["DataProtection:BlobUri"];
+        string? keyVaultKeyId = builder.Configuration["DataProtection:KeyVaultKeyId"];
 
-        if (!string.IsNullOrEmpty(keyRingPath))
+        if (string.Equals(mode, "AzureKeyVault", StringComparison.OrdinalIgnoreCase))
         {
-            dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
+            if (string.IsNullOrEmpty(blobUri))
+            {
+                throw new InvalidOperationException(
+                    "DataProtection:Mode is AzureKeyVault but DataProtection:BlobUri is not set. Set it to a blob URI (with SAS token, or plain for managed identity).");
+            }
+
+            Uri blobKeyUri = new(blobUri);
+
+            // A URI carrying a SAS token authenticates itself; a plain blob URI is resolved
+            // with managed identity (DefaultAzureCredential).
+            if (!string.IsNullOrEmpty(blobKeyUri.Query))
+            {
+                dataProtection.PersistKeysToAzureBlobStorage(blobKeyUri);
+            }
+            else
+            {
+                dataProtection.PersistKeysToAzureBlobStorage(blobKeyUri, new Azure.Identity.DefaultAzureCredential());
+            }
+
+            if (!string.IsNullOrEmpty(keyVaultKeyId))
+            {
+                dataProtection.ProtectKeysWithAzureKeyVault(new Uri(keyVaultKeyId), new Azure.Identity.DefaultAzureCredential());
+            }
+        }
+        else
+        {
+            if (!string.IsNullOrEmpty(keyRingPath))
+            {
+                dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
+            }
         }
 
         dataProtection.SetApplicationName("BlogArray.SaaS");

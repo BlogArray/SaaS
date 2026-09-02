@@ -1,14 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="AspNetCore.Unobtrusive.Ajax"  />
-    <PackageReference Include="Finbuckle.MultiTenant"   />
-    <PackageReference Include="Finbuckle.MultiTenant.AspNetCore"   />
+    <PackageReference Include="AspNetCore.Unobtrusive.Ajax" />
+    <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Blobs" />
+    <PackageReference Include="Azure.Extensions.AspNetCore.DataProtection.Keys" />
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="Finbuckle.MultiTenant" />
+    <PackageReference Include="Finbuckle.MultiTenant.AspNetCore" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" />
-    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer"   />
-    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis"   />
-    <PackageReference Include="Serilog.AspNetCore"  />
-    <PackageReference Include="Serilog.Sinks.File"   />
+    <PackageReference Include="Microsoft.Extensions.Caching.SqlServer" />
+    <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" />
+    <PackageReference Include="Serilog.AspNetCore" />
+    <PackageReference Include="Serilog.Sinks.File" />
   </ItemGroup>
 
   <ItemGroup>
