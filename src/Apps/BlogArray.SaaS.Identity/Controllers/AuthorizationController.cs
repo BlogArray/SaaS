@@ -11,6 +11,7 @@ using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Mvc.ActionConstraints;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Primitives;
 using Microsoft.IdentityModel.Tokens;
 using OpenIddict.Abstractions;
@@ -26,7 +27,9 @@ public class AuthorizationController(
     IOpenIddictScopeManager scopeManager,
     IOpenIddictTokenManager tokenManager,
     SignInManagerExtension<ApplicationUser> signInManager,
-    UserManager<ApplicationUser> userManager, IConfiguration configuration) : Controller
+    UserManager<ApplicationUser> userManager,
+    BlogArray.SaaS.OpenId.OpenIdDbContext openIdDbContext,
+    IConfiguration configuration) : Controller
 {
     [HttpGet("~/connect/authorize")]
     [HttpPost("~/connect/authorize")]
@@ -137,6 +140,17 @@ public class AuthorizationController(
         // Add the claims that will be persisted in the tokens.
         identity = await SetClaims(identity, user);
 
+        // Propagate the device session id so relying parties can correlate their local
+        // session with this identity server session: revoking the shared UserSessions row
+        // (at logout or from the "where you're signed in" page) signs the user out of the
+        // whole suite on that device.
+        string? sessionId = User.FindFirst("session_id")?.Value;
+
+        if (!string.IsNullOrEmpty(sessionId))
+        {
+            identity.SetClaim("session_id", sessionId);
+        }
+
         // Note: in this sample, the granted scopes match the requested scope
         // but you may want to allow the user to uncheck specific scopes.
         // For that, simply restrict the list of scopes before calling SetScopes.
@@ -207,6 +221,23 @@ public class AuthorizationController(
                 {
                     frontChannelLogoutUrls.Add(logoutUrl);
                 }
+            }
+        }
+
+        // Revoke the current device session row so the sign-out is enforced suite-wide: the
+        // Identity, TenantSuite and App cookies all carry the same session id claim, and
+        // their validation events reject principals whose session row is revoked.
+        string? currentSessionId = User.FindFirst("session_id")?.Value;
+
+        if (!string.IsNullOrEmpty(currentSessionId))
+        {
+            UserSession? session = await openIdDbContext.UserSessions
+                .SingleOrDefaultAsync(tracked => tracked.SessionId == currentSessionId);
+
+            if (session is not null && !session.Revoked)
+            {
+                session.Revoked = true;
+                await openIdDbContext.SaveChangesAsync();
             }
         }
 
@@ -435,6 +466,13 @@ public class AuthorizationController(
 
             // Never include the security stamp in the access and identity tokens, as it's a secret value.
             case "AspNet.Identity.SecurityStamp":
+                yield break;
+
+            // The device session id must be present in the identity token: relying parties
+            // read it to correlate (and enforce revocation of) their local sessions.
+            case "session_id":
+                yield return Destinations.AccessToken;
+                yield return Destinations.IdentityToken;
                 yield break;
 
             default:

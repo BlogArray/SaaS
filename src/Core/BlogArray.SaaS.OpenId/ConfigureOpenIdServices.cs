@@ -71,8 +71,11 @@ public static class ConfigureOpenIdServices
 
                           // Explicit token lifetime policy (documented as platform policy rather
                           // than relying on library defaults): one-hour access tokens and
-                          // fourteen-day rolling refresh tokens with rotation.
+                          // fourteen-day rolling refresh tokens with rotation. The identity
+                          // token lifetime also governs the relying parties' session cookies
+                          // (UseTokenLifetime), so keep it generous enough for active use.
                           options.SetAccessTokenLifetime(TimeSpan.FromHours(1));
+                          options.SetIdentityTokenLifetime(TimeSpan.FromHours(1));
                           options.SetRefreshTokenLifetime(TimeSpan.FromDays(14));
 
                           if (isProduction)

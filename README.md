@@ -176,30 +176,36 @@ Ensure you have the following installed:
   ```
 
   Refer to the documentation for more details and supported strategies.
+- **CAPTCHA (Cloudflare Turnstile)**: Set `Captcha:SiteKey` and `Captcha:SecretKey` in the Identity application to enable the challenge on login, forgot/reset password, resend-confirmation and recovery-code pages. Empty keys (default) disable it.
+- **CORS**: Set `Cors:AllowedOrigins` (semicolon-separated) on any application that must accept browser requests from another origin. Empty (default) = no cross-origin access.
+- **Tenant SQL host allow-list**: Set `Tenants:AllowedSqlHosts` (semicolon-separated) on TenantSuite/Identity to restrict which SQL Server hosts tenant connection strings may target. Empty (default) = any host (development only).
+- **Passkey origins**: Set `Fido2:Origins` (semicolon-separated) in the Identity application to accept additional origins for passkey ceremonies beyond `Links:Issuer`.
+- **Password policy extras**: `Passwords:HistorySize` (remembered previous passwords, default 5) and `Passwords:BlockBreachedPasswords` (reject passwords found in known data breaches, default true) in the Identity/TenantSuite applications.
 
 ---
 
 ## Security
 
-This release includes an important security hardening pass. The changes below affect configuration, startup behavior, and role requirements.
+The platform ships with a hardened authentication stack: passkeys (WebAuthn) as a full passwordless sign-in method, email one-time codes as a second factor, CAPTCHA step-up, per-device session management with single sign-out, tenant-bound API keys, and SAML SSO with spec-depth assertion validation. This section covers the configuration and behaviors you should know about.
 
 ### Bootstrap Superuser Credential
 
-The seeded `admin@blogarray.net` Superuser account no longer ships with a password in source control. At first startup (and on any database where the account still carries the historically committed password hash), the Identity application:
+The seeded `admin@blogarray.net` Superuser account ships **without a password** and is flagged to change its password at first sign-in. Set the initial password through either:
 
-- Generates a unique random password using `RandomNumberGenerator`.
-- Enables lockout for the account.
-- Writes the one-time temporary password to a local file under the current user's profile instead of the logs: `%LOCALAPPDATA%\BlogArray.SaaS\bootstrap-superuser.txt` (Linux: `~/.local/share/BlogArray.SaaS/`).
+- the **Forgot password** flow (requires a working email sender), or
+- the TenantSuite user management **Reset password** action ("create a temporary password on behalf"), which forces the user to set a new password at the next sign-in.
 
-Sign in with that password and change it immediately, then delete the file. The rotation is atomic and safe when multiple instances start concurrently.
+### OpenIddictApplications.json Seeding
 
-### Automatic Rotation of Exposed Credentials
+The Identity application seeds OIDC clients from `OpenIddictApplications.json`. This file is committed with your repository so deployments seed consistently, but the `ClientSecret` values in it must be treated as environment-specific credentials:
 
-Applications that were originally seeded from the previously committed `OpenIddictApplications.json` (with now-public client secrets or where the API key equaled the client secret) have those credentials rotated automatically at startup. Retrieve the new values from the tenant administration console (or use **Rotate keys**) and update any dependent configuration.
+- Keep development secrets only in this file - never reuse them in production.
+- When `ClientSecret` is omitted, a cryptographically random secret and API key are generated server-side at seeding time (retrieve them from the tenant administration console).
+- Rotate any secret that has ever been committed to a public repository.
 
 ### API Keys Are Bound to Their Tenant
 
-The Membership API (`api/membership`) now resolves the tenant from the presented `X-API-Key` and rejects requests (HTTP 403) whose body names a different tenant. One tenant's API key can no longer invite, assign, or remove users in another tenant.
+The Membership API (`api/membership`) resolves the tenant from the presented `X-API-Key` and rejects requests (HTTP 403) whose body names a different tenant. One tenant's API key can no longer invite, assign, or remove users in another tenant.
 
 ### Production Token Signing and Encryption Certificates
 
@@ -228,12 +234,26 @@ When both certificates are configured, access tokens are also encrypted. Without
 
 `PersonnelsController` in `BlogArray.SaaS.App` (which creates identity users and grants tenant access) now requires the `TenantAdmin` or `Superuser` role. Grant users the `TenantAdmin` role in the tenant suite before they can manage personnel.
 
-### Other Hardening Changes
+### Authentication Methods
 
-- **Two-factor authentication is no longer bypassed for external/social logins**: users with 2FA enabled are routed through the authenticator/recovery-code flow regardless of the sign-in provider.
-- **Account lockout is enabled for new users** (`Lockout.AllowedForNewUsers = true`), so repeated failed sign-in attempts lock accounts as configured.
-- **Tenant connection strings are never rendered back to the browser**: the edit form shows an empty field, and leaving it blank keeps the existing connection string.
-- **Client secrets and API keys are finalized server-side**: missing or too-short values posted from the tenant creation form are replaced with cryptographically random ones, and client-side generation uses `crypto.getRandomValues` instead of `Math.random`.
+| Method | Description |
+|---|---|
+| **Password + 2FA** | Email/password sign-in with TOTP authenticator, recovery codes, or an emailed one-time code as the second factor. |
+| **Passkeys (WebAuthn)** | Full passwordless sign-in: register a passkey in *Settings → Passkeys*, then use the native browser/OS prompt (biometric/PIN) from the login page. Passkeys use discoverable credentials with required user verification and are independent of traditional 2FA and its enable/disable state. |
+| **SAML SSO (per tenant)** | Tenants with SSO enabled delegate sign-in to their own identity provider. SAML responses are validated for signature, audience, recipient, request correlation (`InResponseTo`) and expiry. |
+| **External/social providers** | Microsoft, Google, GitHub and Apple, each enabled via `Authentication:*:Enabled` flags. 2FA is never bypassed for social sign-ins. |
+
+All sign-ins are recorded in **Settings → Security activity**.
+
+### Session Management
+
+Every application sign-in creates a tracked session (device, browser, IP). Users can review and revoke their sessions under **Settings → Where you're signed in**, including signing out individual devices or all other devices - revoked sessions are rejected server-side on the next request.
+
+Logging out of the Identity application revokes all tokens for the user and, for tenants with **Single logout** enabled, signs the user out of the connected tenant applications.
+
+### CAPTCHA (Cloudflare Turnstile)
+
+Set `Captcha:SiteKey` and `Captcha:SecretKey` in the Identity application to enable the Turnstile challenge on the login page and on the "email me a code" request during two-factor sign-in. Empty keys (default) disable it entirely. Verification fails open if Cloudflare is unreachable, so an outage cannot block sign-ins.
 
 ---
 

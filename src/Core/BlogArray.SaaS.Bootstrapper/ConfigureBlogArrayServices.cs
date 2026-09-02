@@ -46,6 +46,16 @@ public static class ConfigureBlogArrayServices
             // Per-device session tracking: every app-cookie sign-in is recorded and tagged
             // with a session id claim, enabling the "where you're signed in" list and
             // per-session revocation.
+            //
+            // Session id semantics (Google-style single session per device):
+            //  - When the incoming principal already carries a "session_id" (the Identity
+            //    server propagates it in the id_token during SSO), the sign-in ATTACHES to
+            //    the existing session row: all suite apps share one session row per device,
+            //    so revoking it signs the user out of the whole suite. The id is never
+            //    rotated here.
+            //  - Otherwise (a fresh local login at the identity server) a new session id is
+            //    minted; an existing active row for the same user+user-agent is reused (its
+            //    id is rotated) so repeated logins on the same device don't duplicate rows.
             string? userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(userId))
@@ -53,46 +63,60 @@ public static class ConfigureBlogArrayServices
                 return;
             }
 
-            string sessionId = Guid.NewGuid().ToString();
-
-            foreach (ClaimsIdentity identity in context.Principal!.Identities)
-            {
-                identity.AddClaim(new Claim("session_id", sessionId));
-            }
-
             OpenIdDbContext dbContext = context.HttpContext.RequestServices.GetRequiredService<OpenIdDbContext>();
 
             string userAgent = Truncate(context.HttpContext.Request.Headers.UserAgent.ToString(), 512);
+            string ipAddress = Truncate(context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "", 64);
+            string deviceName = DescribeUserAgent(userAgent);
 
-            // Prune stale revoked sessions and cap the number of tracked sessions per user.
-            List<UserSession> tracked = await dbContext.UserSessions
-                .Where(session => session.UserId == userId)
-                .OrderByDescending(session => session.LastSeenOn)
-                .ToListAsync();
+            string? sessionId = context.Principal?.FindFirst("session_id")?.Value;
 
-            foreach (UserSession stale in tracked.Where(session => session.Revoked && session.LastSeenOn < DateTime.UtcNow.AddDays(-30)))
+            UserSession? session = string.IsNullOrEmpty(sessionId)
+                ? null
+                : await dbContext.UserSessions.SingleOrDefaultAsync(tracked => tracked.SessionId == sessionId);
+
+            if (session is null)
             {
-                dbContext.UserSessions.Remove(stale);
+                // Fresh login: reuse the user's most recent active session on this device if
+                // one exists, otherwise create a new one.
+                session = await dbContext.UserSessions
+                    .Where(trackedSession => !trackedSession.Revoked && trackedSession.UserAgent == userAgent)
+                    .OrderByDescending(trackedSession => trackedSession.LastSeenOn)
+                    .FirstOrDefaultAsync();
+
+                if (session is null)
+                {
+                    session = new UserSession
+                    {
+                        UserId = userId,
+                        CreatedOn = DateTime.UtcNow
+                    };
+
+                    dbContext.UserSessions.Add(session);
+                }
+
+                sessionId = Guid.NewGuid().ToString();
             }
 
-            if (tracked.Count(session => !session.Revoked) >= 25)
-            {
-                UserSession oldest = tracked.Last(session => !session.Revoked);
-                oldest.Revoked = true;
-            }
-
-            dbContext.UserSessions.Add(new UserSession
-            {
-                UserId = userId,
-                SessionId = sessionId,
-                DeviceName = DescribeUserAgent(userAgent),
-                UserAgent = userAgent,
-                IpAddress = Truncate(context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "", 64),
-                CreatedOn = DateTime.UtcNow,
-                LastSeenOn = DateTime.UtcNow
-            });
+            session.SessionId = sessionId;
+            session.DeviceName = deviceName;
+            session.UserAgent = userAgent;
+            session.IpAddress = ipAddress;
+            session.LastSeenOn = DateTime.UtcNow;
 
             await dbContext.SaveChangesAsync();
+
+            foreach (ClaimsIdentity identity in context.Principal!.Identities)
+            {
+                Claim? existing = identity.FindFirst("session_id");
+
+                if (existing is not null)
+                {
+                    identity.RemoveClaim(existing);
+                }
+
+                identity.AddClaim(new Claim("session_id", sessionId));
+            }
         };
 
         options.Events.OnValidatePrincipal = async context =>

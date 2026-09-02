@@ -511,7 +511,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("PasswordHistories");
+                    b.ToTable("PasswordHistories", (string)null);
                 });
 
             modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.SecurityEvent", b =>
@@ -551,7 +551,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("SecurityEvents");
+                    b.ToTable("SecurityEvents", (string)null);
                 });
 
             modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.UserSession", b =>
@@ -601,7 +601,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("UserSessions");
+                    b.ToTable("UserSessions", (string)null);
                 });
 
             modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.WebAuthnCredential", b =>
@@ -646,7 +646,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("WebAuthnCredentials");
+                    b.ToTable("WebAuthnCredentials", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -835,7 +835,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
                             b1.HasKey("OpenIdApplicationId");
 
-                            b1.ToTable("OpenIddictApplications");
+                            b1.ToTable("OpenIddictApplications", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("OpenIdApplicationId");
@@ -866,7 +866,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
                             b1.HasKey("OpenIdApplicationId");
 
-                            b1.ToTable("OpenIddictApplications");
+                            b1.ToTable("OpenIddictApplications", (string)null);
 
                             b1.WithOwner()
                                 .HasForeignKey("OpenIdApplicationId");
