@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.WebUtilities;
 namespace BlogArray.SaaS.Identity.Pages;
 
 [AllowAnonymous]
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class ExternalLoginModel : PageModel
 {
     private readonly SignInManagerExtension<ApplicationUser> _signInManager;

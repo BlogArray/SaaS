@@ -14,6 +14,7 @@ using OpenIddict.Core;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
+[Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginModel(
     UserManager<ApplicationUser> userManager,
     OpenIddictApplicationManager<OpenIdApplication> appManager,

@@ -9,11 +9,14 @@
 
 #nullable disable
 
+using BlogArray.SaaS.OpenId;
+
 namespace BlogArray.SaaS.Identity.Pages;
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWithRecoveryCodeModel(
     SignInManagerExtension<ApplicationUser> signInManager,
+    ICaptchaService captcha,
     ILogger<LoginWithRecoveryCodeModel> logger) : PageModel
 {
 
@@ -23,6 +26,16 @@ public class LoginWithRecoveryCodeModel(
     /// </summary>
     [BindProperty]
     public InputModel Input { get; set; }
+
+    /// <summary>
+    ///     True when the Cloudflare Turnstile challenge is configured.
+    /// </summary>
+    public bool CaptchaEnabled => captcha.IsEnabled;
+
+    /// <summary>
+    ///     The Turnstile site key for rendering the widget (empty when disabled).
+    /// </summary>
+    public string CaptchaSiteKey => captcha.SiteKey;
 
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -45,6 +58,11 @@ public class LoginWithRecoveryCodeModel(
         [DataType(DataType.Text)]
         [Display(Name = "Recovery Code")]
         public string RecoveryCode { get; set; }
+
+        /// <summary>
+        ///     Turnstile widget response token (bound from the widget's response field).
+        /// </summary>
+        public string CaptchaToken { get; set; }
     }
 
     public async Task<IActionResult> OnGetAsync(string next)
@@ -74,6 +92,13 @@ public class LoginWithRecoveryCodeModel(
         if (user == null)
         {
             return RedirectToPage("./Login");
+        }
+
+        // CAPTCHA step-up: protects recovery-code guessing during the two-factor step.
+        if (captcha.IsEnabled && !await captcha.VerifyAsync(Input?.CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
+        {
+            ModelState.AddModelError("Input.CaptchaToken", "Please complete the verification.");
+            return Page();
         }
 
         string recoveryCode = Input.RecoveryCode.Replace(" ", string.Empty);

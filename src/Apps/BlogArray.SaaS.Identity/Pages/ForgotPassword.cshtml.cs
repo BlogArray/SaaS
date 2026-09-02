@@ -11,14 +11,25 @@
 
 using System.Text;
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("email")]
 public class ForgotPasswordModel(UserManager<ApplicationUser> userManager,
-    IEmailTemplate emailTemplate, IConfiguration configuration) : PageModel
+    IEmailTemplate emailTemplate, IConfiguration configuration,
+    ICaptchaService captcha) : PageModel
 {
+    /// <summary>
+    ///     True when the Cloudflare Turnstile challenge is configured.
+    /// </summary>
+    public bool CaptchaEnabled => captcha.IsEnabled;
+
+    /// <summary>
+    ///     The Turnstile site key for rendering the widget (empty when disabled).
+    /// </summary>
+    public string CaptchaSiteKey => captcha.SiteKey;
 
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -41,12 +52,23 @@ public class ForgotPasswordModel(UserManager<ApplicationUser> userManager,
         [EmailAddress]
         [Display(Name = "Send a recovery link to")]
         public string Email { get; set; }
+
+        /// <summary>
+        ///     Turnstile widget response token (bound from the widget's response field).
+        /// </summary>
+        public string CaptchaToken { get; set; }
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
         if (ModelState.IsValid)
         {
+            if (captcha.IsEnabled && !await captcha.VerifyAsync(Input?.CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
+            {
+                ModelState.AddModelError("Input.CaptchaToken", "Please complete the verification.");
+                return Page();
+            }
+
             ApplicationUser user = await userManager.FindByEmailAsync(Input.Email);
             if (user == null || !await userManager.IsEmailConfirmedAsync(user))
             {
