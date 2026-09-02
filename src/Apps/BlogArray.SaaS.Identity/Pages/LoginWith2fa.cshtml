@@ -6,36 +6,69 @@
 }
 
 <h6 class="text-center mb-3">
-    Continue with two-factor authentication
+    @(Model.IsEmailMode ? "Enter the code we emailed you" : "Continue with two-factor authentication")
 </h6>
+
+<partial name="_StatusMessage" for="StatusMessage" />
 
 <span class="d-block text-center mb-3">
     <i class="state-icon text-primary bi bi-shield-lock"></i>
 </span>
 
-<form method="post" asp-route-next="@Model.Next">
+<p>
+    @(Model.IsEmailMode
+        ? "Enter the verification code sent to your email address to continue."
+        : "Your account is protected with two-factor authentication. Enter the code from your authenticator app below to continue.")
+</p>
+
+<form method="post">
     <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+    <input type="hidden" asp-for="Method" />
     <div class="mb-3">
         <label asp-for="Input.TwoFactorCode" class="form-label"></label>
-        <input asp-for="Input.TwoFactorCode" class="form-control" placeholder="6 digit Authenticator code" autocomplete="off" />
+        <input asp-for="Input.TwoFactorCode" class="form-control" autocomplete="off" placeholder="Enter verification code" />
         <span asp-validation-for="Input.TwoFactorCode" class="text-danger"></span>
     </div>
-    <div class="checkbox mb-3">
-        <label asp-for="Input.RememberMachine" class="form-label">
-            <input asp-for="Input.RememberMachine" />
+    <div class="mb-3 form-check">
+        <input class="form-check-input" asp-for="Input.RememberMachine" />
+        <label class="form-check-label" asp-for="Input.RememberMachine">
             @Html.DisplayNameFor(m => m.Input.RememberMachine)
         </label>
     </div>
-    <div>
-        <button type="submit" class="w-100 btn btn-primary">Log in</button>
-    </div>
+    <button type="submit" class="w-100 btn btn-primary">Log in</button>
 </form>
 
 <div class="text-center mt-3">
     <p>
+        @if (Model.IsEmailMode)
+        {
+            <a id="send-code" asp-page="./LoginWith2fa" asp-route-next="@Model.Next" asp-route-method="">Use your authenticator app instead</a>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="SendCode">
+                <input type="hidden" name="next" value="@Model.Next" />
+                @if (Model.CaptchaEnabled)
+                {
+                    <div class="cf-turnstile mb-3"
+                         data-sitekey="@Model.CaptchaSiteKey"
+                         data-response-field-name="sendCaptchaToken"
+                         data-theme="light">
+                    </div>
+                }
+                <button type="submit" class="btn btn-link">Email me a code instead</button>
+            </form>
+        }
+    </p>
+    <p>
         <a id="recovery-code-login" asp-page="./LoginWithRecoveryCode" asp-route-next="@Model.Next">Log in with a recovery code</a>
     </p>
 </div>
+
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    @if (Model.CaptchaEnabled)
+    {
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+    }
 }

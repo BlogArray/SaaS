@@ -192,6 +192,51 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     }
 
     /// <summary>
+    /// Signs in the user without two factor authentication using a one-time code sent by the
+    /// email token provider (email OTP). Mirrors TwoFactorAuthenticatorSignInAsync: incorrect
+    /// codes count towards lockout, successful codes complete the two-factor flow.
+    /// </summary>
+    /// <param name="code">The one-time code sent to the user's email address.</param>
+    /// <param name="isPersistent">Flag indicating whether the sign-in cookie should persist after the browser is closed.</param>
+    /// <param name="rememberClient">Flag indicating whether the current browser should be remembered.</param>
+    /// <param name="customClaims">Additional claims to add to the sign-in principal.</param>
+    public virtual async Task<SignInResult> TwoFactorEmailCodeSignInAsync(string code, bool isPersistent, bool rememberClient, List<Claim> customClaims)
+    {
+        TwoFactorAuthenticationInfo? twoFactorInfo = await RetrieveTwoFactorInfoAsync();
+        if (twoFactorInfo == null)
+        {
+            return SignInResult.Failed;
+        }
+
+        ApplicationUser user = twoFactorInfo.User;
+        SignInResult? error = await PreSignInCheck(user);
+        if (error != null)
+        {
+            return error;
+        }
+
+        if (await UserManager.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider, code))
+        {
+            return await DoTwoFactorSignInAsync(user, twoFactorInfo, isPersistent, rememberClient, customClaims);
+        }
+        // If the code is incorrect, record the failure which also may cause the user to be locked out
+        if (UserManager.SupportsUserLockout)
+        {
+            IdentityResult incrementLockoutResult = await UserManager.AccessFailedAsync(user) ?? IdentityResult.Success;
+            if (!incrementLockoutResult.Succeeded)
+            {
+                return SignInResult.Failed;
+            }
+
+            if (await UserManager.IsLockedOutAsync(user))
+            {
+                return await LockedOut(user);
+            }
+        }
+        return SignInResult.Failed;
+    }
+
+    /// <summary>
     /// Signs in the user without two factor authentication using a two factor recovery code.
     /// </summary>
     /// <param name="recoveryCode">The two factor recovery code.</param>

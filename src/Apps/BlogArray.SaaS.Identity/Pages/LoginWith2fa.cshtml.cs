@@ -9,12 +9,21 @@
 
 #nullable disable
 
+using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.OpenId;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Distributed;
+
 namespace BlogArray.SaaS.Identity.Pages;
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWith2faModel(
+    UserManager<ApplicationUser> userManager,
     SignInManagerExtension<ApplicationUser> signInManager,
     ISecurityAuditLogger auditLogger,
+    ICaptchaService captcha,
+    IEmailTemplate emailTemplate,
+    IDistributedCache cache,
     ILogger<LoginWith2faModel> logger) : PageModel
 {
 
@@ -26,16 +35,40 @@ public class LoginWith2faModel(
     public InputModel Input { get; set; }
 
     /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
+    ///     True when the Cloudflare Turnstile challenge is configured (it gates the
+    ///     "email me a code" request).
     /// </summary>
-    //public bool RememberMe { get; set; }
+    public bool CaptchaEnabled => captcha.IsEnabled;
+
+    /// <summary>
+    ///     The Turnstile site key for rendering the widget (empty when disabled).
+    /// </summary>
+    public string CaptchaSiteKey => captcha.SiteKey;
+
+    /// <summary>
+    ///     Verification mode for the submitted code: the default is the authenticator app;
+    ///     when "email", the code sent by email is verified with the Email token provider.
+    /// </summary>
+    [BindProperty(SupportsGet = true)]
+    public string Method { get; set; }
+
+    /// <summary>
+    ///     True when the current verification mode is the emailed one-time code.
+    /// </summary>
+    public bool IsEmailMode => string.Equals(Method, "email", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
     /// </summary>
     public string Next { get; set; }
+
+    /// <summary>
+    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
+    ///     directly from your code. This API may change or be removed in future releases.
+    /// </summary>
+    [TempData]
+    public string StatusMessage { get; set; }
 
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -61,7 +94,7 @@ public class LoginWith2faModel(
         public bool RememberMachine { get; set; }
     }
 
-    public async Task<IActionResult> OnGetAsync(string next)
+    public async Task<IActionResult> OnGetAsync(string next, string method = null)
     {
         // Ensure the user has gone through the username & password screen first
         ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
@@ -72,9 +105,58 @@ public class LoginWith2faModel(
         }
 
         Next = next;
+        Method = string.Equals(method, "email", StringComparison.OrdinalIgnoreCase) ? "email" : null;
         //RememberMe = rememberMe;
 
         return Page();
+    }
+
+    /// <summary>
+    /// Generates a one-time code with the Email token provider, sends it to the user's email
+    /// address, and switches the verification mode to "email". A resend is allowed at most
+    /// once every 90 seconds per user.
+    /// </summary>
+    public async Task<IActionResult> OnPostSendCodeAsync(string next)
+    {
+        ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
+
+        if (user == null)
+        {
+            return RedirectToPage("./Login");
+        }
+
+        // CAPTCHA gates the email send when Turnstile is configured (anti email-bombing).
+        if (captcha.IsEnabled)
+        {
+            string sendCaptchaToken = Request.Form["sendCaptchaToken"];
+
+            if (!await captcha.VerifyAsync(sendCaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
+            {
+                StatusMessage = "Error: please complete the verification before requesting an email code.";
+                return RedirectToPage(new { next, method = "email" });
+            }
+        }
+
+        string cacheKey = $"login_otp_sent_{user.Id}";
+
+        if (await cache.GetAsync(cacheKey) is not null)
+        {
+            StatusMessage = "A verification code was already sent recently. Please check your email, or wait a minute before requesting a new one.";
+            return RedirectToPage(new { next, method = "email" });
+        }
+
+        string code = await userManager.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
+
+        emailTemplate.TwoFactorCode(user.Email, user.DisplayName, code);
+
+        await cache.SetStringAsync(cacheKey, DateTime.UtcNow.ToString("O"), new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(90)
+        });
+
+        StatusMessage = $"A verification code has been sent to {user.Email}. Enter it below to continue.";
+
+        return RedirectToPage(new { next, method = "email" });
     }
 
     public async Task<IActionResult> OnPostAsync(string next)
@@ -93,8 +175,7 @@ public class LoginWith2faModel(
             return RedirectToPage("./Login");
         }
 
-        string authenticatorCode = Input.TwoFactorCode.Replace(" ", string.Empty).Replace("-", string.Empty);
-
+        string code = Input.TwoFactorCode.Replace(" ", string.Empty).Replace("-", string.Empty);
 
         List<Claim> customClaims =
         [
@@ -105,13 +186,13 @@ public class LoginWith2faModel(
             new Claim("Locale", user.LocaleCode),
         ];
 
-        Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorAuthenticatorSignInAsync(authenticatorCode, false, Input.RememberMachine, customClaims);
-
-        //var userId = await _userManager.GetUserIdAsync(user);
+        Microsoft.AspNetCore.Identity.SignInResult result = string.Equals(Method, "email", StringComparison.OrdinalIgnoreCase)
+            ? await signInManager.TwoFactorEmailCodeSignInAsync(code, false, Input.RememberMachine, customClaims)
+            : await signInManager.TwoFactorAuthenticatorSignInAsync(code, false, Input.RememberMachine, customClaims);
 
         if (result.Succeeded)
         {
-            logger.LogInformation("User with ID '{UserId}' logged in with 2fa.", user.Id);
+            logger.LogInformation("User with ID '{UserId}' logged in with 2fa ({Method}).", user.Id, Method ?? "authenticator");
             await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded);
             return LocalRedirect(next);
         }
@@ -123,9 +204,9 @@ public class LoginWith2faModel(
         }
         else
         {
-            logger.LogWarning("Invalid authenticator code entered for user with ID '{UserId}'.", user.Id);
+            logger.LogWarning("Invalid 2FA code ({Method}) entered for user with ID '{UserId}'.", Method ?? "authenticator", user.Id);
             await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginFailed);
-            ModelState.AddModelError(string.Empty, "You entered an incorrect Authenticator code.");
+            ModelState.AddModelError(string.Empty, "You entered an incorrect code.");
             return Page();
         }
     }
