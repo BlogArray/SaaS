@@ -106,6 +106,7 @@ public static class OpenIdDbContextExtensions
             entity.Property(credential => credential.Name).HasMaxLength(200);
             entity.Property(credential => credential.CredentialId).HasMaxLength(1024);
             entity.Property(credential => credential.PublicKey).HasMaxLength(8192);
+            entity.Property(credential => credential.Aaguid).HasMaxLength(400);
             entity.HasIndex(credential => credential.UserId);
             entity.HasIndex(credential => credential.CredentialId).IsUnique();
             entity.HasOne<ApplicationUser>()

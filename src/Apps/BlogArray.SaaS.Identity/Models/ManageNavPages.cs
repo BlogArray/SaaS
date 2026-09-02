@@ -37,6 +37,8 @@ public static class ManageNavPages
 
     public static string Passkeys => "Passkeys";
 
+    public static string UserSessions => "UserSessions";
+
     public static string AccountNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, Account, activeClass);
 
     public static string ChangePasswordNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, ChangePassword, activeClass);
@@ -54,6 +56,7 @@ public static class ManageNavPages
     public static string SecurityActivityNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, SecurityActivity, activeClass);
 
     public static string PasskeysNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, Passkeys, activeClass);
+    public static string UserSessionsNavClass(ViewContext viewContext, string activeClass = "active") => PageNavClass(viewContext, UserSessions, activeClass);
 
     public static string PageNavClass(ViewContext viewContext, string page, string activeClass = "active")
     {

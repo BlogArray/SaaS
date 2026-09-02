@@ -44,6 +44,12 @@ public class WebAuthnCredential
     /// </summary>
     public uint SignatureCounter { get; set; }
 
+    /// <summary>
+    /// AAGUID of the authenticator that created this credential.
+    /// </summary>
+    [StringLength(400)]
+    public string? Aaguid { get; set; }
+
     public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
 
     public DateTime? LastUsedOn { get; set; }

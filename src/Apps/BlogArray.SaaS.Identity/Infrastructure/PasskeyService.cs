@@ -9,6 +9,7 @@
 
 using System.Text;
 using System.Text.Json;
+using BlogArray.SaaS.Web.Helpers;
 using Fido2NetLib;
 using Fido2NetLib.Objects;
 using Microsoft.EntityFrameworkCore;
@@ -75,7 +76,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
         return options.ToJson();
     }
 
-    public async Task<WebAuthnCredential> VerifyRegistrationAsync(ApplicationUser user, string credentialName, string responseJson, string originalOptionsJson)
+    public async Task<WebAuthnCredential> VerifyRegistrationAsync(ApplicationUser user, string responseJson, string originalOptionsJson)
     {
         AuthenticatorAttestationRawResponse? response = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(responseJson);
 
@@ -87,12 +88,13 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
             OriginalOptions = options,
             IsCredentialIdUniqueToUserCallback = async (args, cancellationToken) =>
             {
-                // A credential id must be unique across all users.
                 string credentialId = Convert.ToBase64String(args.CredentialId);
 
                 return !await context.WebAuthnCredentials.AnyAsync(stored => stored.CredentialId == credentialId, cancellationToken);
             }
         });
+
+        string credentialName = PasskeyCredentialNameResolver.Resolve(result.AaGuid);
 
         WebAuthnCredential credential = new()
         {
@@ -101,6 +103,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
             CredentialId = Convert.ToBase64String(result.Id),
             PublicKey = Convert.ToBase64String(result.PublicKey),
             SignatureCounter = result.SignCount,
+            Aaguid = result.AaGuid == Guid.Empty ? null : result.AaGuid.ToString(),
             CreatedOn = DateTime.UtcNow
         };
 

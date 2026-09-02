@@ -41,7 +41,7 @@ public class PasskeysModel(
     /// <summary>
     /// Returns registration options for the browser's WebAuthn API.
     /// </summary>
-    public async Task<IActionResult> OnPostRegistrationOptionsAsync(string name)
+    public async Task<IActionResult> OnPostRegistrationOptionsAsync()
     {
         ApplicationUser user = await userManager.GetUserAsync(User);
         if (user == null)
@@ -66,7 +66,7 @@ public class PasskeysModel(
 
         try
         {
-            WebAuthnCredential credential = await passkeyService.VerifyRegistrationAsync(user, $"Passkey {DateTime.UtcNow:yyyy-MM-dd HH:mm}", response, options);
+            WebAuthnCredential credential = await passkeyService.VerifyRegistrationAsync(user, response, options);
 
             // Passkeys are a standalone passwordless authentication method and are
             // intentionally independent of the TwoFactorEnabled flag: registering one does

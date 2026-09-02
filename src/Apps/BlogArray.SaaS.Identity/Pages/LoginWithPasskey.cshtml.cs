@@ -38,9 +38,9 @@ public class LoginWithPasskeyModel(
     [BindProperty(SupportsGet = true)]
     public string Next { get; set; }
 
-    public IActionResult OnGet()
+    public async Task<IActionResult> OnGet()
     {
-        AssertionOptions = passkeyService.CreatePasswordlessAssertionOptionsJsonAsync().Result;
+        AssertionOptions = await passkeyService.CreatePasswordlessAssertionOptionsJsonAsync();
 
         return Page();
     }
