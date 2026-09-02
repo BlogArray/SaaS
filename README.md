@@ -326,6 +326,39 @@ API keys are never stored in plaintext: validation compares a SHA-256 hash, tena
 | `ApiKey:PrefixLength` | Number of leading key characters kept for display (default `8`). Change per environment without affecting already-stored keys. |
 | `DataProtection:KeyRingPath` | Shared folder persisting the DataProtection key ring. Must point at the same storage for Identity, TenantSuite and App (all use application name `BlogArray.SaaS`), must be writable by all three app pool identities, and must be backed up: losing the ring makes protected keys unrecoverable. |
 
+#### Creating the DataProtection key ring
+
+The key ring itself is **generated automatically** by the first app that starts against the folder - there is no manual key file to create. The setup work is creating the folder, granting write access, and verifying a key appeared.
+
+1. Create the shared folder (run once per machine):
+
+```powershell
+New-Item -ItemType Directory -Force -Path "C:\ProgramData\BlogArray\DataProtection-Keys"
+```
+
+2. Grant write access:
+
+- **Local development (Kestrel/IIS Express)**: apps run under your user account, which already owns the folder - nothing to do.
+- **IIS**: grant the application pool identities modify rights. The simplest machine-wide grant (same approach as the certificate private keys above):
+
+```powershell
+icacls "C:\ProgramData\BlogArray\DataProtection-Keys" /grant "IIS_IUSRS:(OI)(CI)M"
+```
+
+   For tighter scoping, grant only the three site pools instead:
+
+```powershell
+foreach ($pool in @("BlogArray.SaaS.Identity", "BlogArray.SaaS.TenantSuite", "BlogArray.SaaS.App")) {
+    icacls "C:\ProgramData\BlogArray\DataProtection-Keys" /grant "${pool}:(OI)(CI)M"
+}
+```
+
+3. Start one of the apps and verify a `key-*.xml` file appears in the folder. All three apps reuse that same ring - do **not** let each app start on a different folder, or payloads protected by one app (tenant API keys) cannot be opened by another.
+
+4. Back the folder up (any file copy of its contents is sufficient). Restoring is a copy back. DataProtection rotates keys automatically every 90 days and keeps the old ones for decryption, so backups stay valid across rotations.
+
+> The key ring is machine-specific: never copy a production ring to a different machine for regular operation (it only travels together with a full machine backup/restore), and never commit `key-*.xml` files to source control.
+
 > **Upgrade note:** deploy the commit that introduced the startup key-conversion sweep before deploying the commit that drops the legacy `APIKey` column. Jumping straight to the final schema leaves pre-existing keys without a protected copy; those tenants must rotate their API key once.
 
 ### Authentication Methods
