@@ -23,7 +23,8 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class LoginWithPasskeyModel(
     SignInManagerExtension<ApplicationUser> signInManager,
     ISecurityAuditLogger auditLogger,
-    PasskeyService passkeyService) : PageModel
+    PasskeyService passkeyService,
+    ILogger<LoginWithPasskeyModel> logger) : PageModel
 {
     /// <summary>
     ///     Serialized assertion options for the browser's WebAuthn API (round-tripped through
@@ -58,8 +59,9 @@ public class LoginWithPasskeyModel(
         {
             user = await passkeyService.VerifyPasswordlessAssertionAsync(Input?.Response, AssertionOptions);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            logger.LogError(ex, "The passkey could not be verified.");
             ModelState.AddModelError(string.Empty, "The passkey could not be verified. Please try again or use your password to sign in.");
             return Page();
         }

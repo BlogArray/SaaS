@@ -122,9 +122,13 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
     {
         AssertionOptions options = fido2.GetAssertionOptions(new GetAssertionOptionsParams
         {
-            // Empty allow-list + required user verification = the native passkey chooser.
+            // Empty allow-list = the native passkey chooser.
             AllowedCredentials = [],
-            UserVerification = UserVerificationRequirement.Required
+            // Preferred rather than Required: some passkey providers (e.g. Chrome with Google
+            // Password Manager when it skips re-auth, or devices without a screen lock) return
+            // the assertion with the UV flag clear even when UV was demanded, which made the
+            // ceremony fail server-side. Capable platforms still prompt for biometric/PIN.
+            UserVerification = UserVerificationRequirement.Preferred
         });
 
         return Task.FromResult(options.ToJson());
@@ -152,7 +156,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
 
         // A failed verification throws Fido2VerificationException; a returned result is a
         // successful assertion (challenge matches, origin matches, signature and counter ok,
-        // user verification satisfied).
+        // user presence proven).
         VerifyAssertionResult result = await fido2.MakeAssertionAsync(new MakeAssertionParams
         {
             AssertionResponse = response,
