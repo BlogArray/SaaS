@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json;
 using BlogArray.SaaS.Application.Services;
@@ -79,6 +80,12 @@ public class TenantsController(OpenIdDbContext context,
             }
         }
 
+        if (!TrySerializeEmails(openIdApplication.AdminEmail, out string adminEmail, out string emailError))
+        {
+            ModelState.AddModelError("AdminEmail", emailError);
+            return View(openIdApplication);
+        }
+
         OpenIdApplication? entity = new();
 
         // Secrets are finalized server-side: any missing or too-short value is replaced with a
@@ -88,6 +95,8 @@ public class TenantsController(OpenIdDbContext context,
         openIdApplication.APIKey = FinalizeSecret(openIdApplication.APIKey);
 
         MapProperties(openIdApplication, entity);
+
+        entity.AdminEmail = adminEmail;
 
         await manager.CreateAsync(entity, openIdApplication.ClientSecret);
 
@@ -180,7 +189,15 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
+        if (!TrySerializeEmails(openIdApplication.AdminEmail, out string adminEmail, out string emailError))
+        {
+            ModelState.AddModelError("AdminEmail", emailError);
+            return ModelStateError(ModelState);
+        }
+
         MapProperties(openIdApplication, entity);
+
+        entity.AdminEmail = adminEmail;
 
         await manager.UpdateAsync(entity);
 
@@ -601,7 +618,50 @@ public class TenantsController(OpenIdDbContext context,
             //Permissions = entity.Permissions != null ? JsonSerializer.Deserialize<List<string>>(entity.Permissions) : [],
             RedirectUri = entity.RedirectUris != null ? string.Join(",", JsonSerializer.Deserialize<string[]>(entity.RedirectUris)) : "",
             PostLogoutRedirectUri = entity.PostLogoutRedirectUris != null ? string.Join(",", JsonSerializer.Deserialize<string[]>(entity.PostLogoutRedirectUris)) : "",
+            AdminEmail = DeserializeEmails(entity.AdminEmail),
         };
+    }
+
+    /// <summary>
+    /// Deserializes the stored JSON email array to a comma-joined string for the choices UI.
+    /// </summary>
+    private static string DeserializeEmails(string? serialized)
+    {
+        return serialized != null ? string.Join(",", JsonSerializer.Deserialize<string[]>(serialized) ?? []) : "";
+    }
+
+    /// <summary>
+    /// Validates the comma-joined admin email list and serializes it for storage. Returns
+    /// false with an error message when the list is empty or contains invalid addresses.
+    /// </summary>
+    private static bool TrySerializeEmails(string? joined, out string serialized, out string error)
+    {
+        List<string> emails = (joined ?? string.Empty)
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        EmailAddressAttribute validator = new();
+
+        List<string> invalid = emails.Where(email => !validator.IsValid(email)).ToList();
+
+        if (emails.Count == 0)
+        {
+            serialized = "[]";
+            error = "Add at least one admin email.";
+            return false;
+        }
+
+        if (invalid.Count != 0)
+        {
+            serialized = "[]";
+            error = $"Invalid email address(es): {string.Join(", ", invalid)}";
+            return false;
+        }
+
+        serialized = JsonSerializer.Serialize(emails);
+        error = string.Empty;
+        return true;
     }
 
     private void MapProperties(CreateApplicationViewModel model, OpenIdApplication entity)
@@ -614,6 +674,7 @@ public class TenantsController(OpenIdDbContext context,
         entity.ClientSecretPlain = model.ClientSecret;
         entity.ConnectionString = model.ConnectionString;
         entity.APIKey = model.APIKey;
+        entity.AdminEmail = JsonSerializer.Serialize((model.AdminEmail ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
         entity.TenantUrl = model.TenantUrl;
         entity.Theme = new ThemeConfiguration
         {
@@ -653,6 +714,7 @@ public class TenantsController(OpenIdDbContext context,
         }
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
+        entity.AdminEmail = JsonSerializer.Serialize((model.AdminEmail ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
         //entity.Permissions = JsonSerializer.Serialize(model.Permissions);
         entity.RedirectUris = string.IsNullOrEmpty(model.RedirectUri) ? null : JsonSerializer.Serialize(model.RedirectUri.Split(","));
         entity.PostLogoutRedirectUris = string.IsNullOrEmpty(model.PostLogoutRedirectUri) ? null : JsonSerializer.Serialize(model.PostLogoutRedirectUri.Split(","));

@@ -148,11 +148,7 @@ public static class OpenIdDbContextExtensions
             entity.Property(s => s.CreatedOn).HasDefaultValue(new DateTime(2024, 11, 8, 7, 23, 2, 837, DateTimeKind.Utc).AddTicks(2866));
             entity.Property(s => s.CreatedById).HasMaxLength(400);
             entity.Property(s => s.UpdatedById).HasMaxLength(400);
-
-            entity.HasOne(u => u.Admin)
-                .WithMany()
-                .HasForeignKey(u => u.AdminId)
-                .OnDelete(DeleteBehavior.Restrict);
+            entity.Property(s => s.AdminEmail).HasMaxLength(1024);
 
             entity.HasOne(u => u.CreatedBy)
                 .WithMany()

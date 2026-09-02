@@ -50,6 +50,14 @@ public class ApplicationViewModel
     [DataType(DataType.Url)]
     public string PostLogoutRedirectUri { get; set; } = default!;
 
+    /// <summary>
+    /// Comma-joined tenant administrator emails (choices UI, same pattern as RedirectUris);
+    /// stored as a JSON string array. At least one valid address is required.
+    /// </summary>
+    [Required(AllowEmptyStrings = false, ErrorMessage = "Add at least one admin email.")]
+    [StringLength(1024)]
+    public string AdminEmail { get; set; } = default!;
+
     //public List<string> Permissions { get; set; } = [];
 
     public string? ConnectionString { get; set; } = default!;

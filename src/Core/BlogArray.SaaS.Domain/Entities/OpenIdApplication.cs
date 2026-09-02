@@ -73,9 +73,13 @@ public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string
 
     public TenantSecurityConfiguration Security { get; set; } = default!;
 
-    public string? AdminId { get; set; }
-
-    public ApplicationUser? Admin { get; set; }
+    /// <summary>
+    /// Tenant administrator contact emails as a JSON string array (choices UI); the first
+    /// entry is the default recipient for tenant credentials. Decoupled from Identity users:
+    /// an admin account may not exist when the tenant is created.
+    /// </summary>
+    [StringLength(1024)]
+    public string AdminEmail { get; set; } = "[]";
 
     public DateTime CreatedOn { get; set; }
 
