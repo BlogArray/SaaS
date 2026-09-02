@@ -18,6 +18,7 @@ using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId;
+using BlogArray.SaaS.Web.Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -67,7 +68,7 @@ public static class ConfigureBlogArrayServices
 
             string userAgent = Truncate(context.HttpContext.Request.Headers.UserAgent.ToString(), 512);
             string ipAddress = Truncate(context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "", 64);
-            string deviceName = DescribeUserAgent(userAgent);
+            var uaInfo = UserAgentParser.Parse(userAgent);
 
             string? sessionId = context.Principal?.FindFirst("session_id")?.Value;
 
@@ -99,7 +100,7 @@ public static class ConfigureBlogArrayServices
             }
 
             session.SessionId = sessionId;
-            session.DeviceName = deviceName;
+            session.DeviceName = uaInfo.ToString();
             session.UserAgent = userAgent;
             session.IpAddress = ipAddress;
             session.LastSeenOn = DateTime.UtcNow;
@@ -158,63 +159,6 @@ public static class ConfigureBlogArrayServices
     private static string Truncate(string value, int maxLength)
     {
         return value.Length <= maxLength ? value : value[..maxLength];
-    }
-
-    /// <summary>
-    /// Derives a friendly device description from the raw user agent string.
-    /// </summary>
-    private static string DescribeUserAgent(string userAgent)
-    {
-        string browser = "Unknown browser";
-        string os = "Unknown OS";
-
-        if (userAgent.Contains("Edg/", StringComparison.OrdinalIgnoreCase))
-        {
-            browser = "Edge";
-        }
-        else if (userAgent.Contains("OPR/", StringComparison.OrdinalIgnoreCase) || userAgent.Contains("Opera", StringComparison.OrdinalIgnoreCase))
-        {
-            browser = "Opera";
-        }
-        else if (userAgent.Contains("Chrome/", StringComparison.OrdinalIgnoreCase))
-        {
-            browser = "Chrome";
-        }
-        else if (userAgent.Contains("Firefox/", StringComparison.OrdinalIgnoreCase))
-        {
-            browser = "Firefox";
-        }
-        else if (userAgent.Contains("Safari/", StringComparison.OrdinalIgnoreCase))
-        {
-            browser = "Safari";
-        }
-
-        if (userAgent.Contains("Windows NT", StringComparison.OrdinalIgnoreCase))
-        {
-            os = "Windows";
-        }
-        else if (userAgent.Contains("iPhone", StringComparison.OrdinalIgnoreCase) || userAgent.Contains("iPad", StringComparison.OrdinalIgnoreCase))
-        {
-            os = "iOS";
-        }
-        else if (userAgent.Contains("Android", StringComparison.OrdinalIgnoreCase))
-        {
-            os = "Android";
-        }
-        else if (userAgent.Contains("Mac OS X", StringComparison.OrdinalIgnoreCase))
-        {
-            os = "macOS";
-        }
-        else if (userAgent.Contains("CrOS", StringComparison.OrdinalIgnoreCase))
-        {
-            os = "ChromeOS";
-        }
-        else if (userAgent.Contains("Linux", StringComparison.OrdinalIgnoreCase))
-        {
-            os = "Linux";
-        }
-
-        return $"{browser} on {os}";
     }
 
     public static IHostApplicationBuilder AddBlogArrayServices(this IHostApplicationBuilder builder)

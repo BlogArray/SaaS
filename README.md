@@ -209,26 +209,109 @@ The Membership API (`api/membership`) resolves the tenant from the presented `X-
 
 ### Production Token Signing and Encryption Certificates
 
-Configure persistent X.509 certificates for the Identity application in production so tokens survive restarts and work across multiple instances. Add one of the following to the Identity application's configuration:
+The Identity application signs and encrypts tokens with X.509 certificates. Configure them per environment:
+
+- **Local development (Windows)**: self-signed certificates in the current user's certificate store, referenced by thumbprint in `appsettings.Development.json`.
+- **Production**: the same certificates imported into the server's `LocalMachine\My` store (or CA-issued certificates), referenced in the production configuration.
+
+#### Creating the certificates (Windows PowerShell)
+
+```powershell
+$notAfter = (Get-Date).AddYears(10)
+
+$signing = New-SelfSignedCertificate -Subject "CN=BlogArray.SaaS Token Signing" `
+    -FriendlyName "BlogArray.SaaS Token Signing" `
+    -KeyAlgorithm RSA -KeyLength 4096 -KeyExportPolicy Exportable `
+    -KeyUsage DigitalSignature -KeySpec Signature `
+    -NotAfter $notAfter -CertStoreLocation "Cert:\CurrentUser\My"
+
+$encryption = New-SelfSignedCertificate -Subject "CN=BlogArray.SaaS Token Encryption" `
+    -FriendlyName "BlogArray.SaaS Token Encryption" `
+    -KeyAlgorithm RSA -KeyLength 4096 -KeyExportPolicy Exportable `
+    -KeyUsage KeyEncipherment,DataEncipherment -KeySpec KeyExchange `
+    -NotAfter $notAfter -CertStoreLocation "Cert:\CurrentUser\My"
+
+"Signing:    $($signing.Thumbprint)"
+"Encryption: $($encryption.Thumbprint)"
+```
+
+Back up the certificates as PFX files (store these somewhere safe - **never commit them**):
+
+```powershell
+$certsDir = "src\Apps\BlogArray.SaaS.Identity\certs"   # this folder is gitignored
+New-Item -ItemType Directory -Force -Path $certsDir | Out-Null
+
+$passwordChars = 1..48 | ForEach-Object { '{0:x}' -f (Get-Random -Maximum 16) }
+$pfxPassword = ConvertTo-SecureString -String (-join $passwordChars) -Force -AsPlainText
+
+Export-PfxCertificate -Cert $signing    -FilePath "$certsDir\blogarray-token-signing.pfx"    -Password $pfxPassword
+Export-PfxCertificate -Cert $encryption -FilePath "$certsDir\blogarray-token-encryption.pfx" -Password $pfxPassword
+```
+
+#### Configuration
+
+Reference the certificates by thumbprint. For local development, add to `appsettings.Development.json`:
 
 ```json
 {
   "OpenIddict": {
     "SigningCertificate": {
-      "Thumbprint": "ABC123..."
+      "Thumbprint": "<signing thumbprint from above>"
     },
     "EncryptionCertificate": {
-      "Path": "certs/encryption.pfx",
-      "Password": "..."
+      "Thumbprint": "<encryption thumbprint from above>"
     }
   }
 }
 ```
 
-- `Thumbprint` searches the CurrentUser and LocalMachine `My` certificate stores.
-- `Path` + `Password` loads a PFX file.
+- `Thumbprint` searches the CurrentUser **and** LocalMachine `My` certificate stores.
+- `Path` + `Password` loads a PFX file instead (useful on servers where you prefer file-based keys).
 
 When both certificates are configured, access tokens are also encrypted. Without certificates the server falls back to ephemeral keys and prints a CRITICAL warning: tokens are invalidated on every restart and this is not safe for multi-instance deployments.
+
+#### Running the Identity app under IIS (local)
+
+The IIS application pool runs under a different account and may not see your user's `CurrentUser` store. Run **one elevated** PowerShell to make the certificates machine-wide:
+
+```powershell
+# Run this PowerShell as Administrator
+Move-Item "Cert:\CurrentUser\My\<SIGNING THUMBPRINT>"    "Cert:\LocalMachine\My"
+Move-Item "Cert:\CurrentUser\My\<ENCRYPTION THUMBPRINT>" "Cert:\LocalMachine\My"
+```
+
+(The application pool reads `LocalMachine\My` without extra permissions for standard machine keys.)
+
+#### Deploying to production servers
+
+1. Copy the two PFX backups to the server (via your secret-management process).
+2. Import them into the machine store:
+
+```powershell
+Import-PfxCertificate -FilePath .\blogarray-token-signing.pfx `
+    -CertStoreLocation Cert:\LocalMachine\My `
+    -Password (Read-Host -AsSecureString "PFX password")
+
+Import-PfxCertificate -FilePath .\blogarray-token-encryption.pfx `
+    -CertStoreLocation Cert:\LocalMachine\My `
+    -Password (Read-Host -AsSecureString "PFX password")
+```
+
+3. Grant the application pool's identity read access to the private keys:
+
+```powershell
+foreach ($thumb in @("<SIGNING THUMBPRINT>", "<ENCRYPTION THUMBPRINT>")) {
+    $cert = Get-ChildItem Cert:\LocalMachine\My | Where-Object Thumbprint -eq $thumb
+    $key = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+    $uniqueName = if ($key.Key.GetType().Name -eq "RSACng") { $key.Key.UniqueName } else { $key.CspKeyContainerInfo.UniqueKeyContainerName }
+    $folder = if ($key.Key.GetType().Name -eq "RSACng") { "$env:ProgramData\Microsoft\Crypto\SystemKeys" } else { "$env:ProgramData\Microsoft\Crypto\RSA\MachineKeys" }
+    icacls "$folder\$uniqueName" /grant "IIS_IUSRS:(R)"
+}
+```
+
+4. Fill in the thumbprints in the production configuration and restart the application.
+
+Self-signed certificates are acceptable for token signing because the relying party's trust is pinned to the certificate itself (via the `security.txt`/discovery JWKS), not to a CA chain. Renew or replace before the 10-year validity ends.
 
 ### Personnel Management Requires a Role
 
@@ -241,6 +324,8 @@ When both certificates are configured, access tokens are also encrypted. Without
 | **Password + 2FA** | Email/password sign-in with TOTP authenticator, recovery codes, or an emailed one-time code as the second factor. |
 | **Passkeys (WebAuthn)** | Full passwordless sign-in: register a passkey in *Settings → Passkeys*, then use the native browser/OS prompt (biometric/PIN) from the login page. Passkeys use discoverable credentials with required user verification and are independent of traditional 2FA and its enable/disable state. |
 | **SAML SSO (per tenant)** | Tenants with SSO enabled delegate sign-in to their own identity provider. SAML responses are validated for signature, audience, recipient, request correlation (`InResponseTo`) and expiry. |
+
+> **SAML note:** encrypted assertions are not supported. Configure the tenant identity provider to issue plain (unsigned-encryption-off) assertions; encrypted assertions are rejected with an error. Adding support is tracked in the backlog (per-tenant encryption certificate + decryption support).
 | **External/social providers** | Microsoft, Google, GitHub and Apple, each enabled via `Authentication:*:Enabled` flags. 2FA is never bypassed for social sign-ins. |
 
 All sign-ins are recorded in **Settings → Security activity**.
