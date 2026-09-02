@@ -114,6 +114,22 @@ public static class OpenIdDbContextExtensions
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<UserSession>(entity =>
+        {
+            entity.Property(userSession => userSession.Id).HasMaxLength(400);
+            entity.Property(userSession => userSession.UserId).HasMaxLength(400);
+            entity.Property(userSession => userSession.SessionId).HasMaxLength(400);
+            entity.Property(userSession => userSession.DeviceName).HasMaxLength(200);
+            entity.Property(userSession => userSession.UserAgent).HasMaxLength(512);
+            entity.Property(userSession => userSession.IpAddress).HasMaxLength(64);
+            entity.HasIndex(userSession => userSession.UserId);
+            entity.HasIndex(userSession => userSession.SessionId).IsUnique();
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(userSession => userSession.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
     }
 
     public static void AddOpenIdModifications(this ModelBuilder builder)

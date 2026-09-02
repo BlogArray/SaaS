@@ -29,6 +29,8 @@ public class OpenIdDbContext(DbContextOptions<OpenIdDbContext> options) : Identi
 
     public DbSet<WebAuthnCredential> WebAuthnCredentials { get; set; }
 
+    public DbSet<UserSession> UserSessions { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);

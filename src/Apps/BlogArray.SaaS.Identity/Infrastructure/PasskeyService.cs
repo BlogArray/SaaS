@@ -195,6 +195,6 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
     {
         string base64 = value.Replace('-', '+').Replace('_', '/');
 
-        return Convert.FromBase64String(base64.PadRight(base64.Length + ((4 - base64.Length % 4) % 4), '='));
+        return Convert.FromBase64String(base64.PadRight(base64.Length + (4 - base64.Length % 4) % 4, '='));
     }
 }

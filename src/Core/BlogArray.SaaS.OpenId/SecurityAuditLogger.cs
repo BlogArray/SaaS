@@ -27,6 +27,7 @@ public static class SecurityEventTypes
     public const string MfaDisabled = "MfaDisabled";
     public const string RecoveryCodesGenerated = "RecoveryCodesGenerated";
     public const string TrustedBrowsersRevoked = "TrustedBrowsersRevoked";
+    public const string SessionRevoked = "SessionRevoked";
     public const string ExternalLoginRemoved = "ExternalLoginRemoved";
     public const string PasskeyRegistered = "PasskeyRegistered";
     public const string PasskeyRemoved = "PasskeyRemoved";

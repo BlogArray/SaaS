@@ -1,0 +1,74 @@
+@page
+@model UserSessionsModel
+@{
+    ViewData["Title"] = "Where you're signed in";
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+}
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Where you're signed in</h3>
+        <p class="mb-0 form-text">
+            These are the devices and browsers that currently have an active session for your
+            account. Sign out any device you don't recognise, and consider changing your
+            password.
+        </p>
+    </div>
+    <div class="card-body">
+        @if (Model.Sessions.Count == 0)
+        {
+            <div class="alert alert-secondary mb-3">
+                <p class="mb-0"><i class="bi bi-clock-history me-1"></i> No active sessions recorded yet. Sign out and sign in again to start tracking this device.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive mb-3">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th scope="col">Device</th>
+                            <th scope="col">IP address</th>
+                            <th scope="col">Signed in</th>
+                            <th scope="col">Last active</th>
+                            <th scope="col" class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (UserSessionsModel.SessionEntry session in Model.Sessions)
+                        {
+                            <tr class="@(session.IsCurrent ? "table-active" : null)">
+                                <td>
+                                    @session.DeviceName
+                                    @if (session.IsCurrent)
+                                    {
+                                        <span class="badge text-bg-success ms-1">This device</span>
+                                    }
+                                </td>
+                                <td>@(session.IpAddress ?? "-")</td>
+                                <td title="@session.CreatedOn.ToUniversalTime().ToString("O")">@session.CreatedOn.ToLocalTime().ToString("g")</td>
+                                <td title="@session.LastSeenOn.ToUniversalTime().ToString("O")">@session.LastSeenOn.ToLocalTime().ToString("g")</td>
+                                <td class="text-end">
+                                    <form method="post" asp-page-handler="Revoke" class="d-inline"
+                                          onsubmit="return confirm('Sign out @session.DeviceName?');">
+                                        <input type="hidden" name="id" value="@session.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Sign out</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+
+        @if (Model.Sessions.Count(session => !session.IsCurrent) > 0)
+        {
+            <form method="post" asp-page-handler="RevokeAllOthers"
+                  onsubmit="return confirm('Sign out all other devices? Your current session stays active.');">
+                <button type="submit" class="btn btn-outline-danger">Sign out all other devices</button>
+            </form>
+        }
+    </div>
+</div>
