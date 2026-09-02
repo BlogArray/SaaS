@@ -359,6 +359,26 @@ foreach ($pool in @("BlogArray.SaaS.Identity", "BlogArray.SaaS.TenantSuite", "Bl
 
 > The key ring is machine-specific: never copy a production ring to a different machine for regular operation (it only travels together with a full machine backup/restore), and never commit `key-*.xml` files to source control.
 
+#### Azure App Service
+
+Two things change on App Service: local disk paths do not survive scale-out/redeploys the way a machine folder does, and App Service's built-in DataProtection persistence (`%HOME%\data\.aspnet\DataProtection-Keys`) is **per app** - Identity, TenantSuite and App would each get their own ring and could not decrypt each other's payloads. All three apps must therefore share one explicit store.
+
+**Option A - Azure Files mount (no code change, uses `DataProtection:KeyRingPath`):**
+
+1. Create a storage account with a file share (e.g. `dataprotection`).
+2. For each of the three App Services: **Configuration → Path mappings → New Azure File Share mount**, pointing at that share, mounted to a fixed custom path (Windows: `C:\mounts\dpkeys`; Linux: `/mnt/dpkeys`). Access is via the storage account connection configured in the mount - no `icacls` work.
+3. Set the app setting (double underscore syntax) on all three apps:
+
+```
+DataProtection__KeyRingPath = C:\mounts\dpkeys     (or /mnt/dpkeys on Linux)
+```
+
+4. Start the Identity app first; verify `key-*.xml` appears in the share. Back up the share with storage account backups/snapshots.
+
+**Option B - Azure Blob Storage + Key Vault (production-grade, requires a small code change):**
+
+`PersistKeysToAzureBlobStorage` on a single blob (same blob URI for all three apps) combined with `ProtectKeysWithAzureKeyVault`, authenticated by each app's managed identity. Needed roles: *Storage Blob Data Contributor* on the storage account and *Key Vault Crypto User* on the vault. Advantages: no mount dependency, keys encrypted at rest by Key Vault, survives slot swaps and multi-region deployments. Ask for this to be wired into `ConfigureBlogArrayServices` when needed (it is a ~10-line addition plus two packages and two settings: `DataProtection:BlobUri`, `DataProtection:KeyVaultUri`).
+
 > **Upgrade note:** deploy the commit that introduced the startup key-conversion sweep before deploying the commit that drops the legacy `APIKey` column. Jumping straight to the final schema leaves pre-existing keys without a protected copy; those tenants must rotate their API key once.
 
 ### Authentication Methods
