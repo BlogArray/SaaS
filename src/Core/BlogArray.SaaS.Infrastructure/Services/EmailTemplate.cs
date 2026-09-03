@@ -282,14 +282,14 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         html += "a, a:hover {color: #6A42C2;}";
         html += "";
         html += ".logo-container {";
-        html += "text-align: center;";
+        html += "text-align: left;";
         html += "margin-bottom: 20px;";
         html += "}";
         html += "";
         html += ".logo {";
         html += "display: inline-block;";
         html += "max-width: 100%;";
-        html += "height: auto;";
+        html += "height: 50px;";
         html += "}";
         html += "</style>";
         html += "</head>";
