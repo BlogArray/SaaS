@@ -21,11 +21,6 @@ public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string
     public string Legalname { get; set; } = default!;
 
     /// <summary>
-    /// Client Secret Not encrypted
-    /// </summary>
-    public string? ClientSecretPlain { get; set; }
-
-    /// <summary>
     /// DataProtection-protected client secret so tenant apps can still retrieve the value
     /// for their OpenID Connect handshake (the OpenIddict-stored copy is a one-way hash).
     /// </summary>
@@ -51,13 +46,8 @@ public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string
     public string? APIKeyPrefix { get; set; }
 
     /// <summary>
-    /// DB Connection string (plaintext). Legacy column: only populated by rows not yet
-    /// converted by the startup sweep; new and updated tenants store only the protected copy.
-    /// </summary>
-    public string? ConnectionString { get; set; } = default!;
-
-    /// <summary>
     /// DataProtection-protected DB connection string (encryption at rest for tenant secrets).
+    /// Plaintext exists only in memory, opened at the point of use via GetConnectionString.
     /// </summary>
     [StringLength(2048)]
     public string? ConnectionStringProtected { get; set; }

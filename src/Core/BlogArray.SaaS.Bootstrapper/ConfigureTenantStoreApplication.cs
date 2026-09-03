@@ -29,10 +29,6 @@ public static class ConfigureTenantStoreApplication
 
         IDataProtector protector = scopeServices.ServiceProvider.GetRequiredService<IDataProtector>();
 
-        // Convert any legacy plaintext tenant secrets before building the tenant list; the
-        // store then carries the protected values and opens them only in memory at use time.
-        await SecretStorageSweep.ConvertPlaintextSecretsAsync(context, protector);
-
         List<OpenIdApplication> applications = await context.Applications.ToListAsync();
 
         IMultiTenantStore<AppTenantInfo> store = scopeServices.ServiceProvider.GetRequiredService<IMultiTenantStore<AppTenantInfo>>();

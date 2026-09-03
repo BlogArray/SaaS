@@ -48,7 +48,6 @@ public class OIDCHostedService(IServiceProvider serviceProvider, ILogger<OIDCHos
 
         IDataProtector protector = scope.ServiceProvider.GetRequiredService<IDataProtector>();
         int prefixLength = scope.ServiceProvider.GetRequiredService<IConfiguration>().GetValue("ApiKey:PrefixLength", 8);
-        await SecretStorageSweep.ConvertPlaintextSecretsAsync(context, protector);
 
         foreach (BlogArray.SaaS.Identity.Models.Application app in apps.Applications)
         {

@@ -365,7 +365,7 @@ DataProtection__KeyVaultKeyId = https://<vault>.vault.azure.net/keys/dataprotect
 
 `ConfigureBlogArrayServices` fails fast at startup when `Mode` is `AzureKeyVault` but `BlobUri` is missing.
 
-> **Upgrade note:** deploy the commit that introduced the startup key-conversion sweep before deploying the commit that drops the legacy `APIKey` column. Jumping straight to the final schema leaves pre-existing keys without a protected copy; those tenants must rotate their API key once.
+> **Upgrade note:** the tenant secrets (client secret, connection string) are stored DataProtection-protected; the plaintext columns were dropped. Two-step upgrade: deploy the commit that adds the protected columns and the startup conversion sweep first, let every app start once (the sweep converts existing rows), then deploy the commit that drops the plaintext columns. Jumping straight to the final schema loses pre-existing client secrets and connection strings - re-enter them from the tenant administration screens (and rotate the API key if needed).
 
 ### Authentication Methods
 

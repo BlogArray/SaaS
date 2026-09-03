@@ -833,13 +833,11 @@ public class TenantsController(OpenIdDbContext context,
     /// </summary>
     private void SetClientSecret(OpenIdApplication entity, string plainSecret)
     {
-        entity.ClientSecretPlain = null;
         entity.ClientSecretProtected = protector.Protect(plainSecret);
     }
 
     /// <summary>
-    /// Stores the connection string protected at rest while keeping the plaintext in memory
-    /// for the current request (test-connection, tenant store build).
+    /// Stores the connection string protected at rest; plaintext is never persisted.
     /// </summary>
     private void SetConnectionString(OpenIdApplication entity, string? plainConnectionString)
     {
@@ -848,7 +846,6 @@ public class TenantsController(OpenIdDbContext context,
             return;
         }
 
-        entity.ConnectionString = plainConnectionString;
         entity.ConnectionStringProtected = protector.Protect(plainConnectionString);
     }
 

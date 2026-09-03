@@ -68,8 +68,7 @@ public class UserManagementService(OpenIdDbContext context,
             .ExecuteDeleteAsync();
 
         List<OpenIdApplication> applications = await context.Applications
-            .Where(s => tenantIds.Contains(s.Id)
-                     && (s.ConnectionStringProtected != null || (s.ConnectionString != null && s.ConnectionString != "")))
+            .Where(s => tenantIds.Contains(s.Id) && s.ConnectionStringProtected != null)
             .ToListAsync();
 
         int unassignedCount = await context.Authorizations
