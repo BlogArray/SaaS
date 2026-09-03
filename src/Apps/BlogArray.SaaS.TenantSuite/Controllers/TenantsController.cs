@@ -116,7 +116,7 @@ public class TenantsController(OpenIdDbContext context,
 
         // Deliver the credentials by email, but never let a mail failure fail the creation:
         // the secrets are also shown once in the browser so the admin can hand them over.
-        List<string> recipients = DeserializeEmailList(entity.AdminEmail);
+        List<string> recipients = DeserializeEmailList(DeserializeEmails(entity.AdminEmail));
 
         List<string> failures = SendEach(recipients, email => emailTemplate.TenantWelcome(email, entity.DisplayName, entity.TenantUrl ?? string.Empty, openIdApplication.ClientSecret!, openIdApplication.APIKey!));
 
@@ -506,7 +506,7 @@ public class TenantsController(OpenIdDbContext context,
 
             if (recipients.Count == 0)
             {
-                recipients = DeserializeEmailList(openIdApplication.AdminEmail);
+                recipients = DeserializeEmailList(DeserializeEmails(openIdApplication.AdminEmail));
             }
 
             List<string> failures = SendEach(recipients, email => emailTemplate.ApiKeyRotated(email, openIdApplication.DisplayName, rotateKeys.Key, User.Identity?.Name ?? "an administrator"));
