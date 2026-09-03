@@ -12,6 +12,7 @@ using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
@@ -23,6 +24,11 @@ namespace BlogArray.SaaS.TenantSuite.Controllers.Api;
 [ServiceFilter(typeof(ApiKeyAuthorizationFilter))]
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("api")]
 [ApiController]
+// Requests here are authenticated by the X-API-Key request header, not ambient cookies:
+// a cross-site page cannot attach a custom header to a cross-origin request, so CSRF -
+// and with it antiforgery validation - does not apply. The global antiforgery filter would
+// otherwise reject every Refit POST with a bare 400 ProblemDetails.
+[IgnoreAntiforgeryToken]
 public class MembershipController(OpenIdDbContext context,
     IUserStore<ApplicationUser> userStore,
     UserManager<ApplicationUser> userManager,
