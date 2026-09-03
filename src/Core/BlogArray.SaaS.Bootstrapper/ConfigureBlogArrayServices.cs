@@ -265,6 +265,17 @@ public static class ConfigureBlogArrayServices
             builder.Services.AddHostedService<DataProtectionKeyRingImportHostedService>();
         }
 
+        // Key lifetime: how long a generated key protects new payloads before DP rolls to a
+        // fresh one. Expiration never affects decryption - expired keys are retained in the
+        // ring indefinitely, so already-encrypted payloads keep unprotecting. Default is 90
+        // days; DataProtection:KeyLifetimeDays overrides it when set.
+        int? keyLifetimeDays = builder.Configuration.GetValue<int?>("DataProtection:KeyLifetimeDays");
+
+        if (keyLifetimeDays is > 0)
+        {
+            dataProtection.SetDefaultKeyLifetime(TimeSpan.FromDays(keyLifetimeDays.Value));
+        }
+
         dataProtection.SetApplicationName("BlogArray.SaaS");
 
         builder.Services.AddSingleton<IDataProtector>(services =>

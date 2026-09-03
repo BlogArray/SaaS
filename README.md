@@ -333,6 +333,7 @@ API keys are never stored in plaintext: validation compares a SHA-256 hash, tena
 | `DataProtection:KeyRingPath` | **Legacy import source only.** When set in `Local` mode and the folder contains key files from a previous release, the startup hosted service imports them once into the database ring and logs a warning if the table is not ready yet (it retries on next startup). Otherwise leave empty. |
 | `DataProtection:BlobUri` | Azure blob URI persisting the key ring in `AzureKeyVault` mode. See the Azure App Service section below. |
 | `DataProtection:KeyVaultKeyId` | Optional version-less Key Vault key URI encrypting the persisted ring at rest (used in `AzureKeyVault` mode). |
+| `DataProtection:KeyLifetimeDays` | Days a generated key protects new payloads before DataProtection rolls to a fresh one (default `90`). Expiration never affects decryption: expired keys stay in the ring forever, so already-protected payloads keep unprotecting. |
 
 #### The DataProtection key ring (Local mode)
 
