@@ -174,7 +174,7 @@ public static class ConfigureTenantStoreServices
         // subdomain is the tenant identifier (ClientId). The host template is configurable
         // for local development (__tenant__.localhost).
         builder.Services.AddMultiTenant<AppTenantInfo>()
-            .WithHostStrategy(builder.Configuration["MultiTenant:HostTemplate"] ?? "__tenant__.blogarray.dev")
+            .WithHostStrategy(builder.Configuration["MultiTenant:HostTemplate"] ?? throw new InvalidOperationException("MultiTenant:HostTemplate not present in config"))
             .WithRemoteAuthenticationCallbackStrategy()
             .WithDistributedCacheStore(TimeSpan.FromMinutes(5))
             .WithPerTenantAuthentication();

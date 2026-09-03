@@ -24,7 +24,7 @@
     </dd>
     <dt class="col-md-3 fw-medium">Connection string</dt>
     <dd class="col-md-9">
-        @if (Model.ConnectionString?.Length > 0)
+        @if (Model.HasConnectionString)
         {
             <span>Configured</span>
         }

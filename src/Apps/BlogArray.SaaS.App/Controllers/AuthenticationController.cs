@@ -11,7 +11,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 
 namespace BlogArray.SaaS.App.Controllers;
 
-public class AuthenticationController(IConfiguration configuration, IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor) : Controller
+public class AuthenticationController(IConfiguration configuration) : Controller
 {
     // Front-channel logout endpoint (openid-connect-frontchannel-1_0): the identity server
     // renders this URL in a hidden iframe during single sign-out, which clears the tenant's
@@ -27,8 +27,9 @@ public class AuthenticationController(IConfiguration configuration, IMultiTenant
     {
         AuthenticationProperties properties = new()
         {
-            // Only allow local return URLs to prevent open redirect attacks.
-            RedirectUri = Url.IsLocalUrl(next) ? next : $"/{multiTenantContextAccessor.MultiTenantContext.TenantInfo.Identifier}/"
+            // Only allow local return URLs to prevent open redirect attacks. Subdomain
+            // tenants live at the host root, so the default landing page is "/".
+            RedirectUri = Url.IsLocalUrl(next) ? next : "/"
         };
 
         // Ask the OpenIddict client middleware to redirect the user agent to the identity provider.
@@ -49,17 +50,17 @@ public class AuthenticationController(IConfiguration configuration, IMultiTenant
         if (result is not { Succeeded: true })
         {
             // Only allow local return URLs to prevent open redirect attacks.
-            return Redirect(Url.IsLocalUrl(next) ? next : $"/{multiTenantContextAccessor.MultiTenantContext.TenantInfo.Identifier}/");
+            return Redirect(Url.IsLocalUrl(next) ? next : "/");
         }
 
         // Remove the local authentication cookie before triggering a redirection to the remote server.
         //
-        // For scenarios where the default sign-out handler configured in the ASP.NET Core
+        // For scenarios where the default authentication handler configured in the ASP.NET Core
         // authentication options shouldn't be used, a specific scheme can be specified here.
         await HttpContext.SignOutAsync();
 
         // Ask the OpenIddict client middleware to redirect the user agent to the identity provider.
-        return SignOut(new AuthenticationProperties { RedirectUri = $"/{multiTenantContextAccessor.MultiTenantContext.TenantInfo.Identifier}/authentication/logoutsuccess" }, OpenIdConnectDefaults.AuthenticationScheme);
+        return SignOut(new AuthenticationProperties { RedirectUri = "/authentication/logoutsuccess" }, OpenIdConnectDefaults.AuthenticationScheme);
     }
 
     public ActionResult LogoutSuccess()

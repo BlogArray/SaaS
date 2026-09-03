@@ -686,7 +686,7 @@ public class TenantsController(OpenIdDbContext context,
             Legalname = entity.Legalname,
             // Never send the stored connection string (it contains credentials) back to the
             // browser; an empty field means "keep the existing value" on submit.
-            ConnectionString = null,
+            HasConnectionString = entity?.ConnectionStringProtected?.Length > 0,
             TenantUrl = entity.TenantUrl,
             Website = entity.Website,
             Description = entity.Description,
