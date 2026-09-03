@@ -1,4 +1,5 @@
 using BlogArray.SaaS.Domain.Entities;
+using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -26,10 +27,11 @@ public class ApiKeyAuthorizationFilter(OpenIdDbContext context) : IAsyncActionFi
             return;
         }
 
-        // Resolve the application that owns the presented key so the request can be
-        // constrained to that tenant. Never trust a tenant identifier supplied by the caller alone.
+        // Plaintext keys are never stored: hash the presented key and match it against the
+        // stored SHA-256 hash. Resolve the application that owns the key so the request can
+        // be constrained to that tenant; never trust a caller-supplied tenant identifier.
         OpenIdApplication? application = await context.Applications
-            .FirstOrDefaultAsync(a => a.APIKey == apiKey.ToString());
+            .FirstOrDefaultAsync(a => a.APIKeyHash == ApiKeyHasher.Hash(apiKey.ToString()));
 
         if (application is null)
         {

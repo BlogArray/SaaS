@@ -7,12 +7,15 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json;
 using BlogArray.SaaS.Application.Services;
+using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 using P.Pager;
@@ -26,8 +29,14 @@ public class TenantsController(OpenIdDbContext context,
     ITenantManagementService tenantManagementService,
     IAzureStorageService azureStorage,
     ICacheService cacheService,
-    ITenantPersonnelService personnelService) : BaseController
+    ITenantPersonnelService personnelService,
+    IDataProtector protector,
+    IConfiguration configuration,
+    IEmailTemplate emailTemplate,
+    ISecurityAuditLogger auditLogger,
+    ILogger<TenantsController> logger) : BaseController
 {
+    private readonly int _apiKeyPrefixLength = configuration.GetValue("ApiKey:PrefixLength", 8);
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
         ViewBag.SearchTerm = term;
@@ -79,6 +88,12 @@ public class TenantsController(OpenIdDbContext context,
             }
         }
 
+        if (!TrySerializeEmails(openIdApplication.AdminEmail, out string adminEmail, out string emailError))
+        {
+            ModelState.AddModelError("AdminEmail", emailError);
+            return View(openIdApplication);
+        }
+
         OpenIdApplication? entity = new();
 
         // Secrets are finalized server-side: any missing or too-short value is replaced with a
@@ -89,9 +104,30 @@ public class TenantsController(OpenIdDbContext context,
 
         MapProperties(openIdApplication, entity);
 
+        entity.AdminEmail = adminEmail;
+
+        // The plaintext API key exists only in this request (shown once in the browser and
+        // emailed); storage keeps the hash for validation and a protected copy for tenant apps.
+        SetApiKey(entity, openIdApplication.APIKey!);
+
         await manager.CreateAsync(entity, openIdApplication.ClientSecret);
 
         await AddToCache(entity);
+
+        // Deliver the credentials by email, but never let a mail failure fail the creation:
+        // the secrets are also shown once in the browser so the admin can hand them over.
+        List<string> recipients = DeserializeEmailList(DeserializeEmails(entity.AdminEmail));
+
+        List<string> failures = SendEach(recipients, email => emailTemplate.TenantWelcome(email, entity.DisplayName, entity.TenantUrl ?? string.Empty, openIdApplication.ClientSecret!, openIdApplication.APIKey!));
+
+        TempData["CreatedTenantName"] = entity.DisplayName;
+        TempData["CreatedApiKey"] = openIdApplication.APIKey;
+        TempData["CreatedClientSecret"] = openIdApplication.ClientSecret;
+
+        if (failures.Count != 0)
+        {
+            TempData["EmailFailed"] = $"The credentials could not be emailed to: {string.Join(", ", failures)}. Copy them from the dialog now - they will not be shown again.";
+        }
 
         return RedirectToAction(nameof(Index));
     }
@@ -180,7 +216,15 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
+        if (!TrySerializeEmails(openIdApplication.AdminEmail, out string adminEmail, out string emailError))
+        {
+            ModelState.AddModelError("AdminEmail", emailError);
+            return ModelStateError(ModelState);
+        }
+
         MapProperties(openIdApplication, entity);
+
+        entity.AdminEmail = adminEmail;
 
         await manager.UpdateAsync(entity);
 
@@ -393,9 +437,32 @@ public class TenantsController(OpenIdDbContext context,
         return result.Status ? JsonSuccess(result.Result) : JsonError("An error occurred while saving your information.");
     }
 
+    [HttpGet]
+    public async Task<IActionResult> RotateApiKeys(string id)
+    {
+        if (string.IsNullOrEmpty(id))
+        {
+            return NotFound();
+        }
+
+        OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+        if (openIdApplication is null)
+        {
+            return NotFound();
+        }
+
+        return PartialView("_RotateApiKeysPrompt", new RotateApiKeysPromptViewModel
+        {
+            ApplicationId = openIdApplication.Id,
+            Name = openIdApplication.DisplayName,
+            Emails = DeserializeEmails(openIdApplication.AdminEmail)
+        });
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RotateKeys(string id, string type)
+    public async Task<IActionResult> RotateKeys(string id, string type, string? emails)
     {
         if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(type))
         {
@@ -425,8 +492,29 @@ public class TenantsController(OpenIdDbContext context,
         }
         else if (type == "apikey")
         {
-            openIdApplication.APIKey = rotateKeys.Key;
+            // Hash-on-write: the plaintext key is shown once in the response and never stored.
+            SetApiKey(openIdApplication, rotateKeys.Key);
             await manager.UpdateAsync(openIdApplication);
+
+            await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.ApiKeyRotated,
+                $"{openIdApplication.DisplayName} ({openIdApplication.ClientId})");
+
+            // Email the new key to the addresses chosen in the rotation prompt, falling back
+            // to the stored tenant admin emails. A mail failure never fails the rotation: the
+            // new key is shown once in the response dialog.
+            List<string> recipients = DeserializeEmailList(emails);
+
+            if (recipients.Count == 0)
+            {
+                recipients = DeserializeEmailList(DeserializeEmails(openIdApplication.AdminEmail));
+            }
+
+            List<string> failures = SendEach(recipients, email => emailTemplate.ApiKeyRotated(email, openIdApplication.DisplayName, rotateKeys.Key, User.Identity?.Name ?? "an administrator"));
+
+            if (failures.Count != 0)
+            {
+                rotateKeys.EmailError = $"The new key could not be emailed to: {string.Join(", ", failures)}. Copy it now - it will not be shown again.";
+            }
         }
 
         await AddToCache(openIdApplication);
@@ -601,7 +689,86 @@ public class TenantsController(OpenIdDbContext context,
             //Permissions = entity.Permissions != null ? JsonSerializer.Deserialize<List<string>>(entity.Permissions) : [],
             RedirectUri = entity.RedirectUris != null ? string.Join(",", JsonSerializer.Deserialize<string[]>(entity.RedirectUris)) : "",
             PostLogoutRedirectUri = entity.PostLogoutRedirectUris != null ? string.Join(",", JsonSerializer.Deserialize<string[]>(entity.PostLogoutRedirectUris)) : "",
+            AdminEmail = DeserializeEmails(entity.AdminEmail),
         };
+    }
+
+    /// <summary>
+    /// Deserializes the stored JSON email array to a comma-joined string for the choices UI.
+    /// </summary>
+    private static string DeserializeEmails(string? serialized)
+    {
+        return serialized != null ? string.Join(",", JsonSerializer.Deserialize<string[]>(serialized) ?? []) : "";
+    }
+
+    /// <summary>
+    /// Parses a comma-joined email list (from the choices UI) into distinct, trimmed entries.
+    /// </summary>
+    private static List<string> DeserializeEmailList(string? joined)
+    {
+        return (joined ?? string.Empty)
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Sends the same notification to every recipient. A failure for one address is logged
+    /// and reported to the caller but never thrown: credential delivery must not break the
+    /// tenant operation, and the secrets are always shown once in the browser as fallback.
+    /// </summary>
+    private List<string> SendEach(List<string> recipients, Action<string> send)
+    {
+        List<string> failures = [];
+
+        foreach (string recipient in recipients)
+        {
+            try
+            {
+                send(recipient);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to send notification email to {Recipient}.", recipient);
+                failures.Add(recipient);
+            }
+        }
+
+        return failures;
+    }
+
+    /// <summary>
+    /// Validates the comma-joined admin email list and serializes it for storage. Returns
+    /// false with an error message when the list is empty or contains invalid addresses.
+    /// </summary>
+    private static bool TrySerializeEmails(string? joined, out string serialized, out string error)
+    {
+        var emails = (joined ?? string.Empty)
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        EmailAddressAttribute validator = new();
+
+        var invalid = emails.Where(email => !validator.IsValid(email)).ToList();
+
+        if (emails.Count == 0)
+        {
+            serialized = "[]";
+            error = "Add at least one admin email.";
+            return false;
+        }
+
+        if (invalid.Count != 0)
+        {
+            serialized = "[]";
+            error = $"Invalid email address(es): {string.Join(", ", invalid)}";
+            return false;
+        }
+
+        serialized = JsonSerializer.Serialize(emails);
+        error = string.Empty;
+        return true;
     }
 
     private void MapProperties(CreateApplicationViewModel model, OpenIdApplication entity)
@@ -613,7 +780,7 @@ public class TenantsController(OpenIdDbContext context,
         entity.ClientId = model.ClientId;
         entity.ClientSecretPlain = model.ClientSecret;
         entity.ConnectionString = model.ConnectionString;
-        entity.APIKey = model.APIKey;
+        entity.AdminEmail = JsonSerializer.Serialize((model.AdminEmail ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
         entity.TenantUrl = model.TenantUrl;
         entity.Theme = new ThemeConfiguration
         {
@@ -645,6 +812,7 @@ public class TenantsController(OpenIdDbContext context,
         entity.DisplayName = model.DisplayName;
         entity.Legalname = model.Legalname;
         entity.Description = model.Description;
+        entity.TenantUrl = model.TenantUrl;
         // The connection string is never rendered back to the browser: an empty value means
         // "keep the existing connection string" rather than clearing it.
         if (!string.IsNullOrWhiteSpace(model.ConnectionString))
@@ -653,6 +821,7 @@ public class TenantsController(OpenIdDbContext context,
         }
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
+        entity.AdminEmail = JsonSerializer.Serialize((model.AdminEmail ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
         //entity.Permissions = JsonSerializer.Serialize(model.Permissions);
         entity.RedirectUris = string.IsNullOrEmpty(model.RedirectUri) ? null : JsonSerializer.Serialize(model.RedirectUri.Split(","));
         entity.PostLogoutRedirectUris = string.IsNullOrEmpty(model.PostLogoutRedirectUri) ? null : JsonSerializer.Serialize(model.PostLogoutRedirectUri.Split(","));
@@ -665,6 +834,18 @@ public class TenantsController(OpenIdDbContext context,
     private static string FinalizeSecret(string? value)
     {
         return !string.IsNullOrWhiteSpace(value) && value.Length >= 32 ? value : Convert.ToHexString(RandomNumberGenerator.GetBytes(16)).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Stores the API key without plaintext: SHA-256 hash for validation, a
+    /// DataProtection-protected copy for tenant apps to retrieve and send, and a short
+    /// display prefix. The plaintext lives only in the current request.
+    /// </summary>
+    private void SetApiKey(OpenIdApplication entity, string plainKey)
+    {
+        entity.APIKeyHash = ApiKeyHasher.Hash(plainKey);
+        entity.APIKeyProtected = protector.Protect(plainKey);
+        entity.APIKeyPrefix = ApiKeyHasher.GetPrefix(plainKey, _apiKeyPrefixLength);
     }
 
     private void SetOptions()
@@ -692,7 +873,7 @@ public class TenantsController(OpenIdDbContext context,
             Favicon = openIdApplication.Theme.Favicon,
             Logo = openIdApplication.Theme.Logo,
             PrimaryColor = openIdApplication.Theme.PrimaryColor,
-            APIKey = openIdApplication.APIKey,
+            APIKey = openIdApplication.APIKeyProtected is null ? null : protector.Unprotect(openIdApplication.APIKeyProtected),
             ClientSecretPlain = openIdApplication.ClientSecretPlain
         };
 

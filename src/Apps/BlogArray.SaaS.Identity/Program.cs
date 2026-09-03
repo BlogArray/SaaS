@@ -42,7 +42,7 @@ builder.AddAspIdentity<SignInManagerExtension<ApplicationUser>>();
 // WebAuthn (passkeys): the relying party is this identity server. The origin must match the
 // HTTPS origin the browser sees (Links:Issuer), the domain is its host.
 string fido2Origin = Configuration.GetValue<string>("Links:Issuer")
-    ?? (builder.Environment.IsDevelopment() ? "https://localhost" : "https://www.id.blogarray.dev");
+    ?? (builder.Environment.IsDevelopment() ? "https://localhost" : "https://id.blogarray.dev");
 
 Uri fido2OriginUri = new(fido2Origin);
 

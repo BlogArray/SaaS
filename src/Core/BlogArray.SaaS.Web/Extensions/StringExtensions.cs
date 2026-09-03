@@ -38,7 +38,7 @@ public static class StringExtensions
     /// </summary>
     /// <param name="queryString">
     /// The query string containing the parameters. 
-    /// Example: "/connect/authorize?client_id=tenantsuite&redirect_uri=https%3A%2F%2Fwww.console.blogarray.dev%2Fsignin-oidc"
+    /// Example: "/connect/authorize?client_id=tenantsuite&redirect_uri=https%3A%2F%2Fconsole.blogarray.dev%2Fsignin-oidc"
     /// </param>
     /// <param name="key">The key whose value you want to extract (e.g., "client_id").</param>
     /// <returns>
@@ -46,7 +46,7 @@ public static class StringExtensions
     /// </returns>
     /// <example>
     /// <code>
-    /// string queryString = "/connect/authorize?client_id=tenantsuite&redirect_uri=https%3A%2F%2Fwww.console.blogarray.dev%2Fsignin-oidc";
+    /// string queryString = "/connect/authorize?client_id=tenantsuite&redirect_uri=https%3A%2F%2Fconsole.blogarray.dev%2Fsignin-oidc";
     /// string value = QueryStringHelper.GetParam(queryString, "client_id");
     /// Console.WriteLine(value); // Output: tenantsuite
     /// </code>

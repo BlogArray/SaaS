@@ -13,6 +13,10 @@
 # Token signing/encryption PFX files and passwords (private keys - never commit)
 src/Apps/BlogArray.SaaS.Identity/certs/
 
+# OpenIddict client seeding file (contains environment-specific client secrets - never
+# commit; copy OpenIddictApplications.template.json to OpenIddictApplications.json locally)
+src/Apps/BlogArray.SaaS.Identity/OpenIddictApplications.json
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

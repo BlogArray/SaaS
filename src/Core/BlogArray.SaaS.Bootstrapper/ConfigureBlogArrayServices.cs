@@ -21,6 +21,7 @@ using BlogArray.SaaS.OpenId;
 using BlogArray.SaaS.Web.Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -207,6 +208,78 @@ public static class ConfigureBlogArrayServices
         });
 
         builder.Services.AddSingleton<IEmailTemplate, EmailTemplate>();
+
+        // Shared DataProtection key ring: every app in the suite (Identity, TenantSuite, App)
+        // uses the same application name and persisted key ring so payloads protected by one
+        // app (e.g. tenant API keys) can be unprotected by another. DataProtection:Mode picks
+        // the persistence location:
+        //   Local         - the master database (DataProtectionKeys table): the ring is backed
+        //                   up with the DB and survives machine loss. KeyRingPath, when set,
+        //                   only acts as a one-time import source for legacy file-based rings
+        //                   (see DataProtectionKeyRingImportHostedService).
+        //   AzureKeyVault - Azure App Service / multi-instance: persists to the blob at
+        //                   DataProtection:BlobUri (SAS URI or managed identity) and optionally
+        //                   encrypts the ring at rest with DataProtection:KeyVaultKeyId.
+        IDataProtectionBuilder dataProtection = builder.Services.AddDataProtection();
+
+        string? mode = builder.Configuration["DataProtection:Mode"];
+        string? keyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
+        string? blobUri = builder.Configuration["DataProtection:BlobUri"];
+        string? keyVaultKeyId = builder.Configuration["DataProtection:KeyVaultKeyId"];
+
+        if (string.Equals(mode, "AzureKeyVault", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrEmpty(blobUri))
+            {
+                throw new InvalidOperationException(
+                    "DataProtection:Mode is AzureKeyVault but DataProtection:BlobUri is not set. Set it to a blob URI (with SAS token, or plain for managed identity).");
+            }
+
+            Uri blobKeyUri = new(blobUri);
+
+            // A URI carrying a SAS token authenticates itself; a plain blob URI is resolved
+            // with managed identity (DefaultAzureCredential).
+            if (!string.IsNullOrEmpty(blobKeyUri.Query))
+            {
+                dataProtection.PersistKeysToAzureBlobStorage(blobKeyUri);
+            }
+            else
+            {
+                dataProtection.PersistKeysToAzureBlobStorage(blobKeyUri, new Azure.Identity.DefaultAzureCredential());
+            }
+
+            if (!string.IsNullOrEmpty(keyVaultKeyId))
+            {
+                dataProtection.ProtectKeysWithAzureKeyVault(new Uri(keyVaultKeyId), new Azure.Identity.DefaultAzureCredential());
+            }
+        }
+        else
+        {
+            // Local mode: the ring lives in the master database, shared by all three apps and
+            // backed up with the regular database backups. The DataProtectionKeys table is
+            // created by the AddDataProtectionKeys migration (EnsureCreated covers new DBs).
+            dataProtection.PersistKeysToDbContext<OpenIdDbContext>();
+
+            // One-time migration path: import a legacy file-based ring (previous releases
+            // persisted to DataProtection:KeyRingPath) before anything protects new payloads.
+            builder.Services.AddHostedService<DataProtectionKeyRingImportHostedService>();
+        }
+
+        // Key lifetime: how long a generated key protects new payloads before DP rolls to a
+        // fresh one. Expiration never affects decryption - expired keys are retained in the
+        // ring indefinitely, so already-encrypted payloads keep unprotecting. Default is 90
+        // days; DataProtection:KeyLifetimeDays overrides it when set.
+        int? keyLifetimeDays = builder.Configuration.GetValue<int?>("DataProtection:KeyLifetimeDays");
+
+        if (keyLifetimeDays is > 0)
+        {
+            dataProtection.SetDefaultKeyLifetime(TimeSpan.FromDays(keyLifetimeDays.Value));
+        }
+
+        dataProtection.SetApplicationName("BlogArray.SaaS");
+
+        builder.Services.AddSingleton<IDataProtector>(services =>
+            services.GetRequiredService<IDataProtectionProvider>().CreateProtector("BlogArray.TenantApiKeys"));
         builder.Services.AddSingleton<IEmailHelper, EmailHelper>();
         builder.Services.AddSingleton<IAzureStorageService, AzureStorageService>();
         builder.Services.AddSingleton<ICacheService, CacheService>();

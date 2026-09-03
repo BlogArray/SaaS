@@ -8,17 +8,31 @@
 //
 
 using System.Text.Json;
+using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Identity.Models;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OpenIddict.Core;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace BlogArray.SaaS.Identity.HostedServices;
 
-public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedService
+public class OIDCHostedService(IServiceProvider serviceProvider, ILogger<OIDCHostedService> logger) : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         string filePath = Path.Combine(Directory.GetCurrentDirectory(), "OpenIddictApplications.json");
+
+        // The seeding file is environment-specific (it carries client secrets) and is not
+        // committed: fresh clones copy OpenIddictApplications.template.json. Absence is a
+        // valid state - skip seeding instead of failing startup.
+        if (!File.Exists(filePath))
+        {
+            logger.LogWarning(
+                "OpenIddictApplications.json was not found. Skipping OpenIddict client seeding. Copy OpenIddictApplications.template.json to OpenIddictApplications.json to enable it.");
+            return;
+        }
 
         string json = File.ReadAllText(filePath);
 
@@ -31,6 +45,9 @@ public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedServic
 
         OpenIddictApplicationManager<OpenIdApplication> manager = scope.ServiceProvider.GetRequiredService<OpenIddictApplicationManager<OpenIdApplication>>();
         OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager = scope.ServiceProvider.GetRequiredService<OpenIddictAuthorizationManager<OpenIdAuthorization>>();
+
+        IDataProtector protector = scope.ServiceProvider.GetRequiredService<IDataProtector>();
+        int prefixLength = scope.ServiceProvider.GetRequiredService<IConfiguration>().GetValue("ApiKey:PrefixLength", 8);
 
         foreach (BlogArray.SaaS.Identity.Models.Application app in apps.Applications)
         {
@@ -48,8 +65,13 @@ public class OIDCHostedService(IServiceProvider serviceProvider) : IHostedServic
                     Description = app.DisplayName,
                     CreatedOn = new DateTime(2024, 11, 8, 7, 23, 2, 837, DateTimeKind.Utc).AddTicks(2866),
                     Legalname = app.DisplayName,
+                    TenantUrl = app.TenantUrl,
                     ClientSecretPlain = app.ClientSecret,
-                    APIKey = app.ClientSecret,
+                    // Seeded keys go straight to the hashed storage model: hash for API
+                    // validation, protected copy for tenant apps, prefix for display.
+                    APIKeyHash = ApiKeyHasher.Hash(app.ClientSecret),
+                    APIKeyProtected = protector.Protect(app.ClientSecret),
+                    APIKeyPrefix = ApiKeyHasher.GetPrefix(app.ClientSecret, prefixLength),
                     ClientType = ClientTypes.Confidential,
                     ConsentType = ConsentTypes.External,
                     RedirectUris = JsonSerializer.Serialize(new List<string>

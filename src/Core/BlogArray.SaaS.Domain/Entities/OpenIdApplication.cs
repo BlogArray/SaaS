@@ -26,9 +26,22 @@ public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string
     public string ClientSecretPlain { get; set; } = default!;
 
     /// <summary>
-    /// Api Key for authentication
+    /// SHA-256 hex hash of the API key; validation compares hashes, never plaintext.
     /// </summary>
-    public string? APIKey { get; set; } = default!;
+    [StringLength(64)]
+    public string? APIKeyHash { get; set; }
+
+    /// <summary>
+    /// DataProtection-protected API key so tenant apps can still retrieve the value to send.
+    /// </summary>
+    [StringLength(1024)]
+    public string? APIKeyProtected { get; set; }
+
+    /// <summary>
+    /// Leading characters of the API key for display only; length configured via ApiKey:PrefixLength.
+    /// </summary>
+    [StringLength(16)]
+    public string? APIKeyPrefix { get; set; }
 
     /// <summary>
     /// DB Connection string
@@ -73,9 +86,13 @@ public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string
 
     public TenantSecurityConfiguration Security { get; set; } = default!;
 
-    public string? AdminId { get; set; }
-
-    public ApplicationUser? Admin { get; set; }
+    /// <summary>
+    /// Tenant administrator contact emails as a JSON string array (choices UI); the first
+    /// entry is the default recipient for tenant credentials. Decoupled from Identity users:
+    /// an admin account may not exist when the tenant is created.
+    /// </summary>
+    [StringLength(1024)]
+    public string AdminEmail { get; set; } = "[]";
 
     public DateTime CreatedOn { get; set; }
 

@@ -35,6 +35,10 @@ public interface IEmailTemplate
     void Invite(string toEmail, string name, string org, string orgUrl, string invitedBy);
 
     void TwoFactorCode(string toEmail, string name, string code);
+
+    void TenantWelcome(string toEmail, string tenantName, string tenantUrl, string clientSecret, string apiKey);
+
+    void ApiKeyRotated(string toEmail, string tenantName, string apiKey, string rotatedBy);
 }
 
 public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuration) : IEmailTemplate
@@ -189,6 +193,41 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     }
 
 
+    public void TenantWelcome(string toEmail, string tenantName, string tenantUrl, string clientSecret, string apiKey)
+    {
+        string template = $"Hey there!{newLine}" +
+            $"The tenant {Encode(tenantName)} has been created and you are listed as its administrator.{newLine}" +
+            $"Keep the credentials below safe - they will not be shown or sent again:{newLine}" +
+            $"Client secret:{MakeSecretBox(clientSecret)}" +
+            $"API key:{MakeSecretBox(apiKey)}" +
+            $"The tenant is available at {MakeLink(tenantUrl, tenantUrl)}.{newLine}" +
+            $"If you were not expecting this email, please contact our support team immediately.{newLine}" +
+            $"Thank you for choosing App.";
+
+        string body = GenerateEmail(tenantName, template);
+
+        Send(toEmail, $"Your tenant {Encode(tenantName)} is ready - App", body);
+    }
+
+    public void ApiKeyRotated(string toEmail, string tenantName, string apiKey, string rotatedBy)
+    {
+        string template = $"Hey there!{newLine}" +
+            $"The API key for the tenant {Encode(tenantName)} has been rotated by {Encode(rotatedBy)} on {DateTime.UtcNow} UTC.{newLine}" +
+            $"The previous API key is no longer valid. Use the new API key below - it will not be shown or sent again:{newLine}" +
+            $"{MakeSecretBox(apiKey)}" +
+            $"If you did not request this change, please contact our support team immediately.{newLine}" +
+            $"Thank you for choosing App.";
+
+        string body = GenerateEmail(tenantName, template);
+
+        Send(toEmail, $"The API key for {Encode(tenantName)} has been rotated - App", body);
+    }
+
+    private static string MakeSecretBox(string secret)
+    {
+        return $"<div style=\"font-family:Consolas,monospace;font-size:14px;padding:10px;background-color:#f5f5f5;border-radius:6px;word-break:break-all;margin:6px 0 12px 0;\">{Encode(secret)}</div>";
+    }
+
     private static string Encode(string value) => HtmlEncoder.Default.Encode(value ?? string.Empty);
 
     private static string MakeLink(string link, string name) => $"<a href=\"{HtmlEncoder.Default.Encode(link)}\">{Encode(name)}</a>";
@@ -243,14 +282,14 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         html += "a, a:hover {color: #6A42C2;}";
         html += "";
         html += ".logo-container {";
-        html += "text-align: center;";
+        html += "text-align: left;";
         html += "margin-bottom: 20px;";
         html += "}";
         html += "";
         html += ".logo {";
         html += "display: inline-block;";
         html += "max-width: 100%;";
-        html += "height: auto;";
+        html += "height: 50px;";
         html += "}";
         html += "</style>";
         html += "</head>";

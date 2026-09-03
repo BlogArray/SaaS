@@ -19,7 +19,6 @@
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="ClientId" />
-            <input type="hidden" asp-for="TenantUrl" />
             <div class="mb-3">
                 <label asp-for="DisplayName" class="form-label">Display name</label>
                 <input asp-for="DisplayName" class="form-control" />
@@ -29,6 +28,14 @@
                 <label asp-for="Legalname" class="form-label">Legal name</label>
                 <input asp-for="Legalname" class="form-control" />
                 <span asp-validation-for="Legalname" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="TenantUrl" class="form-label">Tenant Url</label>
+                <input asp-for="TenantUrl" class="form-control" />
+                <div class="form-text">
+                    Client Id is used to determine tenant. Example: If Client Id is "site1", the tenant URL prefix is "https://example.com/site1".
+                </div>
+                <span asp-validation-for="TenantUrl" class="text-danger"></span>
             </div>
             <div class="mb-3">
                 <label asp-for="ConnectionString" class="form-label">Connection string</label>
@@ -47,6 +54,14 @@
                 <label asp-for="Description" class="form-label"></label>
                 <textarea asp-for="Description" class="form-control"></textarea>
                 <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="AdminEmail" class="form-label">Admin emails</label>
+                <input type="text" asp-for="AdminEmail" class="form-control" placeholder="admin@example.com" />
+                <div class="form-text">
+                    Tenant administrator email addresses. Tenant credentials (client secret and API key) are sent here when rotated.
+                </div>
+                <span asp-validation-for="AdminEmail" class="text-danger"></span>
             </div>
             <div class="mb-3">
                 <label asp-for="RedirectUri" class="form-label">Redirect Uris</label>
@@ -79,7 +94,7 @@
 }
 
 <script>
-    var redirectUrlChoice, postLogoutUriChoice;
+    var redirectUrlChoice, postLogoutUriChoice, adminEmailChoice;
 
     $(document).ready(function () {
         Unobtrusive.reInit($("#saveTenantForm"));
@@ -115,6 +130,23 @@
             }
             const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
             const expression = new RegExp(urlRegex.source, 'i');
+            return expression.test(value);
+          }
+        });
+        adminEmailChoice = new Choices('#AdminEmail', {
+            placeholderValue: 'Please enter admin email',
+            allowHTML: false,
+            allowHtmlUserInput: false,
+            editItems: true,
+            duplicateItemsAllowed: false,
+            uniqueItemText: 'Only unique email addresses can be added',
+            customAddItemText: 'Enter a valid email address',
+            addItemFilter: function (value) {
+            if (!value) {
+              return false;
+            }
+            const emailRegex = /^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/;
+            const expression = new RegExp(emailRegex.source, 'i');
             return expression.test(value);
           }
         });

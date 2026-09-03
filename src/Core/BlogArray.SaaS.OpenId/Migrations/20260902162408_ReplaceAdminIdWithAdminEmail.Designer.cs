@@ -4,6 +4,7 @@ using BlogArray.SaaS.OpenId;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlogArray.SaaS.OpenId.Migrations
 {
     [DbContext(typeof(OpenIdDbContext))]
-    partial class OpenIdDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260902162408_ReplaceAdminIdWithAdminEmail")]
+    partial class ReplaceAdminIdWithAdminEmail
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -231,17 +234,8 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("nvarchar(450)");
 
-                    b.Property<string>("APIKeyHash")
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<string>("APIKeyPrefix")
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)");
-
-                    b.Property<string>("APIKeyProtected")
-                        .HasMaxLength(1024)
-                        .HasColumnType("nvarchar(1024)");
+                    b.Property<string>("APIKey")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("AdminEmail")
                         .IsRequired()
@@ -348,10 +342,6 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         .HasColumnType("nvarchar(512)");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("APIKeyHash")
-                        .IsUnique()
-                        .HasFilter("[APIKeyHash] IS NOT NULL");
 
                     b.HasIndex("ClientId")
                         .IsUnique()
@@ -673,25 +663,6 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("WebAuthnCredentials");
-                });
-
-            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("FriendlyName")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Xml")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("DataProtectionKeys");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

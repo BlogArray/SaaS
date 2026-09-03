@@ -197,7 +197,12 @@ The seeded `admin@blogarray.net` Superuser account ships **without a password** 
 
 ### OpenIddictApplications.json Seeding
 
-The Identity application seeds OIDC clients from `OpenIddictApplications.json`. This file is committed with your repository so deployments seed consistently, but the `ClientSecret` values in it must be treated as environment-specific credentials:
+The Identity application seeds OIDC clients from `OpenIddictApplications.json`. This file is **not committed** (it carries environment-specific client secrets and is gitignored) - copy the tracked template on a fresh clone:
+
+- `cp src/Apps/BlogArray.SaaS.Identity/OpenIddictApplications.template.json src/Apps/BlogArray.SaaS.Identity/OpenIddictApplications.json`
+- When the file is absent, seeding is skipped with a startup warning instead of failing.
+
+Credential handling:
 
 - Keep development secrets only in this file - never reuse them in production.
 - When `ClientSecret` is omitted, a cryptographically random secret and API key are generated server-side at seeding time (retrieve them from the tenant administration console).
@@ -316,6 +321,52 @@ Self-signed certificates are acceptable for token signing because the relying pa
 ### Personnel Management Requires a Role
 
 `PersonnelsController` in `BlogArray.SaaS.App` (which creates identity users and grants tenant access) now requires the `TenantAdmin` or `Superuser` role. Grant users the `TenantAdmin` role in the tenant suite before they can manage personnel.
+
+### Tenant API Keys
+
+API keys are never stored in plaintext: validation compares a SHA-256 hash, tenant apps read a DataProtection-protected copy, and only a short display prefix is shown in the admin UI. Tenant credentials (client secret and API key) are emailed to the tenant admin addresses on creation and on API key rotation; a delivery failure never blocks the operation because the secrets are also shown once in the browser.
+
+| Setting | Purpose |
+|---|---|
+| `ApiKey:PrefixLength` | Number of leading key characters kept for display (default `8`). Change per environment without affecting already-stored keys. |
+| `DataProtection:Mode` | `Local` (self-hosted/IIS, ring persisted in the master database) or `AzureKeyVault` (App Service/multi-instance, uses `BlobUri` plus optional `KeyVaultKeyId`). |
+| `DataProtection:KeyRingPath` | **Legacy import source only.** When set in `Local` mode and the folder contains key files from a previous release, the startup hosted service imports them once into the database ring and logs a warning if the table is not ready yet (it retries on next startup). Otherwise leave empty. |
+| `DataProtection:BlobUri` | Azure blob URI persisting the key ring in `AzureKeyVault` mode. See the Azure App Service section below. |
+| `DataProtection:KeyVaultKeyId` | Optional version-less Key Vault key URI encrypting the persisted ring at rest (used in `AzureKeyVault` mode). |
+| `DataProtection:KeyLifetimeDays` | Days a generated key protects new payloads before DataProtection rolls to a fresh one (default `90`). Expiration never affects decryption: expired keys stay in the ring forever, so already-protected payloads keep unprotecting. |
+
+#### The DataProtection key ring (Local mode)
+
+In `Local` mode the ring is stored in the master database's `DataProtectionKeys` table (created by the `AddDataProtectionKeys` migration; `EnsureCreated` covers brand-new databases). There is **no key file to create and no folder/ACL setup**: the ring is generated automatically on first use, is shared by all three apps through the shared database, and is backed up together with the regular database backups. DataProtection rotates keys automatically every 90 days and keeps the old ones for decryption, so backups stay valid across rotations.
+
+> Previously the ring lived in a per-machine folder (`DataProtection:KeyRingPath`). That path is now a **one-time import source**: set it to the old folder on the first startup after upgrading and the hosted service imports the legacy keys into the database, after which the folder can be archived. Losing the database is the only remaining loss scenario - the standard database backup covers it.
+
+#### Azure App Service
+
+App Service's built-in DataProtection persistence (`%HOME%\data\.aspnet\DataProtection-Keys`) is **per app** - Identity, TenantSuite and App would each get their own ring and could not decrypt each other's payloads. All three apps must therefore share one explicit store.
+
+**Recommended - `Mode: Local` (database ring, zero extra infrastructure):**
+
+All three apps already share the master database, so the `DataProtectionKeys` table is a shared, backed-up ring out of the box on App Service. Just leave `DataProtection:Mode` at `Local` (or set `DataProtection__Mode = Local`) - no mounts, no blob, no Key Vault. Back up the database as usual.
+
+**Optional - `Mode: AzureKeyVault` (ring outside the database, encrypted by Key Vault):**
+
+1. Create a storage account blob container (e.g. `dataprotection`) and a Key Vault key (version-less).
+2. Choose authentication:
+   - **Managed identity**: enable a system-assigned identity on all three App Services and grant each *Storage Blob Data Contributor* on the storage account and *Key Vault Crypto User* on the vault. Set `DataProtection__BlobUri` to the plain blob URI (e.g. `https://<account>.blob.core.windows.net/dataprotection/keys.xml`).
+   - **SAS**: set `DataProtection__BlobUri` to the blob URI with a SAS token in its query string (no roles needed).
+3. Optional but recommended - set `DataProtection__KeyVaultKeyId` to the version-less key URI (e.g. `https://<vault>.vault.azure.net/keys/dataprotection`) so keys are encrypted at rest with Key Vault.
+4. Set the app settings on all three apps:
+
+```
+DataProtection__Mode          = AzureKeyVault
+DataProtection__BlobUri       = https://<account>.blob.core.windows.net/dataprotection/keys.xml
+DataProtection__KeyVaultKeyId = https://<vault>.vault.azure.net/keys/dataprotection
+```
+
+`ConfigureBlogArrayServices` fails fast at startup when `Mode` is `AzureKeyVault` but `BlobUri` is missing.
+
+> **Upgrade note:** deploy the commit that introduced the startup key-conversion sweep before deploying the commit that drops the legacy `APIKey` column. Jumping straight to the final schema leaves pre-existing keys without a protected copy; those tenants must rotate their API key once.
 
 ### Authentication Methods
 

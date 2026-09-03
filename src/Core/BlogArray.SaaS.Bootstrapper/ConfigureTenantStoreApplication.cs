@@ -8,9 +8,13 @@
 //
 
 using BlogArray.SaaS.Domain.DTOs;
+using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.OpenId;
 using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BlogArray.SaaS.Bootstrapper;
@@ -23,29 +27,35 @@ public static class ConfigureTenantStoreApplication
 
         OpenIdDbContext context = scopeServices.ServiceProvider.GetRequiredService<OpenIdDbContext>();
 
-        IQueryable<AppTenantInfo> tenants = context.Applications.Select(a => new AppTenantInfo
-        {
-            Id = a.Id,
-            Identifier = a.ClientId,
-            Name = a.DisplayName,
-            Legalname = a.Legalname,
-            ConnectionString = a.ConnectionString,
-            Website = a.Website,
-            Favicon = a.Theme.Favicon,
-            Logo = a.Theme.Logo,
-            PrimaryColor = a.Theme.PrimaryColor,
-            APIKey = a.APIKey,
-            ClientSecretPlain = a.ClientSecretPlain
-        });
+        IDataProtector protector = scopeServices.ServiceProvider.GetRequiredService<IDataProtector>();
+
+        List<OpenIdApplication> applications = await context.Applications.ToListAsync();
 
         IMultiTenantStore<AppTenantInfo> store = scopeServices.ServiceProvider.GetRequiredService<IMultiTenantStore<AppTenantInfo>>();
 
-        foreach (AppTenantInfo? tenant in tenants)
+        foreach (OpenIdApplication a in applications)
         {
+            AppTenantInfo tenant = new()
+            {
+                Id = a.Id,
+                Identifier = a.ClientId,
+                Name = a.DisplayName,
+                Legalname = a.Legalname,
+                ConnectionString = a.ConnectionString,
+                Website = a.Website,
+                Favicon = a.Theme.Favicon,
+                Logo = a.Theme.Logo,
+                PrimaryColor = a.Theme.PrimaryColor,
+                // The store never persists the plaintext key: the protected copy is opened
+                // only here, in memory, for TenantApiKeyHandler to send on API calls.
+                APIKey = a.APIKeyProtected is null ? null : protector.Unprotect(a.APIKeyProtected),
+                ClientSecretPlain = a.ClientSecretPlain
+            };
+
             //tenant.ChallengeScheme = "OpenIdConnect";
             //tenant.OpenIdConnectClientId = tenant.Identifier;
             //tenant.OpenIdConnectClientSecret = tenant.ClientSecretPlain;
-            //tenant.OpenIdConnectAuthority = "https://www.id.blogarray.dev/";
+            //tenant.OpenIdConnectAuthority = "https://id.blogarray.dev/";
             //tenant.OpenIdConnectResponseType = "code";
             await store.AddAsync(tenant);
         }

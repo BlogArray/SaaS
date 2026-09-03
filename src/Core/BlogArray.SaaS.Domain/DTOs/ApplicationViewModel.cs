@@ -50,6 +50,14 @@ public class ApplicationViewModel
     [DataType(DataType.Url)]
     public string PostLogoutRedirectUri { get; set; } = default!;
 
+    /// <summary>
+    /// Comma-joined tenant administrator emails (choices UI, same pattern as RedirectUris);
+    /// stored as a JSON string array. At least one valid address is required.
+    /// </summary>
+    [Required(AllowEmptyStrings = false, ErrorMessage = "Add at least one admin email.")]
+    [StringLength(1024)]
+    public string AdminEmail { get; set; } = default!;
+
     //public List<string> Permissions { get; set; } = [];
 
     public string? ConnectionString { get; set; } = default!;
@@ -99,6 +107,24 @@ public class RotateKeysViewModel
     public string Name { get; set; } = default!;
 
     public string Key { get; set; } = default!;
+
+    /// <summary>
+    /// Set when the notification email could not be delivered; the dialog urges the admin to
+    /// copy the key since it will not be shown again.
+    /// </summary>
+    public string? EmailError { get; set; }
+}
+
+public class RotateApiKeysPromptViewModel
+{
+    public string ApplicationId { get; set; } = default!;
+
+    public string Name { get; set; } = default!;
+
+    /// <summary>
+    /// Comma-joined recipient emails (choices UI), pre-populated from the stored AdminEmail.
+    /// </summary>
+    public string Emails { get; set; } = default!;
 }
 
 public class AssignViewModel
