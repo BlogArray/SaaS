@@ -168,13 +168,11 @@ public static class ConfigureTenantStoreServices
            };
        });
 
-        // Dual strategy during the migration to subdomain tenancy: the host strategy resolves
-        // {identifier}.blogarray.dev, and the legacy route strategy keeps old path-style URLs
-        // (www.blogarray.dev/{identifier}/...) working until tenant data is migrated. The
-        // host template is configurable for local development (__tenant__.localhost).
+        // Subdomain tenancy: the host strategy resolves {identifier}.blogarray.dev, where the
+        // subdomain is the tenant identifier (ClientId). The host template is configurable
+        // for local development (__tenant__.localhost).
         builder.Services.AddMultiTenant<AppTenantInfo>()
-            .WithHostStrategy(builder.Configuration["MultiTenant:HostTemplate"] ?? throw new InvalidOperationException("MultiTenant:HostTemplate not present in config"))
-            .WithRouteStrategy()
+            .WithHostStrategy(builder.Configuration["MultiTenant:HostTemplate"] ?? "__tenant__.blogarray.dev")
             .WithRemoteAuthenticationCallbackStrategy()
             .WithDistributedCacheStore(TimeSpan.FromMinutes(5))
             .WithPerTenantAuthentication();
