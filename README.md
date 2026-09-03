@@ -329,62 +329,26 @@ API keys are never stored in plaintext: validation compares a SHA-256 hash, tena
 | Setting | Purpose |
 |---|---|
 | `ApiKey:PrefixLength` | Number of leading key characters kept for display (default `8`). Change per environment without affecting already-stored keys. |
-| `DataProtection:Mode` | `Local` (self-hosted/IIS, uses `KeyRingPath`) or `AzureKeyVault` (App Service/multi-instance, uses `BlobUri` plus optional `KeyVaultKeyId`). |
-| `DataProtection:KeyRingPath` | Shared folder persisting the key ring in `Local` mode. Must point at the same storage for Identity, TenantSuite and App (all use application name `BlogArray.SaaS`), must be writable by all three app pool identities, and must be backed up: losing the ring makes protected keys unrecoverable. |
+| `DataProtection:Mode` | `Local` (self-hosted/IIS, ring persisted in the master database) or `AzureKeyVault` (App Service/multi-instance, uses `BlobUri` plus optional `KeyVaultKeyId`). |
+| `DataProtection:KeyRingPath` | **Legacy import source only.** When set in `Local` mode and the folder contains key files from a previous release, the startup hosted service imports them once into the database ring and logs a warning if the table is not ready yet (it retries on next startup). Otherwise leave empty. |
 | `DataProtection:BlobUri` | Azure blob URI persisting the key ring in `AzureKeyVault` mode. See the Azure App Service section below. |
 | `DataProtection:KeyVaultKeyId` | Optional version-less Key Vault key URI encrypting the persisted ring at rest (used in `AzureKeyVault` mode). |
 
-#### Creating the DataProtection key ring
+#### The DataProtection key ring (Local mode)
 
-The key ring itself is **generated automatically** by the first app that starts against the folder - there is no manual key file to create. The setup work is creating the folder, granting write access, and verifying a key appeared.
+In `Local` mode the ring is stored in the master database's `DataProtectionKeys` table (created by the `AddDataProtectionKeys` migration; `EnsureCreated` covers brand-new databases). There is **no key file to create and no folder/ACL setup**: the ring is generated automatically on first use, is shared by all three apps through the shared database, and is backed up together with the regular database backups. DataProtection rotates keys automatically every 90 days and keeps the old ones for decryption, so backups stay valid across rotations.
 
-1. Create the shared folder (run once per machine):
-
-```powershell
-New-Item -ItemType Directory -Force -Path "C:\ProgramData\BlogArray\DataProtection-Keys"
-```
-
-2. Grant write access:
-
-- **Local development (Kestrel/IIS Express)**: apps run under your user account, which already owns the folder - nothing to do.
-- **IIS**: grant the application pool identities modify rights. The simplest machine-wide grant (same approach as the certificate private keys above):
-
-```powershell
-icacls "C:\ProgramData\BlogArray\DataProtection-Keys" /grant "IIS_IUSRS:(OI)(CI)M"
-```
-
-   For tighter scoping, grant only the three site pools instead:
-
-```powershell
-foreach ($pool in @("BlogArray.SaaS.Identity", "BlogArray.SaaS.TenantSuite", "BlogArray.SaaS.App")) {
-    icacls "C:\ProgramData\BlogArray\DataProtection-Keys" /grant "${pool}:(OI)(CI)M"
-}
-```
-
-3. Start one of the apps and verify a `key-*.xml` file appears in the folder. All three apps reuse that same ring - do **not** let each app start on a different folder, or payloads protected by one app (tenant API keys) cannot be opened by another.
-
-4. Back the folder up (any file copy of its contents is sufficient). Restoring is a copy back. DataProtection rotates keys automatically every 90 days and keeps the old ones for decryption, so backups stay valid across rotations.
-
-> The key ring is machine-specific: never copy a production ring to a different machine for regular operation (it only travels together with a full machine backup/restore), and never commit `key-*.xml` files to source control.
+> Previously the ring lived in a per-machine folder (`DataProtection:KeyRingPath`). That path is now a **one-time import source**: set it to the old folder on the first startup after upgrading and the hosted service imports the legacy keys into the database, after which the folder can be archived. Losing the database is the only remaining loss scenario - the standard database backup covers it.
 
 #### Azure App Service
 
-Two things change on App Service: local disk paths do not survive scale-out/redeploys the way a machine folder does, and App Service's built-in DataProtection persistence (`%HOME%\data\.aspnet\DataProtection-Keys`) is **per app** - Identity, TenantSuite and App would each get their own ring and could not decrypt each other's payloads. All three apps must therefore share one explicit store.
+App Service's built-in DataProtection persistence (`%HOME%\data\.aspnet\DataProtection-Keys`) is **per app** - Identity, TenantSuite and App would each get their own ring and could not decrypt each other's payloads. All three apps must therefore share one explicit store.
 
-**Option A - Azure Files mount (no code change, uses `DataProtection:KeyRingPath`):**
+**Recommended - `Mode: Local` (database ring, zero extra infrastructure):**
 
-1. Create a storage account with a file share (e.g. `dataprotection`).
-2. For each of the three App Services: **Configuration → Path mappings → New Azure File Share mount**, pointing at that share, mounted to a fixed custom path (Windows: `C:\mounts\dpkeys`; Linux: `/mnt/dpkeys`). Access is via the storage account connection configured in the mount - no `icacls` work.
-3. Set the app settings (double underscore syntax) on all three apps:
+All three apps already share the master database, so the `DataProtectionKeys` table is a shared, backed-up ring out of the box on App Service. Just leave `DataProtection:Mode` at `Local` (or set `DataProtection__Mode = Local`) - no mounts, no blob, no Key Vault. Back up the database as usual.
 
-```
-DataProtection__Mode       = Local
-DataProtection__KeyRingPath = C:\mounts\dpkeys     (or /mnt/dpkeys on Linux)
-```
-
-4. Start the Identity app first; verify `key-*.xml` appears in the share. Back up the share with storage account backups/snapshots.
-
-**Option B - Azure Blob Storage + Key Vault (production-grade, `Mode: AzureKeyVault`):**
+**Optional - `Mode: AzureKeyVault` (ring outside the database, encrypted by Key Vault):**
 
 1. Create a storage account blob container (e.g. `dataprotection`) and a Key Vault key (version-less).
 2. Choose authentication:
@@ -394,12 +358,12 @@ DataProtection__KeyRingPath = C:\mounts\dpkeys     (or /mnt/dpkeys on Linux)
 4. Set the app settings on all three apps:
 
 ```
-DataProtection__Mode         = AzureKeyVault
-DataProtection__BlobUri      = https://<account>.blob.core.windows.net/dataprotection/keys.xml
+DataProtection__Mode          = AzureKeyVault
+DataProtection__BlobUri       = https://<account>.blob.core.windows.net/dataprotection/keys.xml
 DataProtection__KeyVaultKeyId = https://<vault>.vault.azure.net/keys/dataprotection
 ```
 
-Advantages: no mount dependency, keys encrypted at rest by Key Vault, survives slot swaps and multi-region deployments. `ConfigureBlogArrayServices` fails fast at startup when `Mode` is `AzureKeyVault` but `BlobUri` is missing; with `Mode: Local` it uses `KeyRingPath`.
+`ConfigureBlogArrayServices` fails fast at startup when `Mode` is `AzureKeyVault` but `BlobUri` is missing.
 
 > **Upgrade note:** deploy the commit that introduced the startup key-conversion sweep before deploying the commit that drops the legacy `APIKey` column. Jumping straight to the final schema leaves pre-existing keys without a protected copy; those tenants must rotate their API key once.
 

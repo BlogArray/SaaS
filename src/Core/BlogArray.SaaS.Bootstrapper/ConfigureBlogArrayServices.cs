@@ -213,7 +213,10 @@ public static class ConfigureBlogArrayServices
         // uses the same application name and persisted key ring so payloads protected by one
         // app (e.g. tenant API keys) can be unprotected by another. DataProtection:Mode picks
         // the persistence location:
-        //   Local         - shared file-system folder (self-hosted/IIS), DataProtection:KeyRingPath.
+        //   Local         - the master database (DataProtectionKeys table): the ring is backed
+        //                   up with the DB and survives machine loss. KeyRingPath, when set,
+        //                   only acts as a one-time import source for legacy file-based rings
+        //                   (see DataProtectionKeyRingImportHostedService).
         //   AzureKeyVault - Azure App Service / multi-instance: persists to the blob at
         //                   DataProtection:BlobUri (SAS URI or managed identity) and optionally
         //                   encrypts the ring at rest with DataProtection:KeyVaultKeyId.
@@ -252,10 +255,14 @@ public static class ConfigureBlogArrayServices
         }
         else
         {
-            if (!string.IsNullOrEmpty(keyRingPath))
-            {
-                dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keyRingPath));
-            }
+            // Local mode: the ring lives in the master database, shared by all three apps and
+            // backed up with the regular database backups. The DataProtectionKeys table is
+            // created by the AddDataProtectionKeys migration (EnsureCreated covers new DBs).
+            dataProtection.PersistKeysToDbContext<OpenIdDbContext>();
+
+            // One-time migration path: import a legacy file-based ring (previous releases
+            // persisted to DataProtection:KeyRingPath) before anything protects new payloads.
+            builder.Services.AddHostedService<DataProtectionKeyRingImportHostedService>();
         }
 
         dataProtection.SetApplicationName("BlogArray.SaaS");
