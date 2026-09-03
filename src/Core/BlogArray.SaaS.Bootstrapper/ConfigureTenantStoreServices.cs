@@ -72,17 +72,17 @@ public static class ConfigureTenantStoreServices
                    //Use Cases:
                    //Performing additional validation on the tokens like tenant validation, user exists in the tenant.
                    //Adding custom claims to the user’s principal.
-                    var identity = context?.Principal?.Identity as ClaimsIdentity;
+                   var identity = context?.Principal?.Identity as ClaimsIdentity;
 
-                    //using IServiceScope scopeServices = builder.Services.scop.ApplicationServices.CreateScope();
+                   //using IServiceScope scopeServices = builder.Services.scop.ApplicationServices.CreateScope();
 
                    //SaasAppDbContext dbContext = scopeServices.ServiceProvider.GetRequiredService<SaasAppDbContext>();
                    SaasAppDbContext dbContext = context.HttpContext.RequestServices.GetRequiredService<SaasAppDbContext>();
 
                    if (identity != null && !identity.IsAuthenticated)
                    {
-                        context?.HandleResponse();
-                        context?.Response.Redirect("/error/accessdenied?message=Unable to retrive the User details. Please contact your administrator if the issue persists.");
+                       context?.HandleResponse();
+                       context?.Response.Redirect("/error/accessdenied?message=Unable to retrive the User details. Please contact your administrator if the issue persists.");
                        await Task.CompletedTask;
                        return;
                    }
@@ -92,8 +92,8 @@ public static class ConfigureTenantStoreServices
 
                        if (string.IsNullOrEmpty(email))
                        {
-                            context?.HandleResponse();
-                            context?.Response.Redirect("/error/accessdenied?message=Unable to retrive the user email. Please contact your administrator if the issue persists.");
+                           context?.HandleResponse();
+                           context?.Response.Redirect("/error/accessdenied?message=Unable to retrive the user email. Please contact your administrator if the issue persists.");
                            await Task.CompletedTask;
                            return;
                        }
@@ -102,8 +102,8 @@ public static class ConfigureTenantStoreServices
 
                        if (appuser is null || appuser.IsActive is false)
                        {
-                            context?.HandleResponse();
-                            context?.Response.Redirect("/error/accessdenied?message=User details not found in BlogArray. Please contact your administrator if the issue persists.");
+                           context?.HandleResponse();
+                           context?.Response.Redirect("/error/accessdenied?message=User details not found in BlogArray. Please contact your administrator if the issue persists.");
                            await Task.CompletedTask;
                            return;
                        }
@@ -141,12 +141,12 @@ public static class ConfigureTenantStoreServices
                    //Use Cases:
                    //Logging authentication errors.
                    //Redirecting users to a custom error page.
-                    //Log the real exception server-side; never disclose it to the user.
-                    context.HttpContext.RequestServices
-                        .GetRequiredService<ILoggerFactory>().CreateLogger("TenantStoreAuthentication")
-                        .LogError(context.Exception, "OpenID Connect authentication failed.");
+                   //Log the real exception server-side; never disclose it to the user.
+                   context.HttpContext.RequestServices
+                       .GetRequiredService<ILoggerFactory>().CreateLogger("TenantStoreAuthentication")
+                       .LogError(context.Exception, "OpenID Connect authentication failed.");
 
-                    context.Response.Redirect("/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
+                   context.Response.Redirect("/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
                    context.HandleResponse(); // Prevent further processing
                    return Task.CompletedTask;
                },
@@ -156,12 +156,12 @@ public static class ConfigureTenantStoreServices
                    //Use Cases:
                    //Logging errors related to remote authentication.
                    //Redirecting users to a fallback error page.
-                    //Log the real failure server-side; never disclose it to the user.
-                    context.HttpContext.RequestServices
-                        .GetRequiredService<ILoggerFactory>().CreateLogger("TenantStoreAuthentication")
-                        .LogError(context.Failure, "Remote authentication failed.");
+                   //Log the real failure server-side; never disclose it to the user.
+                   context.HttpContext.RequestServices
+                       .GetRequiredService<ILoggerFactory>().CreateLogger("TenantStoreAuthentication")
+                       .LogError(context.Failure, "Remote authentication failed.");
 
-                    context.Response.Redirect("/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
+                   context.Response.Redirect("/error?message=Authentication%20failed.%20Please%20try%20again%20or%20contact%20your%20administrator%20if%20the%20problem%20persists.");
                    context.HandleResponse();
                    return Task.CompletedTask;
                }
@@ -173,7 +173,7 @@ public static class ConfigureTenantStoreServices
         // (www.blogarray.dev/{identifier}/...) working until tenant data is migrated. The
         // host template is configurable for local development (__tenant__.localhost).
         builder.Services.AddMultiTenant<AppTenantInfo>()
-            .WithHostStrategy(builder.Configuration["MultiTenant:HostTemplate"] ?? "__tenant__.blogarray.dev")
+            .WithHostStrategy(builder.Configuration["MultiTenant:HostTemplate"] ?? throw new InvalidOperationException("MultiTenant:HostTemplate not present in config"))
             .WithRouteStrategy()
             .WithRemoteAuthenticationCallbackStrategy()
             .WithDistributedCacheStore(TimeSpan.FromMinutes(5))

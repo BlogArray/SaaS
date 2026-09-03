@@ -214,16 +214,13 @@ public static class ConfigureBlogArrayServices
         // app (e.g. tenant API keys) can be unprotected by another. DataProtection:Mode picks
         // the persistence location:
         //   Local         - the master database (DataProtectionKeys table): the ring is backed
-        //                   up with the DB and survives machine loss. KeyRingPath, when set,
-        //                   only acts as a one-time import source for legacy file-based rings
-        //                   (see DataProtectionKeyRingImportHostedService).
+        //                   up with the DB and survives machine loss.
         //   AzureKeyVault - Azure App Service / multi-instance: persists to the blob at
         //                   DataProtection:BlobUri (SAS URI or managed identity) and optionally
         //                   encrypts the ring at rest with DataProtection:KeyVaultKeyId.
         IDataProtectionBuilder dataProtection = builder.Services.AddDataProtection();
 
         string? mode = builder.Configuration["DataProtection:Mode"];
-        string? keyRingPath = builder.Configuration["DataProtection:KeyRingPath"];
         string? blobUri = builder.Configuration["DataProtection:BlobUri"];
         string? keyVaultKeyId = builder.Configuration["DataProtection:KeyVaultKeyId"];
 
@@ -259,10 +256,6 @@ public static class ConfigureBlogArrayServices
             // backed up with the regular database backups. The DataProtectionKeys table is
             // created by the AddDataProtectionKeys migration (EnsureCreated covers new DBs).
             dataProtection.PersistKeysToDbContext<OpenIdDbContext>();
-
-            // One-time migration path: import a legacy file-based ring (previous releases
-            // persisted to DataProtection:KeyRingPath) before anything protects new payloads.
-            builder.Services.AddHostedService<DataProtectionKeyRingImportHostedService>();
         }
 
         // Key lifetime: how long a generated key protects new payloads before DP rolls to a

@@ -330,7 +330,6 @@ API keys are never stored in plaintext: validation compares a SHA-256 hash, tena
 |---|---|
 | `ApiKey:PrefixLength` | Number of leading key characters kept for display (default `8`). Change per environment without affecting already-stored keys. |
 | `DataProtection:Mode` | `Local` (self-hosted/IIS, ring persisted in the master database) or `AzureKeyVault` (App Service/multi-instance, uses `BlobUri` plus optional `KeyVaultKeyId`). |
-| `DataProtection:KeyRingPath` | **Legacy import source only.** When set in `Local` mode and the folder contains key files from a previous release, the startup hosted service imports them once into the database ring and logs a warning if the table is not ready yet (it retries on next startup). Otherwise leave empty. |
 | `DataProtection:BlobUri` | Azure blob URI persisting the key ring in `AzureKeyVault` mode. See the Azure App Service section below. |
 | `DataProtection:KeyVaultKeyId` | Optional version-less Key Vault key URI encrypting the persisted ring at rest (used in `AzureKeyVault` mode). |
 | `DataProtection:KeyLifetimeDays` | Days a generated key protects new payloads before DataProtection rolls to a fresh one (default `90`). Expiration never affects decryption: expired keys stay in the ring forever, so already-protected payloads keep unprotecting. |
@@ -339,7 +338,7 @@ API keys are never stored in plaintext: validation compares a SHA-256 hash, tena
 
 In `Local` mode the ring is stored in the master database's `DataProtectionKeys` table (created by the `AddDataProtectionKeys` migration; `EnsureCreated` covers brand-new databases). There is **no key file to create and no folder/ACL setup**: the ring is generated automatically on first use, is shared by all three apps through the shared database, and is backed up together with the regular database backups. DataProtection rotates keys automatically every 90 days and keeps the old ones for decryption, so backups stay valid across rotations.
 
-> Previously the ring lived in a per-machine folder (`DataProtection:KeyRingPath`). That path is now a **one-time import source**: set it to the old folder on the first startup after upgrading and the hosted service imports the legacy keys into the database, after which the folder can be archived. Losing the database is the only remaining loss scenario - the standard database backup covers it.
+> The key ring is never stored on local disk. `Local` mode persists it to the master database and `AzureKeyVault` mode to Azure blob storage (optionally Key Vault-encrypted) - the database/storage backup is therefore the only backup that matters. Never delete old rows from the ring store: expired keys are retained for decryption by design, and removing them makes payloads encrypted with those keys unreadable.
 
 #### Azure App Service
 
