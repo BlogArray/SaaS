@@ -1,6 +1,7 @@
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 
@@ -15,7 +16,8 @@ public interface IUserManagementService
 
 public class UserManagementService(OpenIdDbContext context,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
-    ITenantPersonnelService personnelService) : IUserManagementService
+    ITenantPersonnelService personnelService,
+    IDataProtector protector) : IUserManagementService
 {
     public async Task AssignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds)
     {
@@ -51,9 +53,9 @@ public class UserManagementService(OpenIdDbContext context,
                     .Select(s => s.SubjectUser.Email)
                     .FirstOrDefaultAsync();
 
-                if (email is not null && openIdApplication.ConnectionString is not null)
+                if (email is not null && openIdApplication.GetConnectionString(protector) is not null)
                 {
-                    await personnelService.EnablePersonnelInTenantAsync(email, openIdApplication.ConnectionString);
+                    await personnelService.EnablePersonnelInTenantAsync(email, openIdApplication.GetConnectionString(protector)!);
                 }
             }
         }
@@ -65,10 +67,10 @@ public class UserManagementService(OpenIdDbContext context,
             .Where(a => tenantIds.Contains(a.Application.Id) && a.Subject == userId)
             .ExecuteDeleteAsync();
 
-        string?[] connections = await context.Applications
-            .Where(s => s.ConnectionString != "" && s.ConnectionString != null && tenantIds.Contains(s.Id))
-            .Select(s => s.ConnectionString)
-            .ToArrayAsync();
+        List<OpenIdApplication> applications = await context.Applications
+            .Where(s => tenantIds.Contains(s.Id)
+                     && (s.ConnectionStringProtected != null || (s.ConnectionString != null && s.ConnectionString != "")))
+            .ToListAsync();
 
         int unassignedCount = await context.Authorizations
             .Where(a => tenantIds.Contains(a.Application.Id) && a.Subject == userId)
@@ -79,7 +81,11 @@ public class UserManagementService(OpenIdDbContext context,
             .Select(s => s.Email)
             .FirstOrDefaultAsync();
 
-        string[] connectionList = connections.Where(c => !string.IsNullOrEmpty(c)).Select(c => c!).ToArray();
+        string[] connectionList = applications
+            .Select(a => a.GetConnectionString(protector))
+            .Where(c => !string.IsNullOrEmpty(c))
+            .Select(c => c!)
+            .ToArray();
 
         if (!string.IsNullOrEmpty(email) && connectionList.Length > 0)
         {

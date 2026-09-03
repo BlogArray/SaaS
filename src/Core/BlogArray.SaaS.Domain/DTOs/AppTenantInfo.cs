@@ -40,9 +40,10 @@ public class AppTenantInfo : ITenantInfo
     public string? ConnectionString { get; set; } = default!;
 
     /// <summary>
-    /// Client Secret Not encrypted
+    /// DataProtection-protected client secret; unprotected only when building the tenant's
+    /// OpenID Connect options.
     /// </summary>
-    public string ClientSecretPlain { get; set; } = default!;
+    public string? ClientSecretProtected { get; set; }
 
     /// <summary>
     /// API Key for authentication

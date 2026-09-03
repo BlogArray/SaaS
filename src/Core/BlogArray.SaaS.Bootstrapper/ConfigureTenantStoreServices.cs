@@ -16,10 +16,12 @@ using Finbuckle.MultiTenant.Extensions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 
@@ -177,18 +179,37 @@ public static class ConfigureTenantStoreServices
             .WithDistributedCacheStore(TimeSpan.FromMinutes(5))
             .WithPerTenantAuthentication();
 
+        // The tenant's OIDC client secret is stored DataProtection-protected; this per-tenant
+        // options configuration (DI-built, unlike the plain lambda) unprotects it only when
+        // the authentication handler is built for that tenant - the plaintext never persists
+        // in the tenant store or its distributed cache.
+        builder.Services.AddTransient<IConfigureOptions<OpenIdConnectOptions>>(sp =>
+        {
+            IDataProtector protector = sp.GetRequiredService<IDataProtector>();
+            IMultiTenantContextAccessor<AppTenantInfo> accessor =
+                sp.GetRequiredService<IMultiTenantContextAccessor<AppTenantInfo>>();
+
+            return new ConfigureNamedOptions<OpenIdConnectOptions, IDataProtector>(
+                OpenIdConnectDefaults.AuthenticationScheme, protector, (options, p) =>
+                {
+                    AppTenantInfo? tenantInfo = accessor.MultiTenantContext.TenantInfo;
+
+                    if (tenantInfo is not null)
+                    {
+                        options.ClientId = tenantInfo.Identifier;
+                        options.ClientSecret = string.IsNullOrEmpty(tenantInfo.ClientSecretProtected)
+                            ? null
+                            : p.Unprotect(tenantInfo.ClientSecretProtected);
+                    }
+                });
+        });
+
         builder.Services.ConfigurePerTenant<CookieAuthenticationOptions, AppTenantInfo>(CookieAuthenticationDefaults.AuthenticationScheme, (options, tenantInfo) =>
         {
             // Subdomain strategy: every tenant lives on its own host, so cookies are isolated
             // by host. The per-tenant name is defense in depth; the path must be the root.
             options.Cookie.Path = "/";
             options.Cookie.Name = "Cookie-" + tenantInfo.Identifier;
-        });
-
-        builder.Services.ConfigurePerTenant<OpenIdConnectOptions, AppTenantInfo>(OpenIdConnectDefaults.AuthenticationScheme, (options, tenantInfo) =>
-        {
-            options.ClientId = tenantInfo.Identifier;
-            options.ClientSecret = tenantInfo.ClientSecretPlain;
         });
 
         return builder;

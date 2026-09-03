@@ -29,6 +29,10 @@ public static class ConfigureTenantStoreApplication
 
         IDataProtector protector = scopeServices.ServiceProvider.GetRequiredService<IDataProtector>();
 
+        // Convert any legacy plaintext tenant secrets before building the tenant list; the
+        // store then carries the protected values and opens them only in memory at use time.
+        await SecretStorageSweep.ConvertPlaintextSecretsAsync(context, protector);
+
         List<OpenIdApplication> applications = await context.Applications.ToListAsync();
 
         IMultiTenantStore<AppTenantInfo> store = scopeServices.ServiceProvider.GetRequiredService<IMultiTenantStore<AppTenantInfo>>();
@@ -41,15 +45,15 @@ public static class ConfigureTenantStoreApplication
                 Identifier = a.ClientId,
                 Name = a.DisplayName,
                 Legalname = a.Legalname,
-                ConnectionString = a.ConnectionString,
+                // The store never persists plaintext: secrets are carried protected and
+                // opened only in memory at use time (OIDC options factory / API key handler).
+                ConnectionString = a.GetConnectionString(protector),
                 Website = a.Website,
                 Favicon = a.Theme.Favicon,
                 Logo = a.Theme.Logo,
                 PrimaryColor = a.Theme.PrimaryColor,
-                // The store never persists the plaintext key: the protected copy is opened
-                // only here, in memory, for TenantApiKeyHandler to send on API calls.
                 APIKey = a.APIKeyProtected is null ? null : protector.Unprotect(a.APIKeyProtected),
-                ClientSecretPlain = a.ClientSecretPlain
+                ClientSecretProtected = a.ClientSecretProtected
             };
 
             //tenant.ChallengeScheme = "OpenIdConnect";
