@@ -86,22 +86,30 @@ public class PersonnelsController(SaasAppDbContext context,
         AppPersonnel? user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);
         if (user is not null)
         {
+            string? tenantIdentifier = multiTenantContextAccessor.MultiTenantContext.TenantInfo?.Identifier;
+
+            if (string.IsNullOrWhiteSpace(tenantIdentifier))
+            {
+                AddErrorMessage("The tenant could not be resolved for this request. Navigate to the tenant's subdomain URL and try again.");
+                return RedirectToAction("Index");
+            }
+
             try
             {
                 await membershipClient.RemoveUserFromTenant(new UserTenantVM
                 {
                     Email = user.Email,
-                    Tenant = multiTenantContextAccessor.MultiTenantContext.TenantInfo.Identifier
+                    Tenant = tenantIdentifier
                 });
                 user.IsActive = false;
                 await context.SaveChangesAsync();
 
                 AddSuccessMessage($"Personnel {user.Email} is deactivated successfully.");
             }
-            catch (ApiException apiException)
+            catch (ApiException ex)
             {
                 AddErrorMessage($"Unable to deactivate personnel with email {user.Email}.");
-                logger.LogError("The API returned an exception with status code {StatusCode} with content {Content}", apiException.StatusCode, apiException.Content);
+                logger.LogError(ex, "The API returned an exception with status code {StatusCode} and content {Content}", ex.StatusCode, ex.Content);
             }
         }
         return RedirectToAction("Index");
