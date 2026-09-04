@@ -73,7 +73,7 @@
                                 </span>
                             </td>
                             <td class="text-muted small">@entry.IpAddress</td>
-                            <td class="text-muted small">@UserAgentParser.Summarize(entry.UserAgent)</td>
+                            <td class="text-muted small">@UserAgentParser.DescribeUserAgent(entry.UserAgent)</td>
                             <td class="text-muted small">@entry.CreatedOn.ToLocalTime()</td>
                         </tr>
                     }
