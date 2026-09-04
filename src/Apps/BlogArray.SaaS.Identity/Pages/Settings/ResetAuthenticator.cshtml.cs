@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -9,11 +9,12 @@
 
 #nullable disable
 
+using BlogArray.SaaS.Domain.Events;
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class ResetAuthenticatorModel(
     UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger,
+    IAuditEventLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<ResetAuthenticatorModel> logger) : PageModel
 {
@@ -57,7 +58,7 @@ public class ResetAuthenticatorModel(
         }
 
         await userManager.SetTwoFactorEnabledAsync(user, false);
-        await auditLogger.LogAsync(user.Id, SecurityEventTypes.MfaDisabled);
+        await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.MfaDisabled));
         await userManager.ResetAuthenticatorKeyAsync(user);
         //var userId = await _userManager.GetUserIdAsync(user);
         logger.LogInformation("User with ID '{UserId}' has reset their authentication app key.", user.Id);

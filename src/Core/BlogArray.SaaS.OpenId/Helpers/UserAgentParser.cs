@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace BlogArray.SaaS.Web.Helpers;
+namespace BlogArray.SaaS.OpenId.Helpers;
 
 /// <summary>
 /// Best-effort User-Agent parser based on substring/token matching.
@@ -651,3 +651,4 @@ public static class UserAgentParser
         }
     }
 }
+

@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -9,6 +9,7 @@
 
 #nullable disable
 
+using BlogArray.SaaS.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlogArray.SaaS.Identity.Pages.Settings;
@@ -17,7 +18,7 @@ public class SecurityActivityModel(OpenIdDbContext context, UserManager<Applicat
 {
     private const int EventPageSize = 20;
 
-    public List<SecurityEvent> Events { get; set; } = [];
+    public List<ActivityEntry> Events { get; set; } = [];
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -27,33 +28,74 @@ public class SecurityActivityModel(OpenIdDbContext context, UserManager<Applicat
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
         }
 
-        Events = await context.SecurityEvents
-            .Where(securityEvent => securityEvent.UserId == user.Id)
-            .OrderByDescending(securityEvent => securityEvent.CreatedOn)
+        List<SignInEvent> signIns = await context.SignInEvents
+            .Where(signInEvent => signInEvent.UserId == user.Id)
+            .OrderByDescending(signInEvent => signInEvent.CreatedOn)
             .Take(EventPageSize)
             .ToListAsync();
+
+        List<AuditEvent> audits = await context.AuditEvents
+            .Where(auditEvent => auditEvent.UserId == user.Id)
+            .OrderByDescending(auditEvent => auditEvent.CreatedOn)
+            .Take(EventPageSize)
+            .ToListAsync();
+
+        List<ActivityEntry> merged =
+        [
+            .. signIns.Select(signInEvent => new ActivityEntry(
+                signInEvent.CreatedOn,
+                DescribeSignIn(signInEvent),
+                signInEvent.IpAddress,
+                signInEvent.UserAgent)),
+            .. audits.Select(auditEvent => new ActivityEntry(
+                auditEvent.CreatedOn,
+                DescribeAudit(auditEvent),
+                auditEvent.IpAddress,
+                auditEvent.UserAgent))
+        ];
+
+        Events = merged
+            .OrderByDescending(entry => entry.CreatedOn)
+            .Take(EventPageSize)
+            .ToList();
 
         return Page();
     }
 
-    public string Describe(SecurityEvent securityEvent)
+    private static string DescribeSignIn(SignInEvent signInEvent)
     {
-        return securityEvent.EventType switch
+        string method = signInEvent.AuthMethod ?? "unknown method";
+
+        return signInEvent.EventType switch
         {
-            SecurityEventTypes.LoginSucceeded => "Signed in with password",
-            SecurityEventTypes.LoginSucceededExternal => $"Signed in with external provider '{securityEvent.Details ?? "unknown"}'",
-            SecurityEventTypes.LoginSucceededSaml => $"Signed in through tenant single sign-on '{securityEvent.Details ?? "unknown"}'",
-            SecurityEventTypes.LoginFailed => "Failed sign-in attempt (wrong password or 2FA code)",
-            SecurityEventTypes.LockedOut => "Account locked out after repeated failed attempts",
-            SecurityEventTypes.PasswordReset => "Password was reset or changed",
-            SecurityEventTypes.MfaEnabled => "Two-factor authentication was enabled",
-            SecurityEventTypes.MfaDisabled => "Two-factor authentication was disabled or reset",
-            SecurityEventTypes.RecoveryCodesGenerated => "A new set of recovery codes was generated",
-            SecurityEventTypes.TrustedBrowsersRevoked => "All trusted browsers were revoked",
-            SecurityEventTypes.ExternalLoginRemoved => $"External login '{securityEvent.Details ?? "unknown"}' was removed",
-            SecurityEventTypes.PasskeyRegistered => $"Passkey '{securityEvent.Details ?? "unnamed"}' was registered",
-            SecurityEventTypes.PasskeyRemoved => $"Passkey '{securityEvent.Details ?? "unnamed"}' was removed",
-            _ => securityEvent.EventType
+            SignInEventTypes.LoginSucceeded => $"Signed in with {method}",
+            SignInEventTypes.LoginSucceededExternal => $"Signed in with external provider '{signInEvent.Details ?? method}'",
+            SignInEventTypes.LoginSucceededSaml => $"Signed in through tenant single sign-on '{signInEvent.Details ?? method}'",
+            SignInEventTypes.LoginFailedInvalidPassword => "Failed sign-in attempt (wrong password)",
+            SignInEventTypes.LoginFailedUserNotFound => "Failed sign-in attempt (no matching account)",
+            SignInEventTypes.LoginFailedMfaRequired => "Sign-in stopped: multi-factor enrollment is required",
+            SignInEventTypes.LoginFailedMfaInvalid => "Failed sign-in attempt (incorrect multi-factor code)",
+            SignInEventTypes.AccountLockedRepeatedFailures => "Account locked out after repeated failed attempts",
+            _ => signInEvent.EventType
         };
     }
+
+    private static string DescribeAudit(AuditEvent auditEvent)
+    {
+        return auditEvent.EventType switch
+        {
+            AuditEventTypes.PasswordReset => "Password was reset or changed",
+            AuditEventTypes.MfaEnabled => "Two-factor authentication was enabled",
+            AuditEventTypes.MfaDisabled => "Two-factor authentication was disabled or reset",
+            AuditEventTypes.RecoveryCodesGenerated => "A new set of recovery codes was generated",
+            AuditEventTypes.TrustedBrowsersRevoked => "All trusted browsers were revoked",
+            AuditEventTypes.SessionRevoked => $"Session '{auditEvent.Reason ?? "unknown"}' was signed out",
+            AuditEventTypes.ExternalLoginRemoved => $"External login '{auditEvent.Reason ?? "unknown"}' was removed",
+            AuditEventTypes.PasskeyRegistered => $"Passkey '{auditEvent.Reason ?? "unnamed"}' was registered",
+            AuditEventTypes.PasskeyRemoved => $"Passkey '{auditEvent.Reason ?? "unnamed"}' was removed",
+            _ => auditEvent.EventType
+        };
+    }
+
+    public record ActivityEntry(DateTime CreatedOn, string Description, string IpAddress, string UserAgent);
 }

@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -12,6 +12,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Domain.Helpers;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -33,7 +34,7 @@ public class TenantsController(OpenIdDbContext context,
     IDataProtector protector,
     IConfiguration configuration,
     IEmailTemplate emailTemplate,
-    ISecurityAuditLogger auditLogger,
+    IAuditEventLogger auditLogger,
     ILogger<TenantsController> logger) : BaseController
 {
     private readonly int _apiKeyPrefixLength = configuration.GetValue("ApiKey:PrefixLength", 8);
@@ -116,7 +117,7 @@ public class TenantsController(OpenIdDbContext context,
 
         await AddToCache(entity);
 
-        await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.TenantCreated, $"{entity.DisplayName} ({entity.ClientId})");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantCreated, ClientId: entity.ClientId, Reason: entity.DisplayName));
 
         // Deliver the credentials by email, but never let a mail failure fail the creation:
         // the secrets are also shown once in the browser so the admin can hand them over.
@@ -502,8 +503,7 @@ public class TenantsController(OpenIdDbContext context,
             SetApiKey(openIdApplication, rotateKeys.Key);
             await manager.UpdateAsync(openIdApplication);
 
-            await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.ApiKeyRotated,
-                $"{openIdApplication.DisplayName} ({openIdApplication.ClientId})");
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ApiKeyRotated, ClientId: openIdApplication.ClientId, Reason: $"{openIdApplication.DisplayName} ({openIdApplication.ClientId})"));
 
             // Email the new key to the addresses chosen in the rotation prompt, falling back
             // to the stored tenant admin emails. A mail failure never fails the rotation: the

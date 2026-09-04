@@ -34,13 +34,13 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (SecurityEvent securityEvent in Model.Events)
+                        @foreach (SecurityActivityModel.ActivityEntry entry in Model.Events)
                         {
                             <tr>
-                                <td title="@securityEvent.CreatedOn.ToUniversalTime().ToString("O")">@securityEvent.CreatedOn.ToLocalTime().ToString("g")</td>
-                                <td class="text-wrap">@Model.Describe(securityEvent)</td>
-                                <td>@(securityEvent.IpAddress ?? "-")</td>
-                                <td class="text-wrap"><small class="text-muted">@(securityEvent.UserAgent ?? "-")</small></td>
+                                <td title="@entry.CreatedOn.ToUniversalTime().ToString("O")">@entry.CreatedOn.ToLocalTime().ToString("g")</td>
+                                <td class="text-wrap">@entry.Description</td>
+                                <td>@(entry.IpAddress ?? "-")</td>
+                                <td class="text-wrap"><small class="text-muted">@(entry.UserAgent ?? "-")</small></td>
                             </tr>
                         }
                     </tbody>

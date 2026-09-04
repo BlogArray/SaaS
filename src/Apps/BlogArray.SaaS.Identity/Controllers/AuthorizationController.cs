@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using BlogArray.SaaS.Domain.Events;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Abstractions;
@@ -28,6 +29,7 @@ public class AuthorizationController(
     IOpenIddictTokenManager tokenManager,
     SignInManagerExtension<ApplicationUser> signInManager,
     UserManager<ApplicationUser> userManager,
+    ISignInEventLogger signInEventLogger,
     BlogArray.SaaS.OpenId.OpenIdDbContext openIdDbContext,
     IConfiguration configuration) : Controller
 {
@@ -103,6 +105,11 @@ public class AuthorizationController(
         // continue signing in to the application.
         if (application.Security.IsMfaEnforced && !await userManager.GetTwoFactorEnabledAsync(user))
         {
+            await signInEventLogger.LogAsync(new SignInEventRecord(
+                await userManager.GetUserIdAsync(user), request.ClientId,
+                SignInEventTypes.LoginFailedMfaRequired, SignInAuthMethod.Password,
+                SignInResultType.Failure, "mfa enrollment required by application policy"));
+
             TempData["StatusMessage"] = "This application requires multi-factor authentication. Set up your authenticator app to continue.";
 
             return Redirect(Url.Page("/Settings/EnableAuthenticator",

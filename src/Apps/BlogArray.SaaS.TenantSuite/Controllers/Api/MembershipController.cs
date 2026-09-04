@@ -10,6 +10,7 @@
 using System.Text;
 using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.OpenId;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Identity;
@@ -36,7 +37,7 @@ public class MembershipController(OpenIdDbContext context,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
     IEmailTemplate emailTemplate,
     IConfiguration configuration,
-    ISecurityAuditLogger auditLogger) : BaseController
+    IAuditEventLogger auditLogger) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -82,7 +83,7 @@ public class MembershipController(OpenIdDbContext context,
                 return ModelStateError(ModelState);
             }
 
-            await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserCreated, $"{user.Email} ({openIdApplication.ClientId})");
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.System, AuditEventTypes.UserCreated, TargetUserId: user.Id, ClientId: openIdApplication.ClientId));
         }
 
         await AssignUserToTenantAsync(user.Id, openIdApplication);
@@ -102,7 +103,7 @@ public class MembershipController(OpenIdDbContext context,
             emailTemplate.Invite(user.Email, user.DisplayName, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
         }
 
-        await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserInvited, $"{user.Email} ({openIdApplication.ClientId})");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.System, AuditEventTypes.UserInvited, TargetUserId: user.Id, ClientId: openIdApplication.ClientId));
 
         // Uniform response regardless of whether the email was new: the caller cannot use
         // this API to enumerate which addresses have identity accounts.
@@ -140,7 +141,7 @@ public class MembershipController(OpenIdDbContext context,
         //If user is assigned to multiple tenants providing access to the specific tenant
         await AssignUserToTenantAsync(entity.Id, openIdApplication);
 
-        await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserAddedToTenant, $"{entity.Email} ({openIdApplication.ClientId})");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.System, AuditEventTypes.UserAddedToTenant, TargetUserId: entity.Id, ClientId: openIdApplication.ClientId));
 
         return JsonSuccess($"User {entity.Email} has been enabled successfully.");
     }
@@ -177,7 +178,7 @@ public class MembershipController(OpenIdDbContext context,
         //If user is assigned to multiple tenants removing access to the specific tenant
         await UnassignUserToTenantAsync(entity.Id, openIdApplication.Id);
 
-        await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserRemovedFromTenant, $"{entity.Email} ({openIdApplication.ClientId})");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.System, AuditEventTypes.UserRemovedFromTenant, TargetUserId: entity.Id, ClientId: openIdApplication.ClientId));
 
         return JsonSuccess($"User {entity.Email} has been disabled successfully.");
     }

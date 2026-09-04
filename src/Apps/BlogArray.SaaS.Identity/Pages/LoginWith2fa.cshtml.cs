@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -10,6 +10,7 @@
 #nullable disable
 
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
@@ -20,7 +21,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class LoginWith2faModel(
     UserManager<ApplicationUser> userManager,
     SignInManagerExtension<ApplicationUser> signInManager,
-    ISecurityAuditLogger auditLogger,
+    ISignInEventLogger signInEventLogger,
     ICaptchaService captcha,
     IEmailTemplate emailTemplate,
     IDistributedCache cache,
@@ -190,24 +191,24 @@ public class LoginWith2faModel(
             ? await signInManager.TwoFactorEmailCodeSignInAsync(code, false, Input.RememberMachine, customClaims)
             : await signInManager.TwoFactorAuthenticatorSignInAsync(code, false, Input.RememberMachine, customClaims);
 
-        string? tenantClientId = ISecurityAuditLogger.GetTenantClientIdFromUrl(next);
+        string? tenantClientId = SecurityEventUrls.GetTenantClientIdFromUrl(next);
 
         if (result.Succeeded)
         {
             logger.LogInformation("User with ID '{UserId}' logged in with 2fa ({Method}).", user.Id, Method ?? "authenticator");
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}", clientId: tenantClientId);
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Mfa, SignInResultType.Success, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}"));
             return LocalRedirect(next);
         }
         else if (result.IsLockedOut)
         {
             logger.LogWarning("User with ID '{UserId}' account locked out.", user.Id);
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LockedOut, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}", clientId: tenantClientId);
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Mfa, SignInResultType.Failure, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}"));
             return RedirectToPage("./Lockout");
         }
         else
         {
             logger.LogWarning("Invalid 2FA code ({Method}) entered for user with ID '{UserId}'.", Method ?? "authenticator", user.Id);
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginFailed, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}", clientId: tenantClientId);
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedMfaInvalid, SignInAuthMethod.Mfa, SignInResultType.Failure, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}"));
             ModelState.AddModelError(string.Empty, "You entered an incorrect code.");
             return Page();
         }

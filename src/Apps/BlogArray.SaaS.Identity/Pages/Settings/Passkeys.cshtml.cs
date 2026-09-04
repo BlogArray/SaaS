@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -9,6 +9,7 @@
 
 #nullable disable
 
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Identity.Infrastructure;
 using Fido2NetLib;
 
@@ -16,7 +17,7 @@ namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class PasskeysModel(
     UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger,
+    IAuditEventLogger auditLogger,
     PasskeyService passkeyService,
     ILogger<PasskeysModel> logger) : PageModel
 {
@@ -72,7 +73,7 @@ public class PasskeysModel(
             // intentionally independent of the TwoFactorEnabled flag: registering one does
             // not enable traditional 2FA, and disabling 2FA does not remove passkeys.
 
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.PasskeyRegistered, credential.Name);
+            await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.PasskeyRegistered, Reason: credential.Name));
 
             return new JsonResult(new { succeeded = true });
         }
@@ -106,7 +107,7 @@ public class PasskeysModel(
 
         if (credential is not null)
         {
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.PasskeyRemoved, credential.Name);
+            await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.PasskeyRemoved, Reason: credential.Name));
         }
 
         StatusMessage = "The passkey has been removed.";

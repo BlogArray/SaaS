@@ -83,20 +83,47 @@ public static class OpenIdDbContextExtensions
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
-        builder.Entity<SecurityEvent>(entity =>
+        builder.Entity<SignInEvent>(entity =>
         {
-            entity.Property(securityEvent => securityEvent.Id).HasMaxLength(400);
-            entity.Property(securityEvent => securityEvent.UserId).HasMaxLength(400);
-            entity.Property(securityEvent => securityEvent.EventType).HasMaxLength(100);
-            entity.Property(securityEvent => securityEvent.Details).HasMaxLength(512);
-            entity.Property(securityEvent => securityEvent.IpAddress).HasMaxLength(64);
-            entity.Property(securityEvent => securityEvent.UserAgent).HasMaxLength(512);
-            entity.HasIndex(securityEvent => securityEvent.UserId);
-            entity.HasIndex(securityEvent => securityEvent.CreatedOn);
+            entity.Property(signInEvent => signInEvent.Id).HasMaxLength(400);
+            entity.Property(signInEvent => signInEvent.UserId).HasMaxLength(400);
+            entity.Property(signInEvent => signInEvent.ClientId).HasMaxLength(400);
+            entity.Property(signInEvent => signInEvent.EventType).HasMaxLength(100);
+            entity.Property(signInEvent => signInEvent.AuthMethod).HasMaxLength(100);
+            entity.Property(signInEvent => signInEvent.Result).HasMaxLength(20);
+            entity.Property(signInEvent => signInEvent.Details).HasMaxLength(512);
+            entity.Property(signInEvent => signInEvent.IpAddress).HasMaxLength(64);
+            entity.Property(signInEvent => signInEvent.DeviceInfo).HasMaxLength(256);
+            entity.Property(signInEvent => signInEvent.UserAgent).HasMaxLength(512);
+            entity.HasIndex(signInEvent => new { signInEvent.UserId, signInEvent.CreatedOn });
+            entity.HasIndex(signInEvent => new { signInEvent.ClientId, signInEvent.CreatedOn });
+            entity.HasIndex(signInEvent => signInEvent.CreatedOn);
             entity.HasOne<ApplicationUser>()
                 .WithMany()
-                .HasForeignKey(securityEvent => securityEvent.UserId)
+                .HasForeignKey(signInEvent => signInEvent.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Audit rows are append-only compliance records: deliberately no FK to ApplicationUser
+        // so the trail of changes an actor made survives actor deletion (hard delete or
+        // anonymization never rewrites history).
+        builder.Entity<AuditEvent>(entity =>
+        {
+            entity.Property(auditEvent => auditEvent.Id).HasMaxLength(400);
+            entity.Property(auditEvent => auditEvent.UserId).HasMaxLength(400);
+            entity.Property(auditEvent => auditEvent.TriggeredBy).HasMaxLength(20);
+            entity.Property(auditEvent => auditEvent.TargetUserId).HasMaxLength(400);
+            entity.Property(auditEvent => auditEvent.ClientId).HasMaxLength(400);
+            entity.Property(auditEvent => auditEvent.EventType).HasMaxLength(100);
+            entity.Property(auditEvent => auditEvent.Reason).HasMaxLength(512);
+            entity.Property(auditEvent => auditEvent.Result).HasMaxLength(20);
+            entity.Property(auditEvent => auditEvent.IpAddress).HasMaxLength(64);
+            entity.Property(auditEvent => auditEvent.DeviceInfo).HasMaxLength(256);
+            entity.Property(auditEvent => auditEvent.UserAgent).HasMaxLength(512);
+            entity.HasIndex(auditEvent => new { auditEvent.ClientId, auditEvent.CreatedOn });
+            entity.HasIndex(auditEvent => new { auditEvent.UserId, auditEvent.CreatedOn });
+            entity.HasIndex(auditEvent => auditEvent.TargetUserId);
+            entity.HasIndex(auditEvent => new { auditEvent.EventType, auditEvent.CreatedOn });
         });
 
         builder.Entity<WebAuthnCredential>(entity =>

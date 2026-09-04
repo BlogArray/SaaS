@@ -1,4 +1,4 @@
-@model IPager<SecurityLogEntry>
+@model IPager<AuditLogEntry>
 
 @{
     ViewData["Title"] = "Audit logs";
@@ -55,15 +55,21 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (SecurityLogEntry entry in Model)
+                    @foreach (AuditLogEntry entry in Model)
                     {
                         <tr>
                             <td><span class="badge rounded-pill text-bg-secondary">@entry.EventType</span></td>
                             <td>
-                                <div class="fw-semibold">@entry.DisplayName</div>
-                                <div class="text-muted small">@entry.Email</div>
+                                <div class="fw-semibold">@entry.ActorDisplayName <span class="badge rounded-pill text-bg-light">via @entry.TriggeredBy</span></div>
+                                <div class="text-muted small">@entry.ActorEmail</div>
                             </td>
-                            <td class="small">@entry.Details</td>
+                            <td class="small">
+                                @entry.Reason
+                                @if (!string.IsNullOrEmpty(entry.TargetEmail))
+                                {
+                                    <div class="text-muted">target: @entry.TargetEmail</div>
+                                }
+                            </td>
                             <td class="small">@entry.TenantName</td>
                             <td class="text-muted small">@entry.IpAddress</td>
                             <td class="text-muted small">@entry.CreatedOn.ToLocalTime()</td>

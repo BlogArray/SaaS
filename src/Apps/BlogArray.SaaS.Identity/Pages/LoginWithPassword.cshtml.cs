@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -8,6 +8,7 @@
 //
 
 using System.Text;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -17,7 +18,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<LoginWithPasswordModel> logger,
     UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger,
+    ISignInEventLogger signInEventLogger,
     ICaptchaService captcha) : PageModel
 {
     /// <summary>
@@ -127,6 +128,9 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
     {
         next ??= Url.Content("~/");
 
+        // The OIDC authorize URL carried in `next` identifies the tenant being signed into.
+        string? tenantClientId = SecurityEventUrls.GetTenantClientIdFromUrl(next);
+
         ExternalLogins = (await signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
         if (ModelState.IsValid)
@@ -146,12 +150,14 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
             if (user == null)
             {
+                await signInEventLogger.LogAsync(new SignInEventRecord(Input.Email, tenantClientId, SignInEventTypes.LoginFailedUserNotFound, SignInAuthMethod.Password, SignInResultType.Failure, "no account for the attempted email"));
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return Page();
             }
 
             if (!user.IsActive)
             {
+                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedInvalidPassword, SignInAuthMethod.Password, SignInResultType.Failure, "account disabled"));
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return Page();
             }
@@ -169,13 +175,10 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             // user explicitly opts in later. Password failures count towards lockout.
             Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.PasswordSignInAsync(user, Input.Password, false, true, customClaims);
 
-            // The OIDC authorize URL carried in `next` identifies the tenant being signed into.
-            string? tenantClientId = ISecurityAuditLogger.GetTenantClientIdFromUrl(next);
-
             if (result.Succeeded)
             {
                 logger.LogInformation("User logged in.");
-                await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded, "password", clientId: tenantClientId);
+                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Password, SignInResultType.Success, "password"));
 
                 // A temporary password (assigned by an administrator or bootstrap) only grants
                 // access to the reset-password flow: redirect there with a valid token.
@@ -197,12 +200,12 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             if (result.IsLockedOut)
             {
                 logger.LogWarning("User account locked out.");
-                await auditLogger.LogAsync(user.Id, SecurityEventTypes.LockedOut, "password", clientId: tenantClientId);
+                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
                 return RedirectToPage("./Lockout");
             }
             else
             {
-                await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginFailed, "password", clientId: tenantClientId);
+                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedInvalidPassword, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return Page();
             }

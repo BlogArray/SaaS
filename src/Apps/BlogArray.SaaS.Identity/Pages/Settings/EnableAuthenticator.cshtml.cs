@@ -9,6 +9,7 @@
 
 #nullable disable
 
+using BlogArray.SaaS.Domain.Events;
 using System.Text;
 using System.Text.Encodings.Web;
 
@@ -16,7 +17,7 @@ namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class EnableAuthenticatorModel(
     UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger,
+    IAuditEventLogger auditLogger,
     ILogger<EnableAuthenticatorModel> logger,
     UrlEncoder urlEncoder) : PageModel
 {
@@ -122,7 +123,7 @@ public class EnableAuthenticatorModel(
         await userManager.SetTwoFactorEnabledAsync(user, true);
         string userId = await userManager.GetUserIdAsync(user);
         logger.LogInformation("User with ID '{UserId}' has enabled 2FA with an authenticator app.", userId);
-        await auditLogger.LogAsync(userId, SecurityEventTypes.MfaEnabled);
+        await auditLogger.LogAsync(new AuditEventRecord(userId, AuditTrigger.User, AuditEventTypes.MfaEnabled));
 
         StatusMessage = "Your authenticator app has been verified.";
 

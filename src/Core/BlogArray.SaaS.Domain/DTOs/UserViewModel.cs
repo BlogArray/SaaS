@@ -127,19 +127,23 @@ public class UserToolbar
 }
 
 /// <summary>
-/// One row of the TenantSuite security log views (sign-in logs / audit logs).
+/// One row of the TenantSuite sign-in logs view.
 /// </summary>
-public class SecurityLogEntry
+public class SignInLogEntry
 {
     public string Id { get; set; } = default!;
 
     public string UserId { get; set; } = default!;
 
-    public string DisplayName { get; set; } = default!;
+    public string? DisplayName { get; set; }
 
-    public string Email { get; set; } = default!;
+    public string? Email { get; set; }
 
     public string EventType { get; set; } = default!;
+
+    public string? AuthMethod { get; set; }
+
+    public string? Result { get; set; }
 
     public string? Details { get; set; }
 
@@ -149,7 +153,45 @@ public class SecurityLogEntry
 
     public string? IpAddress { get; set; }
 
+    public string? DeviceInfo { get; set; }
+
     public string? UserAgent { get; set; }
+
+    public DateTime CreatedOn { get; set; }
+}
+
+/// <summary>
+/// One row of the TenantSuite audit logs view.
+/// </summary>
+public class AuditLogEntry
+{
+    public string Id { get; set; } = default!;
+
+    public string TriggeredBy { get; set; } = default!;
+
+    public string? ActorDisplayName { get; set; }
+
+    public string? ActorEmail { get; set; }
+
+    public string? TargetDisplayName { get; set; }
+
+    public string? TargetEmail { get; set; }
+
+    public string EventType { get; set; } = default!;
+
+    public string? Reason { get; set; }
+
+    public string? OldValue { get; set; }
+
+    public string? NewValue { get; set; }
+
+    public string? ClientId { get; set; }
+
+    public string? TenantName { get; set; }
+
+    public string? IpAddress { get; set; }
+
+    public string? DeviceInfo { get; set; }
 
     public DateTime CreatedOn { get; set; }
 }

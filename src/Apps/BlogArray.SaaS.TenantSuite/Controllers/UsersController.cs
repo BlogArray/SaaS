@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -11,6 +11,7 @@ using System.Text;
 using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.OpenId;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -29,7 +30,7 @@ public class UsersController(OpenIdDbContext context,
     IEmailTemplate emailTemplate,
     IConfiguration configuration,
     IUserManagementService userManagementService,
-    ISecurityAuditLogger auditLogger) : BaseController
+    IAuditEventLogger auditLogger) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -223,7 +224,7 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserUpdated, $"{entity.Email}");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id));
 
         return JsonSuccess("User information has been successfully saved.");
     }
@@ -311,7 +312,7 @@ public class UsersController(OpenIdDbContext context,
 
             if (identityResult.Succeeded)
             {
-                await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserRolesChanged, $"{user.Email}: [{string.Join(", ", assignViewModel.RolesSelected)}]");
+                await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRolesChanged, TargetUserId: user.Id, Reason: $"roles set to [{string.Join(", ", assignViewModel.RolesSelected)}]"));
 
                 string successMessage = $"Successfully assigned {assignViewModel.RolesSelected.Count} role(s) to the user.";
 
@@ -325,7 +326,7 @@ public class UsersController(OpenIdDbContext context,
 
         if (unassignedRoles > 0)
         {
-            await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserRolesChanged, $"{user.Email}: no roles");
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRolesChanged, TargetUserId: user.Id, Reason: "all roles removed"));
         }
 
         return unassignedRoles > 0
@@ -384,6 +385,8 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountEnabled, TargetUserId: entity.Id));
+
         return JsonSuccess($"User {entity.Email} has been enabled successfully.");
     }
 
@@ -413,6 +416,8 @@ public class UsersController(OpenIdDbContext context,
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountDisabled, TargetUserId: entity.Id));
 
         return JsonSuccess($"User {entity.Email} has been disabled successfully.");
     }
@@ -512,6 +517,8 @@ public class UsersController(OpenIdDbContext context,
             entity.UpdatedById = LoggedInUserID;
             await userManager.UpdateAsync(entity);
 
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PasswordReset, TargetUserId: entity.Id, Reason: "temporary password assigned by administrator"));
+
             return JsonSuccess("A temporary password has been set. The user must set a new password the next time they sign in.");
         }
         else
@@ -594,9 +601,9 @@ public class UsersController(OpenIdDbContext context,
 
         // Audit-backed rate limit: the resend itself is recorded as a security event, so a
         // short lookback prevents mail-bombing an address without extra infrastructure.
-        bool recentlySent = await context.SecurityEvents
+        bool recentlySent = await context.AuditEvents
             .AnyAsync(e => e.UserId == entity.Id
-                        && e.EventType == SecurityEventTypes.ResendInvite
+                        && e.EventType == AuditEventTypes.ResendInvite
                         && e.CreatedOn > DateTime.UtcNow.AddMinutes(-5));
 
         if (recentlySent)
@@ -627,7 +634,7 @@ public class UsersController(OpenIdDbContext context,
 
         emailTemplate.InviteWithPasswordLink(entity.Email, entity.DisplayName, callbackUrl, application.Legalname, application.TenantUrl, LoggedInUserEmail);
 
-        await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.ResendInvite, $"{entity.Email} ({application.ClientId})");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ResendInvite, TargetUserId: entity.Id, ClientId: application.ClientId));
 
         return JsonSuccess($"The invite has been re-sent to {entity.Email} for {application.DisplayName}. Please ask them to check their email.");
     }
@@ -681,6 +688,8 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountLockedByAdmin, TargetUserId: entity.Id));
+
         return JsonSuccess("The user account is currently locked, preventing any further login attempts until the lock is lifted.");
     }
 
@@ -706,6 +715,9 @@ public class UsersController(OpenIdDbContext context,
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountUnlocked, TargetUserId: entity.Id));
+
         return JsonSuccess("The user account is now unlocked, allowing the user to log in and access their account without any restrictions.");
     }
 

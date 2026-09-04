@@ -1,4 +1,5 @@
-﻿//
+﻿using BlogArray.SaaS.Domain.Events;
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -17,7 +18,7 @@ namespace BlogArray.SaaS.Identity.Controllers;
 [Route("saml")]
 public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appManager,
     SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger, IConfiguration configuration) : Controller
+    ISignInEventLogger auditLogger, IConfiguration configuration) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Login(string tenant, string next = null)
@@ -161,7 +162,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         await signInManager.SignInAsync(user, false, customClaims, IdentityConstants.ApplicationScheme);
 
-        await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceededSaml, tenant);
+        await auditLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, tenant));
 
         Microsoft.Extensions.Primitives.StringValues relayState = Request.Form["RelayState"];
 

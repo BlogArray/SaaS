@@ -8,6 +8,7 @@
 //
 
 #nullable disable
+using BlogArray.SaaS.Domain.Events;
 
 using System.Text;
 using BlogArray.SaaS.Infrastructure.Services;
@@ -25,7 +26,7 @@ public class ExternalLoginModel : PageModel
     private readonly IUserStore<ApplicationUser> _userStore;
     private readonly IUserEmailStore<ApplicationUser> _emailStore;
     private readonly IEmailTemplate _emailTemplate;
-    private readonly ISecurityAuditLogger _auditLogger;
+    private readonly ISignInEventLogger _auditLogger;
     private readonly ILogger<ExternalLoginModel> _logger;
 
     public ExternalLoginModel(
@@ -33,7 +34,7 @@ public class ExternalLoginModel : PageModel
         UserManager<ApplicationUser> userManager,
         IUserStore<ApplicationUser> userStore,
         IEmailTemplate emailTemplate,
-        ISecurityAuditLogger auditLogger,
+        ISignInEventLogger auditLogger,
         ILogger<ExternalLoginModel> logger)
     {
         _signInManager = signInManager;
@@ -126,7 +127,7 @@ public class ExternalLoginModel : PageModel
 
             if (auditUser is not null)
             {
-                await _auditLogger.LogAsync(auditUser.Id, SecurityEventTypes.LoginSucceededExternal, info.LoginProvider);
+                await _auditLogger.LogAsync(new SignInEventRecord(auditUser.Id, null, SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, info.LoginProvider));
             }
 
             return LocalRedirect(next);

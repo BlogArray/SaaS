@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -9,11 +9,12 @@
 
 #nullable disable
 
+using BlogArray.SaaS.Domain.Events;
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class LinkedAccountsModel(
     UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger,
+    IAuditEventLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager,
     IUserStore<ApplicationUser> userStore) : PageModel
 {
@@ -103,7 +104,7 @@ public class LinkedAccountsModel(
         }
 
         await signInManager.RefreshSignInAsync(user);
-        await auditLogger.LogAsync(user.Id, SecurityEventTypes.ExternalLoginRemoved, loginProvider);
+        await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.ExternalLoginRemoved, Reason: loginProvider));
         StatusMessage = "The external login was removed.";
         return RedirectToPage();
     }

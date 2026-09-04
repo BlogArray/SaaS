@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -8,7 +8,9 @@
 //
 
 #nullable disable
+using BlogArray.SaaS.OpenId;
 
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Identity.Infrastructure;
 
 namespace BlogArray.SaaS.Identity.Pages;
@@ -22,7 +24,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWithPasskeyModel(
     SignInManagerExtension<ApplicationUser> signInManager,
-    ISecurityAuditLogger auditLogger,
+    ISignInEventLogger signInEventLogger,
     PasskeyService passkeyService,
     ILogger<LoginWithPasskeyModel> logger) : PageModel
 {
@@ -80,7 +82,7 @@ public class LoginWithPasskeyModel(
         // No two-factor or lockout logic applies: the verified assertion IS the authentication.
         await signInManager.SignInAsync(user, isPersistent: false, customClaims, authenticationMethod: "webauthn");
 
-        await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded, "passkey", ISecurityAuditLogger.GetTenantClientIdFromUrl(Next));
+        await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(Next), SignInEventTypes.LoginSucceeded, SignInAuthMethod.Passkey, SignInResultType.Success, "passkey"));
 
         return LocalRedirect(Url.IsLocalUrl(Next) ? Next : Url.Content("~/"));
     }

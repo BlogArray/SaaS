@@ -18,6 +18,7 @@ using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId;
+using BlogArray.SaaS.OpenId.Helpers;
 using BlogArray.SaaS.Web.Helpers;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;

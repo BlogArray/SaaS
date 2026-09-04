@@ -23,103 +23,109 @@ namespace BlogArray.SaaS.TenantSuite.Controllers;
 [Authorize(Roles = "Superuser,TenantAdmin")]
 public class SecurityLogsController(OpenIdDbContext context) : BaseController
 {
-    private static readonly string[] SignInEventTypes =
-    [
-        SecurityEventTypes.LoginSucceeded,
-        SecurityEventTypes.LoginSucceededExternal,
-        SecurityEventTypes.LoginSucceededSaml,
-        SecurityEventTypes.LoginFailed,
-        SecurityEventTypes.LockedOut
-    ];
-
     public async Task<IActionResult> SignInLogs(int page = 1, int take = 10, string? term = null, string? tenantId = null)
     {
-        IQueryable<SecurityEvent> query = await ScopeAsync(tenantId);
+        IQueryable<string> userIds = GetScopedUserIds(tenantId);
 
-        query = query.Where(e => SignInEventTypes.Contains(e.EventType));
-
-        await SetTenantFilter(tenantId);
-
-        return View(await BuildLogList(query, term, page, take));
-    }
-
-    public async Task<IActionResult> AuditLogs(int page = 1, int take = 10, string? term = null, string? tenantId = null)
-    {
-        IQueryable<SecurityEvent> query = await ScopeAsync(tenantId);
-
-        query = query.Where(e => !SignInEventTypes.Contains(e.EventType));
-
-        await SetTenantFilter(tenantId);
-
-        return View(await BuildLogList(query, term, page, take));
-    }
-
-    /// <summary>
-    /// Scopes events to the viewer: TenantAdmins are restricted to users sharing a tenant
-    /// authorization with them; Superusers see everything, optionally filtered by tenant.
-    /// </summary>
-    private async Task<IQueryable<SecurityEvent>> ScopeAsync(string? tenantId)
-    {
-        IQueryable<SecurityEvent> query = context.SecurityEvents;
-
-        if (!User.IsInRole("Superuser"))
-        {
-            List<string> adminTenantIds = await context.Authorizations
-                .Where(a => a.Subject == LoggedInUserID)
-                .Select(a => a.Application.Id)
-                .ToListAsync();
-
-            List<string> userIds = await context.Authorizations
-                .Where(a => adminTenantIds.Contains(a.Application.Id))
-                .Select(a => a.Subject)
-                .ToListAsync();
-
-            query = query.Where(e => userIds.Contains(e.UserId));
-        }
-        else if (!string.IsNullOrEmpty(tenantId))
-        {
-            List<string> userIds = await context.Authorizations
-                .Where(a => a.Application.Id == tenantId)
-                .Select(a => a.Subject)
-                .ToListAsync();
-
-            query = query.Where(e => userIds.Contains(e.UserId));
-        }
-
-        return query;
-    }
-
-    private async Task<IPager<SecurityLogEntry>> BuildLogList(IQueryable<SecurityEvent> query, string? term, int page, int take)
-    {
-        IQueryable<SecurityLogEntry> logs =
-            from e in query
-            join u in context.Users on e.UserId equals u.Id
-            join a in context.Applications on e.ClientId equals a.ClientId into apps
-            from tenant in apps.DefaultIfEmpty()
+        IQueryable<SignInLogEntry> logs =
+            from e in context.SignInEvents
+            join u in context.Users on e.UserId equals u.Id into userJoin
+            from u in userJoin.DefaultIfEmpty()
+            where userIds.Contains(e.UserId)
             orderby e.CreatedOn descending
-            select new SecurityLogEntry
+            select new SignInLogEntry
             {
                 Id = e.Id,
                 UserId = e.UserId,
-                DisplayName = u.DisplayName,
-                Email = u.Email,
+                DisplayName = u != null ? u.DisplayName : e.UserId,
+                Email = u != null ? u.Email : e.UserId,
                 EventType = e.EventType,
+                AuthMethod = e.AuthMethod,
+                Result = e.Result,
                 Details = e.Details,
                 ClientId = e.ClientId,
-                TenantName = tenant != null ? tenant.DisplayName : null,
+                TenantName = context.Applications.Where(a => a.ClientId == e.ClientId).Select(a => a.DisplayName).FirstOrDefault(),
                 IpAddress = e.IpAddress,
+                DeviceInfo = e.DeviceInfo,
                 UserAgent = e.UserAgent,
                 CreatedOn = e.CreatedOn
             };
 
         if (!string.IsNullOrEmpty(term))
         {
-            logs = logs.Where(l => l.Email.Contains(term)
-                                || l.DisplayName.Contains(term)
-                                || (l.Details != null && l.Details.Contains(term)));
+            logs = logs.Where(l => l.Email!.Contains(term) || l.Details!.Contains(term) || l.UserId.Contains(term));
         }
 
-        return await logs.ToPagerListAsync(page, take);
+        await SetTenantFilter(tenantId);
+
+        return View(await logs.ToPagerListAsync(page, take));
+    }
+
+    public async Task<IActionResult> AuditLogs(int page = 1, int take = 10, string? term = null, string? tenantId = null)
+    {
+        IQueryable<string> userIds = GetScopedUserIds(tenantId);
+
+        IQueryable<AuditLogEntry> logs =
+            from e in context.AuditEvents
+            join actor in context.Users on e.UserId equals actor.Id into actorJoin
+            from actor in actorJoin.DefaultIfEmpty()
+            join target in context.Users on e.TargetUserId equals target.Id into targetJoin
+            from target in targetJoin.DefaultIfEmpty()
+            where userIds.Contains(e.UserId) || (e.TargetUserId != null && userIds.Contains(e.TargetUserId))
+            orderby e.CreatedOn descending
+            select new AuditLogEntry
+            {
+                Id = e.Id,
+                TriggeredBy = e.TriggeredBy,
+                ActorDisplayName = actor != null ? actor.DisplayName : e.UserId,
+                ActorEmail = actor != null ? actor.Email : e.UserId,
+                TargetDisplayName = target != null ? target.DisplayName : e.TargetUserId,
+                TargetEmail = target != null ? target.Email : e.TargetUserId,
+                EventType = e.EventType,
+                Reason = e.Reason,
+                OldValue = e.OldValue,
+                NewValue = e.NewValue,
+                ClientId = e.ClientId,
+                TenantName = context.Applications.Where(a => a.ClientId == e.ClientId).Select(a => a.DisplayName).FirstOrDefault(),
+                IpAddress = e.IpAddress,
+                DeviceInfo = e.DeviceInfo,
+                CreatedOn = e.CreatedOn
+            };
+
+        if (!string.IsNullOrEmpty(term))
+        {
+            logs = logs.Where(l => l.ActorEmail!.Contains(term)
+                                || l.TargetEmail!.Contains(term)
+                                || l.Reason!.Contains(term)
+                                || l.EventType.Contains(term));
+        }
+
+        await SetTenantFilter(tenantId);
+
+        return View(await logs.ToPagerListAsync(page, take));
+    }
+
+    /// <summary>
+    /// User ids visible to the current viewer: TenantAdmins are restricted to users sharing a
+    /// tenant authorization with them; Superusers see everything, optionally filtered by tenant.
+    /// </summary>
+    private IQueryable<string> GetScopedUserIds(string? tenantId)
+    {
+        IQueryable<OpenIdAuthorization> authorizations = context.Authorizations;
+
+        if (!User.IsInRole("Superuser"))
+        {
+            authorizations = authorizations.Where(a => context.Authorizations
+                .Where(mine => mine.Subject == LoggedInUserID)
+                .Select(mine => mine.Application.Id)
+                .Contains(a.Application.Id));
+        }
+        else if (!string.IsNullOrEmpty(tenantId))
+        {
+            authorizations = authorizations.Where(a => a.Application.Id == tenantId);
+        }
+
+        return authorizations.Select(a => a.Subject);
     }
 
     private async Task SetTenantFilter(string? selectedTenantId)
