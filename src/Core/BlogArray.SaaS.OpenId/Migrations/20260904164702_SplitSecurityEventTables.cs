@@ -11,170 +11,142 @@ namespace BlogArray.SaaS.OpenId.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.CreateTable(
-                name: "AuditEvents",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
-                    TriggeredBy = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    TargetUserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
-                    ClientId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
-                    EventType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    OldValue = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    NewValue = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Reason = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
-                    Result = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    IpAddress = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    DeviceInfo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    UserAgent = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
-                    CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_AuditEvents", x => x.Id);
-                });
+            // All statements are guarded and idempotent: a half-completed run of this
+            // migration (DDL auto-commits in SQL Server even when a later statement fails)
+            // is safely resumed on the next startup.
 
-            migrationBuilder.CreateTable(
-                name: "SignInEvents",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
-                    ClientId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
-                    EventType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    AuthMethod = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
-                    Result = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    Details = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
-                    IpAddress = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    DeviceInfo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
-                    UserAgent = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
-                    CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SignInEvents", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_SignInEvents_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'AuditEvents', N'U') IS NULL
+BEGIN
+    CREATE TABLE [AuditEvents](
+        [Id] nvarchar(400) NOT NULL,
+        [UserId] nvarchar(400) NOT NULL,
+        [TriggeredBy] nvarchar(20) NOT NULL,
+        [TargetUserId] nvarchar(400) NULL,
+        [ClientId] nvarchar(400) NULL,
+        [EventType] nvarchar(100) NOT NULL,
+        [OldValue] nvarchar(max) NULL,
+        [NewValue] nvarchar(max) NULL,
+        [Reason] nvarchar(512) NULL,
+        [Result] nvarchar(20) NOT NULL,
+        [IpAddress] nvarchar(64) NULL,
+        [DeviceInfo] nvarchar(256) NULL,
+        [UserAgent] nvarchar(512) NULL,
+        [CreatedOn] datetime2 NOT NULL,
+        CONSTRAINT [PK_AuditEvents] PRIMARY KEY ([Id])
+    );
+    CREATE INDEX [IX_AuditEvents_ClientId_CreatedOn] ON [AuditEvents] ([ClientId], [CreatedOn]);
+    CREATE INDEX [IX_AuditEvents_EventType_CreatedOn] ON [AuditEvents] ([EventType], [CreatedOn]);
+    CREATE INDEX [IX_AuditEvents_TargetUserId] ON [AuditEvents] ([TargetUserId]);
+    CREATE INDEX [IX_AuditEvents_UserId_CreatedOn] ON [AuditEvents] ([UserId], [CreatedOn]);
+END");
 
-            // Split the legacy unified SecurityEvents rows into the two new tables before the
-            // old table is dropped. Authentication outcomes go to SignInEvents (with method
-            // and result derived from the historical event type); every other event is a
-            // directory/config change and goes to AuditEvents as an admin-initiated action.
-            migrationBuilder.Sql(@"INSERT INTO SignInEvents (Id, UserId, ClientId, EventType, AuthMethod, Result, Details, IpAddress, UserAgent, CreatedOn)
-SELECT Id, UserId, ClientId, EventType,
-       CASE
-           WHEN EventType IN (N'LoginSucceededSaml') THEN N'saml'
-           WHEN EventType IN (N'LoginSucceededExternal') THEN N'external'
-           WHEN EventType = N'LoginSucceeded' AND Details = N'passkey' THEN N'passkey'
-           WHEN EventType IN (N'LoginFailed', N'LockedOut') AND Details = N'passkey' THEN N'passkey'
-           WHEN EventType IN (N'LoginFailed', N'LockedOut') AND Details LIKE N'mfa%' THEN N'mfa'
-           ELSE N'password'
-       END AS AuthMethod,
-       CASE
-           WHEN EventType IN (N'LoginFailed', N'LockedOut') THEN N'Failure'
-           ELSE N'Success'
-       END AS Result,
-       Details, IpAddress, UserAgent, CreatedOn
-FROM SecurityEvents
-WHERE EventType IN (N'LoginSucceeded', N'LoginSucceededExternal', N'LoginSucceededSaml', N'LoginFailed', N'LockedOut');");
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'SignInEvents', N'U') IS NULL
+BEGIN
+    CREATE TABLE [SignInEvents](
+        [Id] nvarchar(400) NOT NULL,
+        [UserId] nvarchar(400) NOT NULL,
+        [ClientId] nvarchar(400) NULL,
+        [EventType] nvarchar(100) NOT NULL,
+        [AuthMethod] nvarchar(100) NULL,
+        [Result] nvarchar(20) NOT NULL,
+        [Details] nvarchar(512) NULL,
+        [IpAddress] nvarchar(64) NULL,
+        [DeviceInfo] nvarchar(256) NULL,
+        [UserAgent] nvarchar(512) NULL,
+        [CreatedOn] datetime2 NOT NULL,
+        CONSTRAINT [PK_SignInEvents] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_SignInEvents_AspNetUsers_UserId] FOREIGN KEY ([UserId]) REFERENCES [AspNetUsers] ([Id]) ON DELETE CASCADE
+    );
+    CREATE INDEX [IX_SignInEvents_ClientId_CreatedOn] ON [SignInEvents] ([ClientId], [CreatedOn]);
+    CREATE INDEX [IX_SignInEvents_CreatedOn] ON [SignInEvents] ([CreatedOn]);
+    CREATE INDEX [IX_SignInEvents_UserId_CreatedOn] ON [SignInEvents] ([UserId], [CreatedOn]);
+END");
 
-            migrationBuilder.Sql(@"INSERT INTO AuditEvents (Id, UserId, TriggeredBy, ClientId, EventType, Result, Details, IpAddress, UserAgent, CreatedOn)
-SELECT Id, UserId,
+            // Copy audit rows: everything except authentication outcomes. The historical
+            // free-text Details maps to Reason.
+            migrationBuilder.Sql(@"INSERT INTO AuditEvents (Id, UserId, TriggeredBy, TargetUserId, ClientId, EventType, OldValue, NewValue, Reason, Result, IpAddress, DeviceInfo, UserAgent, CreatedOn)
+SELECT se.Id,
+       se.UserId,
        CASE
-           WHEN EventType IN (N'PasswordReset', N'MfaEnabled', N'MfaDisabled', N'RecoveryCodesGenerated', N'TrustedBrowsersRevoked', N'SessionRevoked', N'ExternalLoginRemoved', N'PasskeyRegistered', N'PasskeyRemoved') THEN N'User'
+           WHEN se.EventType IN (N'PasswordReset', N'MfaEnabled', N'MfaDisabled', N'RecoveryCodesGenerated', N'TrustedBrowsersRevoked', N'SessionRevoked', N'ExternalLoginRemoved', N'PasskeyRegistered', N'PasskeyRemoved') THEN N'User'
            ELSE N'Admin'
-       END AS TriggeredBy,
-       ClientId, EventType, N'Success', Details, IpAddress, UserAgent, CreatedOn
-FROM SecurityEvents
-WHERE EventType NOT IN (N'LoginSucceeded', N'LoginSucceededExternal', N'LoginSucceededSaml', N'LoginFailed', N'LockedOut');");
+       END,
+       NULL,
+       se.ClientId,
+       se.EventType,
+       NULL,
+       NULL,
+       se.Details,
+       N'Success',
+       se.IpAddress,
+       NULL,
+       se.UserAgent,
+       se.CreatedOn
+FROM SecurityEvents se
+WHERE se.EventType NOT IN (N'LoginSucceeded', N'LoginSucceededExternal', N'LoginSucceededSaml', N'LoginFailed', N'LockedOut')
+  AND NOT EXISTS (SELECT 1 FROM AuditEvents ae WHERE ae.Id = se.Id);");
 
-            migrationBuilder.DropTable(
-                name: "SecurityEvents");
+            // Copy sign-in rows: authentication outcomes, with the auth method derived from
+            // the historical event type/details.
+            migrationBuilder.Sql(@"INSERT INTO SignInEvents (Id, UserId, ClientId, EventType, AuthMethod, Result, Details, IpAddress, DeviceInfo, UserAgent, CreatedOn)
+SELECT se.Id,
+       se.UserId,
+       se.ClientId,
+       se.EventType,
+       CASE
+           WHEN se.EventType = N'LoginSucceededSaml' THEN N'saml'
+           WHEN se.EventType = N'LoginSucceededExternal' THEN N'external'
+           WHEN se.Details = N'passkey' THEN N'passkey'
+           WHEN se.Details LIKE N'mfa%' THEN N'mfa'
+           ELSE N'password'
+       END,
+       CASE
+           WHEN se.EventType IN (N'LoginFailed', N'LockedOut') THEN N'Failure'
+           ELSE N'Success'
+       END,
+       se.Details,
+       se.IpAddress,
+       NULL,
+       se.UserAgent,
+       se.CreatedOn
+FROM SecurityEvents se
+WHERE se.EventType IN (N'LoginSucceeded', N'LoginSucceededExternal', N'LoginSucceededSaml', N'LoginFailed', N'LockedOut')
+  AND NOT EXISTS (SELECT 1 FROM SignInEvents sie WHERE sie.Id = se.Id);");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_AuditEvents_ClientId_CreatedOn",
-                table: "AuditEvents",
-                columns: new[] { "ClientId", "CreatedOn" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AuditEvents_EventType_CreatedOn",
-                table: "AuditEvents",
-                columns: new[] { "EventType", "CreatedOn" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AuditEvents_TargetUserId",
-                table: "AuditEvents",
-                column: "TargetUserId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_AuditEvents_UserId_CreatedOn",
-                table: "AuditEvents",
-                columns: new[] { "UserId", "CreatedOn" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SignInEvents_ClientId_CreatedOn",
-                table: "SignInEvents",
-                columns: new[] { "ClientId", "CreatedOn" });
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SignInEvents_CreatedOn",
-                table: "SignInEvents",
-                column: "CreatedOn");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_SignInEvents_UserId_CreatedOn",
-                table: "SignInEvents",
-                columns: new[] { "UserId", "CreatedOn" });
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'SecurityEvents', N'U') IS NOT NULL DROP TABLE [SecurityEvents];");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "AuditEvents");
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'SecurityEvents', N'U') IS NULL
+BEGIN
+    CREATE TABLE [SecurityEvents](
+        [Id] nvarchar(400) NOT NULL,
+        [UserId] nvarchar(400) NOT NULL,
+        [ClientId] nvarchar(400) NULL,
+        [EventType] nvarchar(100) NOT NULL,
+        [Details] nvarchar(512) NULL,
+        [IpAddress] nvarchar(64) NULL,
+        [UserAgent] nvarchar(512) NULL,
+        [CreatedOn] datetime2 NOT NULL,
+        CONSTRAINT [PK_SecurityEvents] PRIMARY KEY ([Id])
+    );
+    CREATE INDEX [IX_SecurityEvents_CreatedOn] ON [SecurityEvents] ([CreatedOn]);
+    CREATE INDEX [IX_SecurityEvents_UserId] ON [SecurityEvents] ([UserId]);
+END");
 
-            migrationBuilder.DropTable(
-                name: "SignInEvents");
+            migrationBuilder.Sql(@"INSERT INTO SecurityEvents (Id, UserId, ClientId, EventType, Details, IpAddress, UserAgent, CreatedOn)
+SELECT Id, UserId, ClientId, EventType, Details, IpAddress, UserAgent, CreatedOn FROM SignInEvents
+WHERE NOT EXISTS (SELECT 1 FROM SecurityEvents se WHERE se.Id = SignInEvents.Id);");
 
-            migrationBuilder.CreateTable(
-                name: "SecurityEvents",
-                columns: table => new
-                {
-                    Id = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
-                    ClientId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
-                    CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Details = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
-                    EventType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    IpAddress = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
-                    UserAgent = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
-                    UserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SecurityEvents", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_SecurityEvents_AspNetUsers_UserId",
-                        column: x => x.UserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            migrationBuilder.Sql(@"INSERT INTO SecurityEvents (Id, UserId, ClientId, EventType, Details, IpAddress, UserAgent, CreatedOn)
+SELECT Id, UserId, ClientId, EventType, Reason, IpAddress, UserAgent, CreatedOn FROM AuditEvents
+WHERE NOT EXISTS (SELECT 1 FROM SecurityEvents se WHERE se.Id = AuditEvents.Id);");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_SecurityEvents_CreatedOn",
-                table: "SecurityEvents",
-                column: "CreatedOn");
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'AuditEvents', N'U') IS NOT NULL DROP TABLE [AuditEvents];");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_SecurityEvents_UserId",
-                table: "SecurityEvents",
-                column: "UserId");
+            migrationBuilder.Sql(@"IF OBJECT_ID(N'SignInEvents', N'U') IS NOT NULL DROP TABLE [SignInEvents];");
         }
     }
 }
