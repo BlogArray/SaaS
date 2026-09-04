@@ -190,22 +190,24 @@ public class LoginWith2faModel(
             ? await signInManager.TwoFactorEmailCodeSignInAsync(code, false, Input.RememberMachine, customClaims)
             : await signInManager.TwoFactorAuthenticatorSignInAsync(code, false, Input.RememberMachine, customClaims);
 
+        string? tenantClientId = ISecurityAuditLogger.GetTenantClientIdFromUrl(next);
+
         if (result.Succeeded)
         {
             logger.LogInformation("User with ID '{UserId}' logged in with 2fa ({Method}).", user.Id, Method ?? "authenticator");
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded);
+            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}", clientId: tenantClientId);
             return LocalRedirect(next);
         }
         else if (result.IsLockedOut)
         {
             logger.LogWarning("User with ID '{UserId}' account locked out.", user.Id);
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LockedOut);
+            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LockedOut, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}", clientId: tenantClientId);
             return RedirectToPage("./Lockout");
         }
         else
         {
             logger.LogWarning("Invalid 2FA code ({Method}) entered for user with ID '{UserId}'.", Method ?? "authenticator", user.Id);
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginFailed);
+            await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginFailed, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}", clientId: tenantClientId);
             ModelState.AddModelError(string.Empty, "You entered an incorrect code.");
             return Page();
         }

@@ -143,6 +143,10 @@ public class SecurityLogEntry
 
     public string? Details { get; set; }
 
+    public string? ClientId { get; set; }
+
+    public string? TenantName { get; set; }
+
     public string? IpAddress { get; set; }
 
     public string? UserAgent { get; set; }

@@ -33,6 +33,13 @@ public static class SecurityEventTypes
     public const string PasskeyRemoved = "PasskeyRemoved";
     public const string ApiKeyRotated = "ApiKeyRotated";
     public const string ResendInvite = "ResendInvite";
+    public const string UserCreated = "UserCreated";
+    public const string UserInvited = "UserInvited";
+    public const string UserAddedToTenant = "UserAddedToTenant";
+    public const string UserRemovedFromTenant = "UserRemovedFromTenant";
+    public const string UserRolesChanged = "UserRolesChanged";
+    public const string UserUpdated = "UserUpdated";
+    public const string TenantCreated = "TenantCreated";
 }
 
 /// <summary>
@@ -42,7 +49,32 @@ public static class SecurityEventTypes
 /// </summary>
 public interface ISecurityAuditLogger
 {
-    Task LogAsync(string userId, string eventType, string? details = null);
+    Task LogAsync(string userId, string eventType, string? details = null, string? clientId = null);
+
+    /// <summary>
+    /// Extracts the OIDC client_id (the tenant identifier) from an authorize-style return
+    /// URL such as /connect/authorize?client_id=afs&amp;redirect_uri=..., or null when absent.
+    /// </summary>
+    static string? GetTenantClientIdFromUrl(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return null;
+        }
+
+        int queryIndex = url.IndexOf('?');
+
+        if (queryIndex < 0)
+        {
+            return null;
+        }
+
+        Dictionary<string, Microsoft.Extensions.Primitives.StringValues>? query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseNullableQuery(url[queryIndex..]);
+
+        return query is not null && query.TryGetValue("client_id", out Microsoft.Extensions.Primitives.StringValues values)
+            ? values.ToString()
+            : null;
+    }
 }
 
 public class SecurityAuditLogger(
@@ -50,7 +82,7 @@ public class SecurityAuditLogger(
     Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor,
     ILogger<SecurityAuditLogger> logger) : ISecurityAuditLogger
 {
-    public async Task LogAsync(string userId, string eventType, string? details = null)
+    public async Task LogAsync(string userId, string eventType, string? details = null, string? clientId = null)
     {
         try
         {
@@ -70,6 +102,7 @@ public class SecurityAuditLogger(
                 Details = details,
                 IpAddress = remoteIp?.ToString(),
                 UserAgent = userAgent,
+                ClientId = clientId,
                 CreatedOn = DateTime.UtcNow
             });
 

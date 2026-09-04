@@ -24,6 +24,13 @@ public class SecurityEvent
     [StringLength(400)]
     public string UserId { get; set; } = default!;
 
+    /// <summary>
+    /// ClientId of the tenant application the event relates to (e.g. the tenant being signed
+    /// into), when it can be determined from the request; null for tenant-neutral events.
+    /// </summary>
+    [StringLength(400)]
+    public string? ClientId { get; set; }
+
     [StringLength(100)]
     public string EventType { get; set; } = default!;
 

@@ -116,6 +116,8 @@ public class TenantsController(OpenIdDbContext context,
 
         await AddToCache(entity);
 
+        await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.TenantCreated, $"{entity.DisplayName} ({entity.ClientId})");
+
         // Deliver the credentials by email, but never let a mail failure fail the creation:
         // the secrets are also shown once in the browser so the admin can hand them over.
         List<string> recipients = DeserializeEmailList(DeserializeEmails(entity.AdminEmail));

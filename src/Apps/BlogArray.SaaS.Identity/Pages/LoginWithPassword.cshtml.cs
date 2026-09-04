@@ -169,10 +169,13 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             // user explicitly opts in later. Password failures count towards lockout.
             Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.PasswordSignInAsync(user, Input.Password, false, true, customClaims);
 
+            // The OIDC authorize URL carried in `next` identifies the tenant being signed into.
+            string? tenantClientId = ISecurityAuditLogger.GetTenantClientIdFromUrl(next);
+
             if (result.Succeeded)
             {
                 logger.LogInformation("User logged in.");
-                await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded);
+                await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded, "password", clientId: tenantClientId);
 
                 // A temporary password (assigned by an administrator or bootstrap) only grants
                 // access to the reset-password flow: redirect there with a valid token.
@@ -194,12 +197,12 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             if (result.IsLockedOut)
             {
                 logger.LogWarning("User account locked out.");
-                await auditLogger.LogAsync(user.Id, SecurityEventTypes.LockedOut);
+                await auditLogger.LogAsync(user.Id, SecurityEventTypes.LockedOut, "password", clientId: tenantClientId);
                 return RedirectToPage("./Lockout");
             }
             else
             {
-                await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginFailed);
+                await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginFailed, "password", clientId: tenantClientId);
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return Page();
             }

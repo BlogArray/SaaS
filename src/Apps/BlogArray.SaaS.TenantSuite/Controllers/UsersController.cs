@@ -223,6 +223,8 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
+        await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserUpdated, $"{entity.Email}");
+
         return JsonSuccess("User information has been successfully saved.");
     }
 
@@ -309,6 +311,8 @@ public class UsersController(OpenIdDbContext context,
 
             if (identityResult.Succeeded)
             {
+                await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserRolesChanged, $"{user.Email}: [{string.Join(", ", assignViewModel.RolesSelected)}]");
+
                 string successMessage = $"Successfully assigned {assignViewModel.RolesSelected.Count} role(s) to the user.";
 
                 return JsonSuccess(successMessage);
@@ -317,6 +321,11 @@ public class UsersController(OpenIdDbContext context,
             {
                 return IdentityErrorResult(identityResult.Errors);
             }
+        }
+
+        if (unassignedRoles > 0)
+        {
+            await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.UserRolesChanged, $"{user.Email}: no roles");
         }
 
         return unassignedRoles > 0

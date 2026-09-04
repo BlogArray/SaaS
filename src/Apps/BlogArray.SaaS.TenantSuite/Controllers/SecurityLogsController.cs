@@ -94,6 +94,8 @@ public class SecurityLogsController(OpenIdDbContext context) : BaseController
         IQueryable<SecurityLogEntry> logs =
             from e in query
             join u in context.Users on e.UserId equals u.Id
+            join a in context.Applications on e.ClientId equals a.ClientId into apps
+            from tenant in apps.DefaultIfEmpty()
             orderby e.CreatedOn descending
             select new SecurityLogEntry
             {
@@ -103,6 +105,8 @@ public class SecurityLogsController(OpenIdDbContext context) : BaseController
                 Email = u.Email,
                 EventType = e.EventType,
                 Details = e.Details,
+                ClientId = e.ClientId,
+                TenantName = tenant != null ? tenant.DisplayName : null,
                 IpAddress = e.IpAddress,
                 UserAgent = e.UserAgent,
                 CreatedOn = e.CreatedOn

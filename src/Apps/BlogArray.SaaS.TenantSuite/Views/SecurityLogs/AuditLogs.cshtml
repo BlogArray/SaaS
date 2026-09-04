@@ -46,9 +46,10 @@
             <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>User</th>
-                        <th>Event</th>
-                        <th>Details</th>
+                        <th>Activity</th>
+                        <th>Initiated by</th>
+                        <th>Target / details</th>
+                        <th>Application</th>
                         <th>IP address</th>
                         <th>Date</th>
                     </tr>
@@ -57,12 +58,13 @@
                     @foreach (SecurityLogEntry entry in Model)
                     {
                         <tr>
+                            <td><span class="badge rounded-pill text-bg-secondary">@entry.EventType</span></td>
                             <td>
                                 <div class="fw-semibold">@entry.DisplayName</div>
                                 <div class="text-muted small">@entry.Email</div>
                             </td>
-                            <td><span class="badge rounded-pill text-bg-secondary">@entry.EventType</span></td>
-                            <td class="text-muted small">@entry.Details</td>
+                            <td class="small">@entry.Details</td>
+                            <td class="small">@entry.TenantName</td>
                             <td class="text-muted small">@entry.IpAddress</td>
                             <td class="text-muted small">@entry.CreatedOn.ToLocalTime()</td>
                         </tr>

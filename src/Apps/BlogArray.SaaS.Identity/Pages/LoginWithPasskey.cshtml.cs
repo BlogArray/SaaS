@@ -80,7 +80,7 @@ public class LoginWithPasskeyModel(
         // No two-factor or lockout logic applies: the verified assertion IS the authentication.
         await signInManager.SignInAsync(user, isPersistent: false, customClaims, authenticationMethod: "webauthn");
 
-        await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded, "passkey");
+        await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceeded, "passkey", ISecurityAuditLogger.GetTenantClientIdFromUrl(Next));
 
         return LocalRedirect(Url.IsLocalUrl(Next) ? Next : Url.Content("~/"));
     }
