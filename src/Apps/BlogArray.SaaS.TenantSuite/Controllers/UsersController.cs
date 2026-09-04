@@ -9,7 +9,9 @@
 
 using System.Text;
 using BlogArray.SaaS.Application.Services;
+using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.OpenId;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -26,7 +28,8 @@ public class UsersController(OpenIdDbContext context,
     UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate,
     IConfiguration configuration,
-    IUserManagementService userManagementService) : BaseController
+    IUserManagementService userManagementService,
+    ISecurityAuditLogger auditLogger) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -150,6 +153,7 @@ public class UsersController(OpenIdDbContext context,
         {
             Id = id,
             IsActive = appUser.IsActive,
+            HasPassword = !string.IsNullOrEmpty(appUser.PasswordHash),
             IsEmailPhoneConfirmed = appUser.EmailConfirmed && appUser.PhoneNumberConfirmed,
             LockoutEnabled = appUser.LockoutEnabled,
             LockoutEnd = appUser.LockoutEnd,
@@ -512,6 +516,111 @@ public class UsersController(OpenIdDbContext context,
 
             return JsonSuccess($"The password setup link has been sent to {entity.Email}. Please ask them to check their email.");
         }
+    }
+
+    /// <summary>
+    /// A pending user has no password: they were invited but the setup link was never used.
+    /// </summary>
+    private async Task<bool> IsPendingAsync(ApplicationUser user)
+    {
+        return !await userManager.HasPasswordAsync(user);
+    }
+
+    public async Task<IActionResult> ResendInvite(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? entity = await userManager.FindByIdAsync(id);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        if (!await IsPendingAsync(entity))
+        {
+            return JsonError("This user has already completed onboarding. Use 'Reset password' instead.");
+        }
+
+        List<SelectListItem> tenants = await context.Authorizations
+            .Where(a => a.Subject == id)
+            .Select(a => new SelectListItem
+            {
+                Value = a.Application.Id,
+                Text = a.Application.DisplayName
+            })
+            .ToListAsync();
+
+        return PartialView("_ResendInvite", new ResendInviteViewModel
+        {
+            Id = entity.Id,
+            DisplayName = entity.DisplayName,
+            Tenants = tenants
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResendInviteConfirm(ResendInviteViewModel resendInvite)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ModelStateError(ModelState);
+        }
+
+        ApplicationUser? entity = await userManager.FindByIdAsync(resendInvite.Id);
+
+        if (entity is null)
+        {
+            return JsonError("User not found.");
+        }
+
+        if (!await IsPendingAsync(entity))
+        {
+            return JsonError("This user has already completed onboarding. Use 'Reset password' instead.");
+        }
+
+        // Audit-backed rate limit: the resend itself is recorded as a security event, so a
+        // short lookback prevents mail-bombing an address without extra infrastructure.
+        bool recentlySent = await context.SecurityEvents
+            .AnyAsync(e => e.UserId == entity.Id
+                        && e.EventType == SecurityEventTypes.ResendInvite
+                        && e.CreatedOn > DateTime.UtcNow.AddMinutes(-5));
+
+        if (recentlySent)
+        {
+            return JsonError("An invite was already re-sent recently. Please wait a few minutes before trying again.");
+        }
+
+        OpenIdApplication? application = await context.Applications
+            .FindAsync(resendInvite.TenantApplicationId);
+
+        if (application is null)
+        {
+            return JsonError("Selected tenant not found.");
+        }
+
+        bool hasAccess = await context.Authorizations
+            .AnyAsync(a => a.Subject == entity.Id && a.Application.Id == application.Id);
+
+        if (!hasAccess)
+        {
+            return JsonError("The user is not assigned to the selected tenant.");
+        }
+
+        string code = await userManager.GeneratePasswordResetTokenAsync(entity);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+        string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code, tenant = application.ClientId });
+
+        emailTemplate.InviteWithPasswordLink(entity.Email, entity.DisplayName, callbackUrl, application.Legalname, application.TenantUrl, LoggedInUserEmail);
+
+        await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.ResendInvite, $"{entity.Email} ({application.ClientId})");
+
+        return JsonSuccess($"The invite has been re-sent to {entity.Email} for {application.DisplayName}. Please ask them to check their email.");
     }
 
     [HttpPost]

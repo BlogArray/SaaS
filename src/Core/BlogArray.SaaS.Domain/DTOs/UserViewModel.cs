@@ -113,11 +113,29 @@ public class UserToolbar
 
     public bool IsEmailPhoneConfirmed { get; set; }
 
+    /// <summary>
+    /// False while the user has not completed onboarding (no password set): they were invited
+    /// but the setup link was never used, so the invite can be resent.
+    /// </summary>
+    public bool HasPassword { get; set; }
+
     public bool LockoutEnabled { get; set; }
 
     public DateTimeOffset? LockoutEnd { get; set; }
 
     public int TenantsCount { get; set; } = default!;
+}
+
+public class ResendInviteViewModel
+{
+    public string Id { get; set; } = default!;
+
+    public string DisplayName { get; set; } = default!;
+
+    [Required(ErrorMessage = "Select the tenant to invite the user to.")]
+    public string TenantApplicationId { get; set; } = default!;
+
+    public List<SelectListItem>? Tenants { get; set; }
 }
 
 public class AssignTenantViewModel

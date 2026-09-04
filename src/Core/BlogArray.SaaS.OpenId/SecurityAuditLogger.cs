@@ -32,6 +32,7 @@ public static class SecurityEventTypes
     public const string PasskeyRegistered = "PasskeyRegistered";
     public const string PasskeyRemoved = "PasskeyRemoved";
     public const string ApiKeyRotated = "ApiKeyRotated";
+    public const string ResendInvite = "ResendInvite";
 }
 
 /// <summary>
