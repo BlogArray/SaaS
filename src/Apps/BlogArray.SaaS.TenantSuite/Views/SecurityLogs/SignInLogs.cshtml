@@ -1,0 +1,90 @@
+@model IPager<SecurityLogEntry>
+
+@{
+    ViewData["Title"] = "Sign-in logs";
+    string? searchTerm = ViewBag.SearchTerm as string;
+    string? tenantId = ViewBag.SelectedTenantId as string;
+    bool isSuperuser = User.IsInRole("Superuser");
+}
+
+<h3>Sign-in logs</h3>
+
+<div class="card">
+    <div class="card-header">
+        <form asp-action="SignInLogs" method="get" class="row gx-2">
+            @if (isSuperuser)
+            {
+                <div class="col-auto">
+                    <select name="tenantId" class="form-select" onchange="this.form.submit()">
+                        <option value="">All tenants</option>
+                        @foreach (SelectListItem tenant in (IEnumerable<SelectListItem>)ViewBag.Tenants!)
+                        {
+                            if (tenant.Value == tenantId)
+                            {
+                                <option value="@tenant.Value" selected>@tenant.Text</option>
+                            }
+                            else
+                            {
+                                <option value="@tenant.Value">@tenant.Text</option>
+                            }
+                        }
+                    </select>
+                </div>
+            }
+            <div class="col">
+                <div class="input-group">
+                    <input type="text" name="term" value="@searchTerm" class="form-control" placeholder="Search by user or details..." aria-label="Search">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="bi bi-search"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="card-body py-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Event</th>
+                        <th>Details</th>
+                        <th>IP address</th>
+                        <th>Device</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (SecurityLogEntry entry in Model)
+                    {
+                        bool failed = entry.EventType == SecurityEventTypes.LoginFailed
+                                   || entry.EventType == SecurityEventTypes.LockedOut;
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@entry.DisplayName</div>
+                                <div class="text-muted small">@entry.Email</div>
+                            </td>
+                            <td>
+                                <span class="badge rounded-pill text-bg-@(failed ? "danger" : "success")">@entry.EventType</span>
+                            </td>
+                            <td class="text-muted small">@entry.Details</td>
+                            <td class="text-muted small">@entry.IpAddress</td>
+                            <td class="text-muted small text-truncate" style="max-width:260px" title="@entry.UserAgent">@entry.UserAgent</td>
+                            <td class="text-muted small">@entry.CreatedOn.ToLocalTime()</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+@if (Model.Count() > 0)
+{
+    <div class="mt-2">
+        @Html.Pager((IPager)Model, page => Url.Action("SignInLogs", "SecurityLogs", new { page, take = ViewBag.Take, term = searchTerm, tenantId }), PrePagerOptions.MinimalWithEntriesText)
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

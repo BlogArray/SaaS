@@ -126,6 +126,30 @@ public class UserToolbar
     public int TenantsCount { get; set; } = default!;
 }
 
+/// <summary>
+/// One row of the TenantSuite security log views (sign-in logs / audit logs).
+/// </summary>
+public class SecurityLogEntry
+{
+    public string Id { get; set; } = default!;
+
+    public string UserId { get; set; } = default!;
+
+    public string DisplayName { get; set; } = default!;
+
+    public string Email { get; set; } = default!;
+
+    public string EventType { get; set; } = default!;
+
+    public string? Details { get; set; }
+
+    public string? IpAddress { get; set; }
+
+    public string? UserAgent { get; set; }
+
+    public DateTime CreatedOn { get; set; }
+}
+
 public class ResendInviteViewModel
 {
     public string Id { get; set; } = default!;
