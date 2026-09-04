@@ -21,9 +21,11 @@ public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string
     public string Legalname { get; set; } = default!;
 
     /// <summary>
-    /// Client Secret Not encrypted
+    /// DataProtection-protected client secret so tenant apps can still retrieve the value
+    /// for their OpenID Connect handshake (the OpenIddict-stored copy is a one-way hash).
     /// </summary>
-    public string ClientSecretPlain { get; set; } = default!;
+    [StringLength(1024)]
+    public string? ClientSecretProtected { get; set; }
 
     /// <summary>
     /// SHA-256 hex hash of the API key; validation compares hashes, never plaintext.
@@ -44,9 +46,11 @@ public class OpenIdApplication : OpenIddictEntityFrameworkCoreApplication<string
     public string? APIKeyPrefix { get; set; }
 
     /// <summary>
-    /// DB Connection string
+    /// DataProtection-protected DB connection string (encryption at rest for tenant secrets).
+    /// Plaintext exists only in memory, opened at the point of use via GetConnectionString.
     /// </summary>
-    public string? ConnectionString { get; set; } = default!;
+    [StringLength(2048)]
+    public string? ConnectionStringProtected { get; set; }
 
     /// <summary>
     /// Client code for mobile login

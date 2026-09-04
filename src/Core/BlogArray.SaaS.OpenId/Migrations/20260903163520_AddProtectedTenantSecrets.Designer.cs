@@ -4,6 +4,7 @@ using BlogArray.SaaS.OpenId;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlogArray.SaaS.OpenId.Migrations
 {
     [DbContext(typeof(OpenIdDbContext))]
-    partial class OpenIdDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260903163520_AddProtectedTenantSecrets")]
+    partial class AddProtectedTenantSecrets
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -265,6 +268,9 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.Property<string>("ClientSecret")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ClientSecretPlain")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ClientSecretProtected")
                         .HasMaxLength(1024)
                         .HasColumnType("nvarchar(1024)");
@@ -277,6 +283,9 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         .IsConcurrencyToken()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ConnectionString")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ConnectionStringProtected")
                         .HasMaxLength(2048)

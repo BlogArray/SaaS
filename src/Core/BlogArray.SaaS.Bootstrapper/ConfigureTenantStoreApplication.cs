@@ -41,15 +41,15 @@ public static class ConfigureTenantStoreApplication
                 Identifier = a.ClientId,
                 Name = a.DisplayName,
                 Legalname = a.Legalname,
-                ConnectionString = a.ConnectionString,
+                // The store never persists plaintext: secrets are carried protected and
+                // opened only in memory at use time (OIDC options factory / API key handler).
+                ConnectionString = a.GetConnectionString(protector),
                 Website = a.Website,
                 Favicon = a.Theme.Favicon,
                 Logo = a.Theme.Logo,
                 PrimaryColor = a.Theme.PrimaryColor,
-                // The store never persists the plaintext key: the protected copy is opened
-                // only here, in memory, for TenantApiKeyHandler to send on API calls.
                 APIKey = a.APIKeyProtected is null ? null : protector.Unprotect(a.APIKeyProtected),
-                ClientSecretPlain = a.ClientSecretPlain
+                ClientSecretProtected = a.ClientSecretProtected
             };
 
             //tenant.ChallengeScheme = "OpenIdConnect";

@@ -115,10 +115,6 @@ app.UseAuthorization();
 // Subdomain tenancy: tenants live at {identifier}.blogarray.dev and the app is rooted.
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 
-// Legacy tenant-path URLs from the route-strategy era (e.g. /afs/Home/Index) keep resolving
-// during the migration; registered after the default route so subdomain URLs win.
-app.MapControllerRoute("tenantRoute", "{__tenant__}/{controller=Home}/{action=Index}/{id?}");
-
 await app.AddTenantStoreAsync();
 
 app.Run();

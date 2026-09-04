@@ -66,7 +66,9 @@ public class OIDCHostedService(IServiceProvider serviceProvider, ILogger<OIDCHos
                     CreatedOn = new DateTime(2024, 11, 8, 7, 23, 2, 837, DateTimeKind.Utc).AddTicks(2866),
                     Legalname = app.DisplayName,
                     TenantUrl = app.TenantUrl,
-                    ClientSecretPlain = app.ClientSecret,
+                    // Seeded secrets go straight to protected storage: OpenIddict keeps its
+                    // own one-way hash, the tenant apps get a DataProtection-protected copy.
+                    ClientSecretProtected = protector.Protect(app.ClientSecret),
                     // Seeded keys go straight to the hashed storage model: hash for API
                     // validation, protected copy for tenant apps, prefix for display.
                     APIKeyHash = ApiKeyHasher.Hash(app.ClientSecret),

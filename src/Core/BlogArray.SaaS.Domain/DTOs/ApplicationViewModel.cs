@@ -60,6 +60,7 @@ public class ApplicationViewModel
 
     //public List<string> Permissions { get; set; } = [];
 
+    public bool HasConnectionString { get; set; } = default!;
     public string? ConnectionString { get; set; } = default!;
 
     /// <summary>

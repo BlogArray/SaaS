@@ -106,9 +106,11 @@ public class TenantsController(OpenIdDbContext context,
 
         entity.AdminEmail = adminEmail;
 
-        // The plaintext API key exists only in this request (shown once in the browser and
-        // emailed); storage keeps the hash for validation and a protected copy for tenant apps.
+        // Secrets exist in plaintext only for this request (shown once in the browser and
+        // emailed); storage keeps the API key hash and DataProtection-protected copies.
         SetApiKey(entity, openIdApplication.APIKey!);
+        SetClientSecret(entity, openIdApplication.ClientSecret!);
+        SetConnectionString(entity, openIdApplication.ConnectionString);
 
         await manager.CreateAsync(entity, openIdApplication.ClientSecret);
 
@@ -486,7 +488,9 @@ public class TenantsController(OpenIdDbContext context,
 
         if (type == "secret")
         {
-            openIdApplication.ClientSecretPlain = rotateKeys.Key;
+            // Hash for OpenIddict (one-way), protected copy for the tenant's OIDC handshake;
+            // the plaintext is shown once in the response and never stored.
+            SetClientSecret(openIdApplication, rotateKeys.Key);
 
             await manager.UpdateAsync(openIdApplication, rotateKeys.Key);
         }
@@ -682,7 +686,7 @@ public class TenantsController(OpenIdDbContext context,
             Legalname = entity.Legalname,
             // Never send the stored connection string (it contains credentials) back to the
             // browser; an empty field means "keep the existing value" on submit.
-            ConnectionString = null,
+            HasConnectionString = entity?.ConnectionStringProtected?.Length > 0,
             TenantUrl = entity.TenantUrl,
             Website = entity.Website,
             Description = entity.Description,
@@ -778,8 +782,6 @@ public class TenantsController(OpenIdDbContext context,
         entity.Legalname = model.Legalname;
         entity.Description = model.Description;
         entity.ClientId = model.ClientId;
-        entity.ClientSecretPlain = model.ClientSecret;
-        entity.ConnectionString = model.ConnectionString;
         entity.AdminEmail = JsonSerializer.Serialize((model.AdminEmail ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
         entity.TenantUrl = model.TenantUrl;
         entity.Theme = new ThemeConfiguration
@@ -815,16 +817,36 @@ public class TenantsController(OpenIdDbContext context,
         entity.TenantUrl = model.TenantUrl;
         // The connection string is never rendered back to the browser: an empty value means
         // "keep the existing connection string" rather than clearing it.
-        if (!string.IsNullOrWhiteSpace(model.ConnectionString))
-        {
-            entity.ConnectionString = model.ConnectionString;
-        }
+        SetConnectionString(entity, model.ConnectionString);
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
         entity.AdminEmail = JsonSerializer.Serialize((model.AdminEmail ?? string.Empty).Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries));
         //entity.Permissions = JsonSerializer.Serialize(model.Permissions);
         entity.RedirectUris = string.IsNullOrEmpty(model.RedirectUri) ? null : JsonSerializer.Serialize(model.RedirectUri.Split(","));
         entity.PostLogoutRedirectUris = string.IsNullOrEmpty(model.PostLogoutRedirectUri) ? null : JsonSerializer.Serialize(model.PostLogoutRedirectUri.Split(","));
+    }
+
+    /// <summary>
+    /// Stores the client secret without plaintext: a DataProtection-protected copy for the
+    /// tenant's OIDC handshake (OpenIddict separately keeps its own one-way hash). The
+    /// plaintext lives only in the current request.
+    /// </summary>
+    private void SetClientSecret(OpenIdApplication entity, string plainSecret)
+    {
+        entity.ClientSecretProtected = protector.Protect(plainSecret);
+    }
+
+    /// <summary>
+    /// Stores the connection string protected at rest; plaintext is never persisted.
+    /// </summary>
+    private void SetConnectionString(OpenIdApplication entity, string? plainConnectionString)
+    {
+        if (string.IsNullOrWhiteSpace(plainConnectionString))
+        {
+            return;
+        }
+
+        entity.ConnectionStringProtected = protector.Protect(plainConnectionString);
     }
 
     /// <summary>
@@ -868,13 +890,13 @@ public class TenantsController(OpenIdDbContext context,
             Identifier = openIdApplication.ClientId,
             Name = openIdApplication.DisplayName,
             Legalname = openIdApplication.Legalname,
-            ConnectionString = openIdApplication.ConnectionString,
+            ConnectionString = openIdApplication.GetConnectionString(protector),
             Website = openIdApplication.Website,
             Favicon = openIdApplication.Theme.Favicon,
             Logo = openIdApplication.Theme.Logo,
             PrimaryColor = openIdApplication.Theme.PrimaryColor,
             APIKey = openIdApplication.APIKeyProtected is null ? null : protector.Unprotect(openIdApplication.APIKeyProtected),
-            ClientSecretPlain = openIdApplication.ClientSecretPlain
+            ClientSecretProtected = openIdApplication.ClientSecretProtected
         };
 
         await cacheService.SetAsync(key, tenentInfo);

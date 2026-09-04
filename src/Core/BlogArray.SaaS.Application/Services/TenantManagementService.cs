@@ -1,6 +1,7 @@
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 
@@ -15,7 +16,8 @@ public interface ITenantManagementService
 
 public class TenantManagementService(OpenIdDbContext context,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
-    ITenantPersonnelService personnelService) : ITenantManagementService
+    ITenantPersonnelService personnelService,
+    IDataProtector protector) : ITenantManagementService
 {
     public async Task AssignUsersAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds)
     {
@@ -45,9 +47,9 @@ public class TenantManagementService(OpenIdDbContext context,
                 .Select(s => s.SubjectUser.Email)
                 .FirstOrDefaultAsync();
 
-            if (email is not null && application.ConnectionString is not null)
+            if (email is not null && application.GetConnectionString(protector) is not null)
             {
-                await personnelService.EnablePersonnelInTenantAsync(email, application.ConnectionString);
+                await personnelService.EnablePersonnelInTenantAsync(email, application.GetConnectionString(protector)!);
             }
         }
     }
@@ -69,9 +71,9 @@ public class TenantManagementService(OpenIdDbContext context,
 
         string[] emailList = emails.Where(e => !string.IsNullOrEmpty(e)).Select(e => e!).ToArray();
 
-        if (!string.IsNullOrEmpty(application.ConnectionString) && emailList.Length > 0)
+        if (!string.IsNullOrEmpty(application.GetConnectionString(protector)) && emailList.Length > 0)
         {
-            await personnelService.DisablePersonnelsInTenantAsync(emailList, application.ConnectionString);
+            await personnelService.DisablePersonnelsInTenantAsync(emailList, application.GetConnectionString(protector)!);
         }
 
         return unassignedCount;
