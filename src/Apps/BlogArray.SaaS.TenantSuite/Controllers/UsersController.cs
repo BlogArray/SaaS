@@ -681,8 +681,11 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
+        // Lock the account by setting a far-future lockout end. LockoutEnabled stays true:
+        // it is the flag that makes failed-attempt counting (AccountLockedRepeatedFailures)
+        // apply to this user at all.
         entity.LockoutEnabled = true;
-        entity.LockoutEnd = DateTime.MaxValue;
+        entity.LockoutEnd = DateTimeOffset.MaxValue;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
 
@@ -709,7 +712,10 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
-        entity.LockoutEnabled = false;
+        // Lift the forced lock but keep the user lockout-eligible (LockoutEnabled stays
+        // true, LockoutEnd cleared): previously this cleared LockoutEnabled, which silently
+        // disabled repeated-failure lockout for the user from then on.
+        entity.LockoutEnabled = true;
         entity.LockoutEnd = null;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
