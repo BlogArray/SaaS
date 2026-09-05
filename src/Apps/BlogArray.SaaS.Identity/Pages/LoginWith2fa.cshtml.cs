@@ -9,10 +9,8 @@
 
 #nullable disable
 
-using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Domain.Events;
-using BlogArray.SaaS.OpenId;
-using Microsoft.AspNetCore.Identity;
+using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.Extensions.Caching.Distributed;
 
 namespace BlogArray.SaaS.Identity.Pages;

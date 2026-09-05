@@ -9,9 +9,9 @@
 
 #nullable disable
 
-using BlogArray.SaaS.Domain.Events;
 using System.Text;
 using System.Text.Encodings.Web;
+using BlogArray.SaaS.Domain.Events;
 
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 

@@ -8,9 +8,8 @@
 //
 
 #nullable disable
-using BlogArray.SaaS.Domain.Events;
-
 using System.Text;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.WebUtilities;

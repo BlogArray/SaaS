@@ -10,8 +10,8 @@
 #nullable disable
 
 using System.Text;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Infrastructure.Services;
-using BlogArray.SaaS.Domain.Events;using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;

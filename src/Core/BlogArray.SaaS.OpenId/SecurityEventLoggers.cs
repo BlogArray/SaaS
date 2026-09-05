@@ -10,7 +10,6 @@
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Domain.Events;
 using Microsoft.AspNetCore.Http;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace BlogArray.SaaS.OpenId;

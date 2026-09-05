@@ -1,5 +1,4 @@
-﻿using BlogArray.SaaS.Domain.Events;
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -9,6 +8,7 @@
 //
 
 using System.Web;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Identity.Infrastructure;
 using OpenIddict.Core;
 using Saml;

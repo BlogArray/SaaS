@@ -7,8 +7,6 @@
 // https://github.com/BlogArray/SaaS
 //
 
-using BlogArray.SaaS.Domain.DTOs;
-using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;

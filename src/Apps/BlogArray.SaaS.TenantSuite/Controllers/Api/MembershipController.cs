@@ -9,12 +9,10 @@
 
 using System.Text;
 using BlogArray.SaaS.Application.Filters;
-using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Domain.Events;
-using BlogArray.SaaS.OpenId;
+using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;

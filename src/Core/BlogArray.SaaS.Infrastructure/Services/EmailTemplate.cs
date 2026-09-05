@@ -107,7 +107,8 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     }
 
     public void PasswordChangeSuccessed(string toEmail, string name)
-    {        string template = $"Hey {Encode(name)}!{newLine}" +
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
             $"This is to inform you that the password for your App account has been successfully changed on {DateTime.UtcNow} UTC.{newLine}" +
             $"If you did not initiate this change, please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")}. " +
             $"We also recommend reviewing your account for any unauthorized activity.{newLine}" +

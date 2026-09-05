@@ -8,8 +8,6 @@
 //
 
 #nullable disable
-using BlogArray.SaaS.OpenId;
-
 using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Identity.Infrastructure;
 

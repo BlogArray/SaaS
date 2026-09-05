@@ -11,8 +11,6 @@ using System.Text.Json;
 using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Identity.Models;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using OpenIddict.Core;
 using static OpenIddict.Abstractions.OpenIddictConstants;
 

@@ -9,10 +9,8 @@
 
 using System.Text;
 using BlogArray.SaaS.Application.Services;
-using BlogArray.SaaS.Domain.Entities;
-using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Domain.Events;
-using BlogArray.SaaS.OpenId;
+using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
