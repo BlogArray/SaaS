@@ -255,10 +255,40 @@ mbe-0 {
         width: 280px !important;
         display: block !important;
         height: 100% !important;
+        transition: width .25s ease;
     }
 
     .app-container {
         margin-left: 280px !important;
+        transition: margin-left .25s ease;
+    }
+
+    // Collapsed sidenav: icons only, content column slides with it. State is persisted in
+    // localStorage and toggled from the navbar (toggleSidenav()).
+    .app-main.sidenav-collapsed {
+        .app-sidenav {
+            width: 70px !important;
+            padding-left: .5rem !important;
+            padding-right: .5rem !important;
+
+            .nav-link {
+                text-align: center;
+                padding-left: .5rem;
+                padding-right: .5rem;
+
+                i {
+                    margin-right: 0 !important;
+                }
+
+                .sidenav-label {
+                    display: none;
+                }
+            }
+        }
+
+        .app-container {
+            margin-left: 70px !important;
+        }
     }
 }
 
@@ -331,4 +361,7 @@ $color_1: white;
     max-width: 350px;
     width: 100%;
     height: auto;
+}
+.white-space-pre-line {
+    white-space: pre-line;
 }

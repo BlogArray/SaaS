@@ -1,0 +1,54 @@
+@model SignInLogEntry
+
+<div class="offcanvas offcanvas-end medium" tabindex="-1" id="logDetailsOffcanvas" aria-labelledby="logDetailsOffcanvasLabel" data-bs-backdrop="static">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="logDetailsOffcanvasLabel">Sign-in event details</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Event type</dt>
+            <dd class="col-sm-8">@Model.EventType</dd>
+
+            <dt class="col-sm-4">User</dt>
+            <dd class="col-sm-8">
+                <div class="fw-semibold">@Model.DisplayName</div>
+                <div class="text-muted small">@Model.Email</div>
+                <div class="text-muted small">@Model.UserId</div>
+            </dd>
+
+            <dt class="col-sm-4">Application</dt>
+            <dd class="col-sm-8">
+                @(Model.TenantName ?? "-")
+                @if (!string.IsNullOrEmpty(Model.ClientId))
+                {
+                    <div class="text-muted small">@Model.ClientId</div>
+                }
+            </dd>
+
+            <dt class="col-sm-4">Authentication method</dt>
+            <dd class="col-sm-8">@(Model.AuthMethod ?? "-")</dd>
+
+            <dt class="col-sm-4">Result</dt>
+            <dd class="col-sm-8">@Model.Result</dd>
+
+            <dt class="col-sm-4">Details</dt>
+            <dd class="col-sm-8">@(Model.Details ?? "-")</dd>
+
+            <dt class="col-sm-4">IP address</dt>
+            <dd class="col-sm-8">@(Model.IpAddress ?? "-")</dd>
+
+            <dt class="col-sm-4">Device</dt>
+            <dd class="col-sm-8">@(Model.DeviceInfo ?? "-")</dd>
+
+            <dt class="col-sm-4">User agent</dt>
+            <dd class="col-sm-8 text-wrap small">@(Model.UserAgent ?? "-")</dd>
+
+            <dt class="col-sm-4">Time (UTC)</dt>
+            <dd class="col-sm-8">@Model.CreatedOn.ToUniversalTime().ToString("O")</dd>
+
+            <dt class="col-sm-4">Time (local)</dt>
+            <dd class="col-sm-8">@Model.CreatedOn.ToLocalTime().ToString("g")</dd>
+        </dl>
+    </div>
+</div>

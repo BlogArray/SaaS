@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -9,8 +9,7 @@
 
 #nullable disable
 
-using BlogArray.SaaS.Domain.Entities;
-using BlogArray.SaaS.OpenId;
+using BlogArray.SaaS.Domain.Events;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlogArray.SaaS.Identity.Pages.Settings;
@@ -19,7 +18,7 @@ public class UserSessionsModel(
     OpenIdDbContext context,
     UserManager<ApplicationUser> userManager,
     SignInManagerExtension<ApplicationUser> signInManager,
-    ISecurityAuditLogger auditLogger) : PageModel
+    IAuditEventLogger auditLogger) : PageModel
 {
     public List<SessionEntry> Sessions { get; set; } = [];
 
@@ -89,7 +88,7 @@ public class UserSessionsModel(
         session.Revoked = true;
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(user.Id, SecurityEventTypes.SessionRevoked, session.DeviceName);
+        await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.SessionRevoked, Reason: session.DeviceName));
 
         bool isCurrentSession = string.Equals(session.SessionId, User.FindFirst("session_id")?.Value, StringComparison.Ordinal);
 
@@ -129,7 +128,7 @@ public class UserSessionsModel(
             }
 
             await context.SaveChangesAsync();
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.SessionRevoked, $"All other sessions ({others.Count})");
+            await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.SessionRevoked, Reason: $"All other sessions ({others.Count})"));
         }
 
         StatusMessage = "All other devices have been signed out.";

@@ -1,0 +1,43 @@
+@model ResendInviteViewModel
+
+@using (Html.AjaxBeginForm(new AjaxOptions
+ {
+     Url = @Url.ActionLink("ResendInviteConfirm"),
+     HttpMethod = "post",
+     OnSuccess = "onUserChange",
+     OnFailure = "handleAjaxError"
+ }, new { id = "saveResendInviteForm" }))
+{
+    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="userEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-header border-bottom offcanvas-header">
+            <h5 id="offcanvasRightLabel">
+                Resend invite for @Model.DisplayName
+            </h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        <div class="offcanvas-body">
+            <input type="hidden" asp-for="Id" />
+            <p class="form-text">
+                This user has not completed onboarding yet. Select the tenant to send a fresh setup link for.
+            </p>
+            <div class="mb-3">
+                <label asp-for="TenantApplicationId" class="form-label">Tenant</label>
+                <select asp-for="TenantApplicationId" asp-items="Model.Tenants" class="form-select">
+                </select>
+                <span asp-validation-for="TenantApplicationId" class="text-danger"></span>
+            </div>
+        </div>
+        <div class="offcanvas-header border-top">
+            <div>
+                <input type="submit" value="Resend invite" class="btn btn-primary" />
+                <input type="button" value="Cancel" class="btn btn-secondary" data-bs-dismiss="offcanvas" aria-label="Close" />
+            </div>
+        </div>
+    </div>
+}
+
+<script>
+    $(document).ready(function () {
+        Unobtrusive.reInit($("#saveResendInviteForm"));
+    });
+</script>

@@ -207,7 +207,8 @@ public static class ConfigureOpenIdServices
         .AddPasswordValidator<BreachedPasswordValidator>()
         .AddDefaultTokenProviders();
 
-        builder.Services.AddScoped<ISecurityAuditLogger, SecurityAuditLogger>();
+        builder.Services.AddScoped<ISignInEventLogger, SignInEventLogger>();
+        builder.Services.AddScoped<IAuditEventLogger, AuditEventLogger>();
 
         builder.Services.AddScoped<ICaptchaService, CaptchaService>();
 
@@ -225,7 +226,8 @@ public static class ConfigureOpenIdServices
             .AddDefaultTokenProviders();
 
         // Tenant management actions (e.g. API key rotation) are audited from TenantSuite.
-        builder.Services.AddScoped<ISecurityAuditLogger, SecurityAuditLogger>();
+        builder.Services.AddScoped<ISignInEventLogger, SignInEventLogger>();
+        builder.Services.AddScoped<IAuditEventLogger, AuditEventLogger>();
 
         return builder;
     }

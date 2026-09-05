@@ -52,6 +52,15 @@
                 </form>
             }
 
+            @if (!Model.HasPassword)
+            {
+                @Html.AjaxActionLink("Resend invite", "ResendInvite", new { id = Model.Id }, new AjaxOptions
+       {
+           UpdateTargetId = "changeUserInfo",
+           OnSuccess = "userEditFormLoaded"
+       }, new { @class = "btn btn-outline-secondary", title = "Re-send the onboarding invite email" })
+            }
+
             @Html.AjaxActionLink("Reset password", "ResetPassword", new { id = Model.Id }, new AjaxOptions
    {
        UpdateTargetId = "changeUserInfo",

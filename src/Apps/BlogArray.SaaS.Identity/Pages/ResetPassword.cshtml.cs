@@ -10,8 +10,8 @@
 #nullable disable
 
 using System.Text;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Infrastructure.Services;
-using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;
@@ -19,7 +19,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate,
-    ISecurityAuditLogger auditLogger,
+    IAuditEventLogger auditLogger,
     ICaptchaService captcha) : PageModel
 {
     /// <summary>
@@ -159,7 +159,7 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
                 await userManager.UpdateAsync(user);
             }
 
-            await auditLogger.LogAsync(user.Id, SecurityEventTypes.PasswordReset);
+            await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.PasswordReset));
 
             //TODO: Check for tenant and login
 

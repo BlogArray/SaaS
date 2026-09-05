@@ -17,7 +17,8 @@ namespace BlogArray.SaaS.Identity.Controllers;
 public class SettingsController(
     SignInManagerExtension<ApplicationUser> signInManager,
     UserManager<ApplicationUser> userManager,
-    OpenIdDbContext db, IEmailTemplate emailTemplate, IAzureStorageService azureStorage) : BaseController
+    OpenIdDbContext db, IEmailTemplate emailTemplate, IAzureStorageService azureStorage,
+    BlogArray.SaaS.OpenId.IAuditEventLogger auditLogger) : BaseController
 {
     #region Profile
 
@@ -177,6 +178,7 @@ public class SettingsController(
         {
             await signInManager.RefreshSignInAsync(user);
             emailTemplate.PasswordChangeSuccessed(user.Email, user.DisplayName);
+            await auditLogger.LogAsync(new BlogArray.SaaS.Domain.Events.AuditEventRecord(user.Id, BlogArray.SaaS.Domain.Events.AuditTrigger.User, BlogArray.SaaS.Domain.Events.AuditEventTypes.PasswordChanged));
             return JsonSuccess("You have successfully updated your password.");
         }
         else

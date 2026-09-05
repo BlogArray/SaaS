@@ -8,6 +8,7 @@
 //
 
 using System.Data;
+using BlogArray.SaaS.Domain.Events;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -16,7 +17,7 @@ using P.Pager;
 namespace BlogArray.SaaS.TenantSuite.Controllers;
 
 [Authorize(Roles = "Superuser")]
-public class RolesController(OpenIdDbContext context, RoleManager<ApplicationRole> roleManager) : BaseController
+public class RolesController(OpenIdDbContext context, RoleManager<ApplicationRole> roleManager, IAuditEventLogger auditLogger) : BaseController
 {
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
@@ -69,6 +70,8 @@ public class RolesController(OpenIdDbContext context, RoleManager<ApplicationRol
             ModelState.AddModelError("Name", string.Join(".", errors));
             return View(roleView);
         }
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PermissionsChanged, Reason: $"role '{roleView.Name}' created"));
 
         AddSuccessMessage($"Role {roleView.Name} is successfully added.");
 
@@ -129,6 +132,9 @@ public class RolesController(OpenIdDbContext context, RoleManager<ApplicationRol
         }
 
         AddSuccessMessage($"Role {roleView.Name} is updated successfully.");
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PermissionsChanged, Reason: $"role '{roleNameNotMod}' renamed to '{roleView.Name}'"));
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -161,6 +167,8 @@ public class RolesController(OpenIdDbContext context, RoleManager<ApplicationRol
 
         if (identityResult.Succeeded)
         {
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PermissionsChanged, Reason: $"role '{role.Name}' deleted"));
+
             AddSuccessMessage($"Role {role.Name} is successfully deleted.");
         }
         else

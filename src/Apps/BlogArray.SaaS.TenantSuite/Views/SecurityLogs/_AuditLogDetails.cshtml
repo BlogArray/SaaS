@@ -1,0 +1,79 @@
+@model AuditLogEntry
+
+<div class="offcanvas offcanvas-end medium" tabindex="-1" id="logDetailsOffcanvas" aria-labelledby="logDetailsOffcanvasLabel" data-bs-backdrop="static">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="logDetailsOffcanvasLabel">Audit event details</h5>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-4">Activity</dt>
+            <dd class="col-sm-8">@Model.EventType</dd>
+
+            <dt class="col-sm-4">Initiated by</dt>
+            <dd class="col-sm-8">
+                <div class="fw-semibold">@Model.ActorDisplayName <span class="badge rounded-pill text-bg-light">via @Model.TriggeredBy</span></div>
+                <div class="text-muted small">@Model.ActorEmail</div>
+                <div class="text-muted small">@Model.UserId</div>
+            </dd>
+
+            @if (!string.IsNullOrEmpty(Model.TargetUserId))
+            {
+                <dt class="col-sm-4">Target user</dt>
+                <dd class="col-sm-8">
+                    @if (!string.IsNullOrEmpty(Model.TargetDisplayName) || !string.IsNullOrEmpty(Model.TargetEmail))
+                    {
+                        <div class="fw-semibold">@Model.TargetDisplayName</div>
+                        <div class="text-muted small">@Model.TargetEmail</div>
+                    }
+                    <div class="text-muted small">@Model.TargetUserId</div>
+                </dd>
+            }
+
+            <dt class="col-sm-4">Application</dt>
+            <dd class="col-sm-8">
+                @(Model.TenantName ?? "-")
+                @if (!string.IsNullOrEmpty(Model.ClientId))
+                {
+                    <div class="text-muted small">@Model.ClientId</div>
+                }
+            </dd>
+
+            <dt class="col-sm-4">Reason</dt>
+            <dd class="col-sm-8">@(Model.Reason ?? "-")</dd>
+
+            @if (!string.IsNullOrEmpty(Model.ChangeSummary))
+            {
+                <dt class="col-sm-4">Changes</dt>
+                <dd class="col-sm-8 white-space-pre-line">@Model.ChangeSummary</dd>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.OldValue))
+            {
+                <dt class="col-sm-4">Old value</dt>
+                <dd class="col-sm-8 text-wrap"><code class="small">@Model.OldValue</code></dd>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.NewValue))
+            {
+                <dt class="col-sm-4">New value</dt>
+                <dd class="col-sm-8 text-wrap"><code class="small">@Model.NewValue</code></dd>
+            }
+
+            <dt class="col-sm-4">IP address</dt>
+            <dd class="col-sm-8">@(Model.IpAddress ?? "-")</dd>
+
+            <dt class="col-sm-4">Device</dt>
+            <dd class="col-sm-8">@(Model.DeviceInfo ?? "-")</dd>
+
+            <dt class="col-sm-4">User agent</dt>
+            <dd class="col-sm-8 text-wrap small">@(Model.UserAgent ?? "-")</dd>
+
+            <dt class="col-sm-4">Time (UTC)</dt>
+            <dd class="col-sm-8">@Model.CreatedOn.ToUniversalTime().ToString("O")</dd>
+
+            <dt class="col-sm-4">Time (local)</dt>
+            <dd class="col-sm-8">@Model.CreatedOn.ToLocalTime().ToString("g")</dd>
+        </dl>
+    </div>
+</div>

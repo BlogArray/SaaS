@@ -9,7 +9,6 @@
 
 #nullable enable
 
-using System.Net.Http;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -85,7 +84,7 @@ public class CaptchaService(
 
             string json = await httpResponse.Content.ReadAsStringAsync();
 
-            using JsonDocument document = JsonDocument.Parse(json);
+            using var document = JsonDocument.Parse(json);
 
             return document.RootElement.TryGetProperty("success", out JsonElement success)
                 && success.ValueKind == JsonValueKind.True;

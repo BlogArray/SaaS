@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace BlogArray.SaaS.Web.Helpers;
+﻿namespace BlogArray.SaaS.OpenId.Helpers;
 
 /// <summary>
 /// Best-effort User-Agent parser based on substring/token matching.
@@ -214,7 +212,9 @@ public static class UserAgentParser
                     : $"{OS} {OSVersion}";
 
             if (IsOsAmbiguous)
+            {
                 os += " (or iPadOS)";
+            }
 
             return $"{browser} on {os}";
         }
@@ -245,10 +245,12 @@ public static class UserAgentParser
 
         // User-Agent is untrusted input. Avoid unnecessarily processing huge values.
         if (userAgent.Length > MaxUserAgentLength)
+        {
             userAgent = userAgent[..MaxUserAgentLength];
+        }
 
         // Bot detection has priority.
-        var bot = MatchFirst(userAgent, BotTokens);
+        BrowserMatch bot = MatchFirst(userAgent, BotTokens);
 
         if (bot.Name != null)
         {
@@ -269,7 +271,7 @@ public static class UserAgentParser
                 botOsAmbiguous);
         }
 
-        var browser = MatchFirst(userAgent, BrowserTokens);
+        BrowserMatch browser = MatchFirst(userAgent, BrowserTokens);
 
         string browserName = browser.Name ?? "Unknown browser";
         string browserVersion = "";
@@ -332,12 +334,14 @@ public static class UserAgentParser
     private static string ExtractBrowserVersion(
         string userAgent,
         string browserName,
-        string token,
+        string _,
         int tokenEndIndex,
         bool extractVersion)
     {
         if (!extractVersion)
+        {
             return "";
+        }
 
         // Safari is special:
         //
@@ -366,7 +370,9 @@ public static class UserAgentParser
             StringComparison.OrdinalIgnoreCase);
 
         if (index < 0)
+        {
             return "";
+        }
 
         int start = index + token.Length;
 
@@ -380,12 +386,16 @@ public static class UserAgentParser
         int start)
     {
         if (start < 0 || start >= userAgent.Length)
+        {
             return "";
+        }
 
         // Tolerate a stray leading '/' in case a token was matched without
         // its trailing slash (defensive; shouldn't happen with current tables).
         if (userAgent[start] == '/')
+        {
             start++;
+        }
 
         return ExtractNumericVersion(userAgent, start);
     }
@@ -401,13 +411,17 @@ public static class UserAgentParser
             char c = userAgent[end];
 
             if (!(char.IsDigit(c) || c == '.'))
+            {
                 break;
+            }
 
             end++;
         }
 
         if (end <= start)
+        {
             return "";
+        }
 
         return userAgent[start..end].TrimEnd('.');
     }
@@ -429,7 +443,9 @@ public static class UserAgentParser
                 StringComparison.OrdinalIgnoreCase);
 
             if (index < 0)
+            {
                 continue;
+            }
 
             os = rule.Name;
             osVersion = ExtractOsVersion(
@@ -440,7 +456,9 @@ public static class UserAgentParser
             // iPadOS 13+ defaults to a desktop Mac UA with no "iPad" token,
             // so a "Mac OS X" match cannot be trusted as definitely macOS.
             if (rule.Name == "macOS")
+            {
                 isAmbiguous = true;
+            }
 
             return;
         }
@@ -451,44 +469,31 @@ public static class UserAgentParser
         string os,
         int tokenIndex)
     {
-        switch (os)
+        return os switch
         {
-            case "Windows Phone":
-                return ExtractAfterToken(
-                    userAgent,
-                    tokenIndex,
-                    "Windows Phone");
-
-            case "Windows":
-                return ExtractAfterToken(
-                    userAgent,
-                    tokenIndex,
-                    "Windows NT");
-
-            case "Android":
-                return ExtractAfterToken(
-                    userAgent,
-                    tokenIndex,
-                    "Android");
-
-            case "ChromeOS":
-                return ExtractAfterToken(
-                    userAgent,
-                    tokenIndex,
-                    "CrOS");
-
-            case "macOS":
-                return ExtractAfterToken(
-                    userAgent,
-                    tokenIndex,
-                    "Mac OS X");
-
-            case "iOS":
-                return ExtractIOSVersion(userAgent);
-
-            default:
-                return "";
-        }
+            "Windows Phone" => ExtractAfterToken(
+                                userAgent,
+                                tokenIndex,
+                                "Windows Phone"),
+            "Windows" => ExtractAfterToken(
+                                userAgent,
+                                tokenIndex,
+                                "Windows NT"),
+            "Android" => ExtractAfterToken(
+                                userAgent,
+                                tokenIndex,
+                                "Android"),
+            "ChromeOS" => ExtractAfterToken(
+                                userAgent,
+                                tokenIndex,
+                                "CrOS"),
+            "macOS" => ExtractAfterToken(
+                                userAgent,
+                                tokenIndex,
+                                "Mac OS X"),
+            "iOS" => ExtractIOSVersion(userAgent),
+            _ => "",
+        };
     }
 
     private static string ExtractIOSVersion(string userAgent)
@@ -512,7 +517,9 @@ public static class UserAgentParser
         }
 
         if (start < 0 || start >= userAgent.Length)
+        {
             return "";
+        }
 
         int end = start;
 
@@ -521,13 +528,17 @@ public static class UserAgentParser
             char c = userAgent[end];
 
             if (!(char.IsDigit(c) || c == '.' || c == '_'))
+            {
                 break;
+            }
 
             end++;
         }
 
         if (end <= start)
+        {
             return "";
+        }
 
         return userAgent[start..end].Replace('_', '.');
     }
@@ -546,7 +557,9 @@ public static class UserAgentParser
         }
 
         if (start >= userAgent.Length)
+        {
             return "";
+        }
 
         int end = start;
 
@@ -567,7 +580,9 @@ public static class UserAgentParser
         }
 
         if (end <= start)
+        {
             return "";
+        }
 
         return userAgent[start..end].Replace('_', '.');
     }
@@ -594,22 +609,30 @@ public static class UserAgentParser
         // Firefox/Android and many mobile browsers identify themselves
         // with "Mobile" or "Tablet".
         if (Contains(userAgent, "Tablet"))
+        {
             return DeviceType.Tablet;
+        }
 
         if (Contains(userAgent, "Mobi"))
+        {
             return DeviceType.Mobile;
+        }
 
         // iPadOS desktop-style UA may not contain "Mobi".
         // Explicit iPad remains a strong tablet signal.
         if (Contains(userAgent, "iPad"))
+        {
             return DeviceType.Tablet;
+        }
 
         // Android UAs conventionally omit the "Mobile" token specifically to
         // signal a tablet form factor (this is Android's own UA convention,
         // not a guess) — since "Mobi" was already ruled out above, an
         // Android UA reaching this point is a tablet, not a phone.
         if (Contains(userAgent, "Android"))
+        {
             return DeviceType.Tablet;
+        }
 
         if (Contains(userAgent, "Windows NT") ||
             Contains(userAgent, "Macintosh") ||
@@ -651,3 +674,4 @@ public static class UserAgentParser
         }
     }
 }
+

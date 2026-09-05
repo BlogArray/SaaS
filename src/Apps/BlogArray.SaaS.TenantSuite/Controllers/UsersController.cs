@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -9,6 +9,7 @@
 
 using System.Text;
 using BlogArray.SaaS.Application.Services;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -26,7 +27,8 @@ public class UsersController(OpenIdDbContext context,
     UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate,
     IConfiguration configuration,
-    IUserManagementService userManagementService) : BaseController
+    IUserManagementService userManagementService,
+    IAuditEventLogger auditLogger) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -150,6 +152,7 @@ public class UsersController(OpenIdDbContext context,
         {
             Id = id,
             IsActive = appUser.IsActive,
+            HasPassword = !string.IsNullOrEmpty(appUser.PasswordHash),
             IsEmailPhoneConfirmed = appUser.EmailConfirmed && appUser.PhoneNumberConfirmed,
             LockoutEnabled = appUser.LockoutEnabled,
             LockoutEnd = appUser.LockoutEnd,
@@ -208,6 +211,8 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
+        var profileBefore = new { entity.FirstName, entity.LastName, entity.DisplayName, entity.Gender, entity.TimeZone, entity.LocaleCode };
+
         entity.FirstName = editUserViewModel.FirstName;
         entity.LastName = editUserViewModel.LastName;
         entity.DisplayName = editUserViewModel.DisplayName;
@@ -218,6 +223,11 @@ public class UsersController(OpenIdDbContext context,
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
+
+        var profileAfter = new { entity.FirstName, entity.LastName, entity.DisplayName, entity.Gender, entity.TimeZone, entity.LocaleCode };
+        (string? oldValueJson, string? newValueJson) = AuditDiff.Changed(profileBefore, profileAfter);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id, OldValueJson: oldValueJson, NewValueJson: newValueJson));
 
         return JsonSuccess("User information has been successfully saved.");
     }
@@ -297,27 +307,46 @@ public class UsersController(OpenIdDbContext context,
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
-        int unassignedRoles = await context.UserRoles.Where(r => r.UserId == assignViewModel.UserId).ExecuteDeleteAsync();
+        // Capture the previous role names before they are replaced so the audit row can
+        // carry the old -> new diff.
+        List<string> previousRoles = await context.UserRoles
+            .Where(ur => ur.UserId == assignViewModel.UserId)
+            .Join(context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+            .ToListAsync();
 
-        if (assignViewModel.RolesSelected is not null && assignViewModel.RolesSelected.Count > 0)
+        List<string> newRoles = assignViewModel.RolesSelected ?? [];
+
+        await context.UserRoles.Where(r => r.UserId == assignViewModel.UserId).ExecuteDeleteAsync();
+
+        if (newRoles.Count > 0)
         {
-            IdentityResult identityResult = await userManager.AddToRolesAsync(user, assignViewModel.RolesSelected);
+            IdentityResult identityResult = await userManager.AddToRolesAsync(user, newRoles);
 
-            if (identityResult.Succeeded)
-            {
-                string successMessage = $"Successfully assigned {assignViewModel.RolesSelected.Count} role(s) to the user.";
-
-                return JsonSuccess(successMessage);
-            }
-            else
+            if (!identityResult.Succeeded)
             {
                 return IdentityErrorResult(identityResult.Errors);
             }
         }
 
-        return unassignedRoles > 0
-            ? JsonSuccess($"Successfully unassigned {unassignedRoles} role(s) to the user.")
-            : JsonError("Please select at least one role to assign.");
+        bool changed = previousRoles.Count != newRoles.Count || previousRoles.Except(newRoles).Any();
+
+        if (!changed)
+        {
+            return JsonError("Please select at least one role to assign.");
+        }
+
+        (string? oldValueJson, string? newValueJson) = AuditDiff.Changed("Roles", previousRoles, newRoles);
+
+        await auditLogger.LogAsync(new AuditEventRecord(
+            LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRolesChanged,
+            TargetUserId: user.Id,
+            OldValueJson: oldValueJson,
+            NewValueJson: newValueJson,
+            Reason: newRoles.Count > 0 ? $"roles set to [{string.Join(", ", newRoles)}]" : "all roles removed"));
+
+        return newRoles.Count > 0
+            ? JsonSuccess($"Successfully assigned {newRoles.Count} role(s) to the user.")
+            : JsonSuccess($"Successfully unassigned {previousRoles.Count} role(s) from the user.");
     }
 
     #endregion Detais/edit
@@ -371,6 +400,8 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountEnabled, TargetUserId: entity.Id));
+
         return JsonSuccess($"User {entity.Email} has been enabled successfully.");
     }
 
@@ -400,6 +431,8 @@ public class UsersController(OpenIdDbContext context,
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountDisabled, TargetUserId: entity.Id));
 
         return JsonSuccess($"User {entity.Email} has been disabled successfully.");
     }
@@ -499,6 +532,8 @@ public class UsersController(OpenIdDbContext context,
             entity.UpdatedById = LoggedInUserID;
             await userManager.UpdateAsync(entity);
 
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PasswordReset, TargetUserId: entity.Id, Reason: "temporary password assigned by administrator"));
+
             return JsonSuccess("A temporary password has been set. The user must set a new password the next time they sign in.");
         }
         else
@@ -512,6 +547,111 @@ public class UsersController(OpenIdDbContext context,
 
             return JsonSuccess($"The password setup link has been sent to {entity.Email}. Please ask them to check their email.");
         }
+    }
+
+    /// <summary>
+    /// A pending user has no password: they were invited but the setup link was never used.
+    /// </summary>
+    private async Task<bool> IsPendingAsync(ApplicationUser user)
+    {
+        return !await userManager.HasPasswordAsync(user);
+    }
+
+    public async Task<IActionResult> ResendInvite(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? entity = await userManager.FindByIdAsync(id);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        if (!await IsPendingAsync(entity))
+        {
+            return JsonError("This user has already completed onboarding. Use 'Reset password' instead.");
+        }
+
+        List<SelectListItem> tenants = await context.Authorizations
+            .Where(a => a.Subject == id)
+            .Select(a => new SelectListItem
+            {
+                Value = a.Application.Id,
+                Text = a.Application.DisplayName
+            })
+            .ToListAsync();
+
+        return PartialView("_ResendInvite", new ResendInviteViewModel
+        {
+            Id = entity.Id,
+            DisplayName = entity.DisplayName,
+            Tenants = tenants
+        });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResendInviteConfirm(ResendInviteViewModel resendInvite)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ModelStateError(ModelState);
+        }
+
+        ApplicationUser? entity = await userManager.FindByIdAsync(resendInvite.Id);
+
+        if (entity is null)
+        {
+            return JsonError("User not found.");
+        }
+
+        if (!await IsPendingAsync(entity))
+        {
+            return JsonError("This user has already completed onboarding. Use 'Reset password' instead.");
+        }
+
+        // Audit-backed rate limit: the resend itself is recorded as a security event, so a
+        // short lookback prevents mail-bombing an address without extra infrastructure.
+        bool recentlySent = await context.AuditEvents
+            .AnyAsync(e => e.UserId == entity.Id
+                        && e.EventType == AuditEventTypes.ResendInvite
+                        && e.CreatedOn > DateTime.UtcNow.AddMinutes(-5));
+
+        if (recentlySent)
+        {
+            return JsonError("An invite was already re-sent recently. Please wait a few minutes before trying again.");
+        }
+
+        OpenIdApplication? application = await context.Applications
+            .FindAsync(resendInvite.TenantApplicationId);
+
+        if (application is null)
+        {
+            return JsonError("Selected tenant not found.");
+        }
+
+        bool hasAccess = await context.Authorizations
+            .AnyAsync(a => a.Subject == entity.Id && a.Application.Id == application.Id);
+
+        if (!hasAccess)
+        {
+            return JsonError("The user is not assigned to the selected tenant.");
+        }
+
+        string code = await userManager.GeneratePasswordResetTokenAsync(entity);
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+        string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code, tenant = application.ClientId });
+
+        emailTemplate.InviteWithPasswordLink(entity.Email, entity.DisplayName, callbackUrl, application.Legalname, application.TenantUrl, LoggedInUserEmail);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ResendInvite, TargetUserId: entity.Id, ClientId: application.ClientId));
+
+        return JsonSuccess($"The invite has been re-sent to {entity.Email} for {application.DisplayName}. Please ask them to check their email.");
     }
 
     [HttpPost]
@@ -556,12 +696,17 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
+        // Lock the account by setting a far-future lockout end. LockoutEnabled stays true:
+        // it is the flag that makes failed-attempt counting (AccountLockedRepeatedFailures)
+        // apply to this user at all.
         entity.LockoutEnabled = true;
-        entity.LockoutEnd = DateTime.MaxValue;
+        entity.LockoutEnd = DateTimeOffset.MaxValue;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountLockedByAdmin, TargetUserId: entity.Id));
 
         return JsonSuccess("The user account is currently locked, preventing any further login attempts until the lock is lifted.");
     }
@@ -582,12 +727,18 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
-        entity.LockoutEnabled = false;
+        // Lift the forced lock but keep the user lockout-eligible (LockoutEnabled stays
+        // true, LockoutEnd cleared): previously this cleared LockoutEnabled, which silently
+        // disabled repeated-failure lockout for the user from then on.
+        entity.LockoutEnabled = true;
         entity.LockoutEnd = null;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountUnlocked, TargetUserId: entity.Id));
+
         return JsonSuccess("The user account is now unlocked, allowing the user to log in and access their account without any restrictions.");
     }
 

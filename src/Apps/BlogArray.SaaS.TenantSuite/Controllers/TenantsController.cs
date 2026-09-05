@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -11,6 +11,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json;
 using BlogArray.SaaS.Application.Services;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
@@ -33,7 +34,7 @@ public class TenantsController(OpenIdDbContext context,
     IDataProtector protector,
     IConfiguration configuration,
     IEmailTemplate emailTemplate,
-    ISecurityAuditLogger auditLogger,
+    IAuditEventLogger auditLogger,
     ILogger<TenantsController> logger) : BaseController
 {
     private readonly int _apiKeyPrefixLength = configuration.GetValue("ApiKey:PrefixLength", 8);
@@ -115,6 +116,10 @@ public class TenantsController(OpenIdDbContext context,
         await manager.CreateAsync(entity, openIdApplication.ClientSecret);
 
         await AddToCache(entity);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantCreated, ClientId: entity.ClientId, Reason: entity.DisplayName));
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ApiKeyCreated, ClientId: entity.ClientId, Reason: entity.DisplayName));
 
         // Deliver the credentials by email, but never let a mail failure fail the creation:
         // the secrets are also shown once in the browser so the admin can hand them over.
@@ -224,11 +229,18 @@ public class TenantsController(OpenIdDbContext context,
             return ModelStateError(ModelState);
         }
 
+        var infoBefore = new { entity.DisplayName, entity.Legalname, entity.Website, entity.Description, entity.TenantUrl };
+
         MapProperties(openIdApplication, entity);
 
         entity.AdminEmail = adminEmail;
 
         await manager.UpdateAsync(entity);
+
+        var infoAfter = new { entity.DisplayName, entity.Legalname, entity.Website, entity.Description, entity.TenantUrl };
+        (string? infoOldValueJson, string? infoNewValueJson) = AuditDiff.Changed(infoBefore, infoAfter);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "basic information updated", OldValueJson: infoOldValueJson, NewValueJson: infoNewValueJson));
 
         await AddToCache(entity);
 
@@ -291,6 +303,8 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
+        var themeBefore = new { entity.Theme.NavbarColor, entity.Theme.NavbarTextAndIconColor, entity.Theme.PrimaryColor };
+
         entity.Theme.NavbarColor = themeViewModel.NavbarColor;
         entity.Theme.NavbarTextAndIconColor = themeViewModel.NavbarTextAndIconColor;
         entity.Theme.PrimaryColor = themeViewModel.PrimaryColor;
@@ -298,6 +312,11 @@ public class TenantsController(OpenIdDbContext context,
         await manager.UpdateAsync(entity);
 
         await AddToCache(entity);
+
+        var themeAfter = new { entity.Theme.NavbarColor, entity.Theme.NavbarTextAndIconColor, entity.Theme.PrimaryColor };
+        (string? themeOldValueJson, string? themeNewValueJson) = AuditDiff.Changed(themeBefore, themeAfter);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "theme updated", OldValueJson: themeOldValueJson, NewValueJson: themeNewValueJson));
 
         return JsonSuccess("Tenant theme information updated successfuly");
     }
@@ -373,6 +392,8 @@ public class TenantsController(OpenIdDbContext context,
             securityViewModel.IsMfaEnforced = false;
         }
 
+        var securityBefore = new { entity.Security.IsSocialAuthEnabled, entity.Security.IsMfaEnforced, entity.Security.IsSsoEnabled, entity.Security.SsoSignInUrl, entity.Security.SsoSignOutUrl, entity.Security.SsoX509Certificate, entity.Security.SsoEntityId, entity.Security.IsSingleSignOutEnabled };
+
         entity.Security.IsSocialAuthEnabled = securityViewModel.IsSocialAuthEnabled;
         entity.Security.IsMfaEnforced = securityViewModel.IsMfaEnforced;
         entity.Security.IsSsoEnabled = securityViewModel.IsSsoEnabled;
@@ -384,7 +405,14 @@ public class TenantsController(OpenIdDbContext context,
 
         await manager.UpdateAsync(entity);
 
+        var securityAfter = new { entity.Security.IsSocialAuthEnabled, entity.Security.IsMfaEnforced, entity.Security.IsSsoEnabled, entity.Security.SsoSignInUrl, entity.Security.SsoSignOutUrl, entity.Security.SsoX509Certificate, entity.Security.SsoEntityId, entity.Security.IsSingleSignOutEnabled };
+        (string? securityOldValueJson, string? securityNewValueJson) = AuditDiff.Changed(securityBefore, securityAfter);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "security settings updated", OldValueJson: securityOldValueJson, NewValueJson: securityNewValueJson));
+
         await AddToCache(entity);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "security settings updated"));
 
         return JsonSuccess("Tenant security information updated successfuly");
     }
@@ -493,6 +521,8 @@ public class TenantsController(OpenIdDbContext context,
             SetClientSecret(openIdApplication, rotateKeys.Key);
 
             await manager.UpdateAsync(openIdApplication, rotateKeys.Key);
+
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ClientSecretRotated, ClientId: openIdApplication.ClientId, Reason: openIdApplication.DisplayName));
         }
         else if (type == "apikey")
         {
@@ -500,8 +530,7 @@ public class TenantsController(OpenIdDbContext context,
             SetApiKey(openIdApplication, rotateKeys.Key);
             await manager.UpdateAsync(openIdApplication);
 
-            await auditLogger.LogAsync(LoggedInUserID ?? "system", SecurityEventTypes.ApiKeyRotated,
-                $"{openIdApplication.DisplayName} ({openIdApplication.ClientId})");
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ApiKeyRotated, ClientId: openIdApplication.ClientId, Reason: $"{openIdApplication.DisplayName} ({openIdApplication.ClientId})"));
 
             // Email the new key to the addresses chosen in the rotation prompt, falling back
             // to the stored tenant admin emails. A mail failure never fails the rotation: the

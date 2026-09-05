@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -9,11 +9,12 @@
 
 #nullable disable
 
+using BlogArray.SaaS.Domain.Events;
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class GenerateRecoveryCodesModel(
     UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger,
+    IAuditEventLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<GenerateRecoveryCodesModel> logger) : PageModel
 {
@@ -84,7 +85,7 @@ public class GenerateRecoveryCodesModel(
         }
 
         IEnumerable<string> recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
-        await auditLogger.LogAsync(user.Id, SecurityEventTypes.RecoveryCodesGenerated);
+        await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.RecoveryCodesGenerated));
         RecoveryCodes = recoveryCodes.ToArray();
 
         logger.LogInformation("User with ID '{UserId}' has generated new 2FA recovery codes.", userId);

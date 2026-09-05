@@ -113,11 +113,113 @@ public class UserToolbar
 
     public bool IsEmailPhoneConfirmed { get; set; }
 
+    /// <summary>
+    /// False while the user has not completed onboarding (no password set): they were invited
+    /// but the setup link was never used, so the invite can be resent.
+    /// </summary>
+    public bool HasPassword { get; set; }
+
     public bool LockoutEnabled { get; set; }
 
     public DateTimeOffset? LockoutEnd { get; set; }
 
     public int TenantsCount { get; set; } = default!;
+}
+
+/// <summary>
+/// One row of the TenantSuite sign-in logs view.
+/// </summary>
+public class SignInLogEntry
+{
+    public string Id { get; set; } = default!;
+
+    public string UserId { get; set; } = default!;
+
+    public string? DisplayName { get; set; }
+
+    public string? Email { get; set; }
+
+    public string EventType { get; set; } = default!;
+
+    public string? AuthMethod { get; set; }
+
+    public string? Result { get; set; }
+
+    public string? Details { get; set; }
+
+    public string? ClientId { get; set; }
+
+    public string? TenantName { get; set; }
+
+    public string? IpAddress { get; set; }
+
+    public string? DeviceInfo { get; set; }
+
+    public string? UserAgent { get; set; }
+
+    public DateTime CreatedOn { get; set; }
+}
+
+/// <summary>
+/// One row of the TenantSuite audit logs view.
+/// </summary>
+public class AuditLogEntry
+{
+    public string Id { get; set; } = default!;
+
+    /// <summary>
+    /// The initiator of the action.
+    /// </summary>
+    public string UserId { get; set; } = default!;
+
+    public string TriggeredBy { get; set; } = default!;
+
+    public string? ActorDisplayName { get; set; }
+
+    public string? ActorEmail { get; set; }
+
+    public string? TargetDisplayName { get; set; }
+
+    public string? TargetEmail { get; set; }
+
+    public string? TargetUserId { get; set; }
+
+    public string EventType { get; set; } = default!;
+
+    public string? Reason { get; set; }
+
+    /// <summary>
+    /// Compact human-readable rendering of the Old/New diff, e.g. "IsMfaEnforced: True → False".
+    /// </summary>
+    public string? ChangeSummary { get; set; }
+
+    public string? OldValue { get; set; }
+
+    public string? NewValue { get; set; }
+
+    public string? ClientId { get; set; }
+
+    public string? UserAgent { get; set; }
+
+    public string? TenantName { get; set; }
+
+    public string? IpAddress { get; set; }
+
+    public string? DeviceInfo { get; set; }
+
+    public DateTime CreatedOn { get; set; }
+}
+
+public class ResendInviteViewModel
+{
+    public string Id { get; set; } = default!;
+
+    public string DisplayName { get; set; } = default!;
+
+    [Required(ErrorMessage = "Select the tenant to invite the user to.")]
+    public string TenantApplicationId { get; set; } = default!;
+
+    public List<SelectListItem>? Tenants { get; set; }
 }
 
 public class AssignTenantViewModel

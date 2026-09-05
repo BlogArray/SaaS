@@ -8,6 +8,7 @@
 //
 
 using System.Web;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Identity.Infrastructure;
 using OpenIddict.Core;
 using Saml;
@@ -17,7 +18,7 @@ namespace BlogArray.SaaS.Identity.Controllers;
 [Route("saml")]
 public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appManager,
     SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager,
-    ISecurityAuditLogger auditLogger, IConfiguration configuration) : Controller
+    ISignInEventLogger auditLogger, IConfiguration configuration) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Login(string tenant, string next = null)
@@ -161,7 +162,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         await signInManager.SignInAsync(user, false, customClaims, IdentityConstants.ApplicationScheme);
 
-        await auditLogger.LogAsync(user.Id, SecurityEventTypes.LoginSucceededSaml, tenant);
+        await auditLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, tenant));
 
         Microsoft.Extensions.Primitives.StringValues relayState = Request.Form["RelayState"];
 
@@ -182,7 +183,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     /// continues to the post-logout return URL carried in RelayState. Failures redirect to
     /// the error page; a failed IdP logout never blocks the local session cleanup.
     /// </summary>
-    private async Task<IActionResult> ProcessLogoutResponse(string encodedMessage, string tenant, OpenIdApplication client)
+    private async Task<IActionResult> ProcessLogoutResponse(string encodedMessage, string tenant, OpenIdApplication _)
     {
         string? expectedInResponseTo = Request.Cookies[SamlLogoutCookieName(tenant)];
 

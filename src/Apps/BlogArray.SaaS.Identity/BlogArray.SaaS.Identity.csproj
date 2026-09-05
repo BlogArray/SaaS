@@ -5,17 +5,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AspNet.Security.OAuth.Apple" />
-    <PackageReference Include="AspNet.Security.OAuth.GitHub" />
-    <PackageReference Include="AspNetSaml" />
-    <PackageReference Include="Fido2.AspNet" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Google" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" />
+<PackageReference Include="AspNet.Security.OAuth.Apple" />
+<PackageReference Include="AspNet.Security.OAuth.GitHub" />
+<PackageReference Include="AspNetSaml" />
+<PackageReference Include="Fido2.AspNet" />
+<PackageReference Include="Microsoft.AspNetCore.Authentication.Google" />
+<PackageReference Include="Microsoft.AspNetCore.Authentication.MicrosoftAccount" />
+<PackageReference Include="P.Pager.Mvc.Core" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" />
+    <PackageReference Include="P.Pager" />
     <!--https://github.com/dotnet/aspnetcore/issues/38892#issuecomment-988926919-->
     <PackageReference Include="System.Security.Cryptography.Pkcs" GeneratePathProperty="true" />
   </ItemGroup>

@@ -1,46 +1,52 @@
 @page
 @model SecurityActivityModel
 @{
-    ViewData["Title"] = "Recent security activity";
+    ViewData["Title"] = "Sign-in activity";
     Layout = "~/Views/Shared/_SettingsLayout.cshtml";
 }
 
 <div class="card">
     <div class="card-header">
-        <h3 class="mb-0">Recent security activity</h3>
+        <h3 class="mb-0">Sign-in activity</h3>
         <p class="mb-0 form-text">
-            The most recent security events recorded for your account (sign-ins, password and
-            two-factor changes). Unrecognised activity? Change your password and review your
-            two-factor settings.
+            Authentication attempts on your account. Unrecognised activity? Change your
+            password and review your two-factor settings.
         </p>
     </div>
-    <div class="card-body">
-        @if (Model.Events.Count == 0)
+    <div class="card-body py-0">
+        @if (Model.Events.Count() == 0)
         {
-            <div class="alert alert-secondary mb-0">
-                <p class="mb-0"><i class="bi bi-shield-check"></i> No security activity has been recorded for your account yet.</p>
+            <div class="alert alert-secondary mb-0 m-3">
+                <p class="mb-0"><i class="bi bi-shield-check"></i> No sign-in activity has been recorded for your account yet.</p>
             </div>
         }
         else
         {
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
+                <table class="table table-hover table-sm align-middle mb-0">
                     <thead>
                         <tr>
-                            <th scope="col">When</th>
-                            <th scope="col">Event</th>
-                            <th scope="col">IP address</th>
-                            <th scope="col">Browser / device</th>
+                            <th style="min-width:220px">Event</th>
+                            <th style="min-width:110px">Result</th>
+                            <th style="min-width:120px">IP address</th>
+                            <th style="min-width:170px">Device</th>
+                            <th style="min-width:150px">Date</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (SecurityEvent securityEvent in Model.Events)
+                        @foreach (SignInEvent signInEvent in Model.Events)
                         {
+                            bool failed = signInEvent.Result == "Failure";
                             <tr>
-                                <td title="@securityEvent.CreatedOn.ToUniversalTime().ToString("O")">@securityEvent.CreatedOn.ToLocalTime().ToString("g")</td>
-                                <td class="text-wrap">@Model.Describe(securityEvent)</td>
-                                <td>@(securityEvent.IpAddress ?? "-")</td>
-                                <td class="text-wrap"><small class="text-muted">@(securityEvent.UserAgent ?? "-")</small></td>
+                                <td class="text-wrap">@Model.Describe(signInEvent)</td>
+                                <td>
+                                    <span class="badge rounded-pill text-bg-@(failed ? "danger" : "success")">
+                                        @Model.ResultText(signInEvent)
+                                    </span>
+                                </td>
+                                <td class="text-muted small">@(signInEvent.IpAddress ?? "-")</td>
+                                <td class="text-muted small text-truncate" style="max-width:170px" title="@signInEvent.DeviceInfo">@(signInEvent.DeviceInfo ?? "-")</td>
+                                <td class="text-muted small" title="@signInEvent.CreatedOn.ToUniversalTime().ToString("O")">@signInEvent.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm:ss")</td>
                             </tr>
                         }
                     </tbody>
@@ -49,3 +55,10 @@
         }
     </div>
 </div>
+
+@if (Model.Events.Count() > 0)
+{
+    <div class="mt-2">
+        @Html.Pager((IPager)Model.Events, page => Url.Page("/Settings/SecurityActivity", new { page }), PrePagerOptions.MinimalWithEntriesText)
+    </div>
+}

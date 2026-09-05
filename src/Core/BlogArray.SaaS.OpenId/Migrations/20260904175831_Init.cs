@@ -2,6 +2,8 @@
 
 #nullable disable
 
+#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
+
 namespace BlogArray.SaaS.OpenId.Migrations;
 
 /// <inheritdoc />
@@ -39,6 +41,7 @@ public partial class Init : Migration
                 TimeZone = table.Column<string>(type: "nvarchar(max)", nullable: true),
                 LocaleCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
                 IsActive = table.Column<bool>(type: "bit", nullable: false),
+                MustChangePassword = table.Column<bool>(type: "bit", nullable: false),
                 CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValue: new DateTime(2024, 11, 8, 7, 23, 2, 837, DateTimeKind.Utc).AddTicks(2866)),
                 CreatedById = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
                 UpdatedOn = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -73,6 +76,44 @@ public partial class Init : Migration
                     principalTable: "AspNetUsers",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Restrict);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "AuditEvents",
+            columns: table => new
+            {
+                Id = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                UserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                TriggeredBy = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                TargetUserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
+                ClientId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
+                EventType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                OldValue = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                NewValue = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                Reason = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
+                Result = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                IpAddress = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                DeviceInfo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                UserAgent = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
+                CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_AuditEvents", x => x.Id);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "DataProtectionKeys",
+            columns: table => new
+            {
+                Id = table.Column<int>(type: "int", nullable: false)
+                    .Annotation("SqlServer:Identity", "1, 1"),
+                FriendlyName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                Xml = table.Column<string>(type: "nvarchar(max)", nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_DataProtectionKeys", x => x.Id);
             });
 
         migrationBuilder.CreateTable(
@@ -206,9 +247,11 @@ public partial class Init : Migration
             {
                 Id = table.Column<string>(type: "nvarchar(450)", nullable: false),
                 Legalname = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                ClientSecretPlain = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                APIKey = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                ConnectionString = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                ClientSecretProtected = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
+                APIKeyHash = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                APIKeyProtected = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: true),
+                APIKeyPrefix = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: true),
+                ConnectionStringProtected = table.Column<string>(type: "nvarchar(2048)", maxLength: 2048, nullable: true),
                 ClientCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
                 ClientApiUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
                 Environment = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -228,7 +271,7 @@ public partial class Init : Migration
                 Security_SsoX509Certificate = table.Column<string>(type: "nvarchar(max)", nullable: true),
                 Security_SsoEntityId = table.Column<string>(type: "nvarchar(max)", nullable: true),
                 Security_IsSingleSignOutEnabled = table.Column<bool>(type: "bit", nullable: false),
-                AdminId = table.Column<string>(type: "nvarchar(400)", nullable: true),
+                AdminEmail = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: false),
                 CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValue: new DateTime(2024, 11, 8, 7, 23, 2, 837, DateTimeKind.Utc).AddTicks(2866)),
                 CreatedById = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
                 UpdatedOn = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -253,12 +296,6 @@ public partial class Init : Migration
             {
                 table.PrimaryKey("PK_OpenIddictApplications", x => x.Id);
                 table.ForeignKey(
-                    name: "FK_OpenIddictApplications_AspNetUsers_AdminId",
-                    column: x => x.AdminId,
-                    principalTable: "AspNetUsers",
-                    principalColumn: "Id",
-                    onDelete: ReferentialAction.Restrict);
-                table.ForeignKey(
                     name: "FK_OpenIddictApplications_AspNetUsers_CreatedById",
                     column: x => x.CreatedById,
                     principalTable: "AspNetUsers",
@@ -270,6 +307,103 @@ public partial class Init : Migration
                     principalTable: "AspNetUsers",
                     principalColumn: "Id",
                     onDelete: ReferentialAction.Restrict);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "PasswordHistories",
+            columns: table => new
+            {
+                Id = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                UserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_PasswordHistories", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_PasswordHistories_AspNetUsers_UserId",
+                    column: x => x.UserId,
+                    principalTable: "AspNetUsers",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "SignInEvents",
+            columns: table => new
+            {
+                Id = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                UserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                ClientId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
+                EventType = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                AuthMethod = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                Result = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                Details = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
+                IpAddress = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: true),
+                DeviceInfo = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: true),
+                UserAgent = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: true),
+                CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_SignInEvents", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_SignInEvents_AspNetUsers_UserId",
+                    column: x => x.UserId,
+                    principalTable: "AspNetUsers",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "UserSessions",
+            columns: table => new
+            {
+                Id = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                UserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                SessionId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                DeviceName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                UserAgent = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: false),
+                IpAddress = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
+                CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false),
+                LastSeenOn = table.Column<DateTime>(type: "datetime2", nullable: false),
+                Revoked = table.Column<bool>(type: "bit", nullable: false)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_UserSessions", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_UserSessions_AspNetUsers_UserId",
+                    column: x => x.UserId,
+                    principalTable: "AspNetUsers",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
+            });
+
+        migrationBuilder.CreateTable(
+            name: "WebAuthnCredentials",
+            columns: table => new
+            {
+                Id = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                UserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                Name = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
+                CredentialId = table.Column<string>(type: "nvarchar(1024)", maxLength: 1024, nullable: false),
+                PublicKey = table.Column<string>(type: "nvarchar(max)", maxLength: 8192, nullable: false),
+                SignatureCounter = table.Column<long>(type: "bigint", nullable: false),
+                Aaguid = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: true),
+                CreatedOn = table.Column<DateTime>(type: "datetime2", nullable: false),
+                LastUsedOn = table.Column<DateTime>(type: "datetime2", nullable: true)
+            },
+            constraints: table =>
+            {
+                table.PrimaryKey("PK_WebAuthnCredentials", x => x.Id);
+                table.ForeignKey(
+                    name: "FK_WebAuthnCredentials_AspNetUsers_UserId",
+                    column: x => x.UserId,
+                    principalTable: "AspNetUsers",
+                    principalColumn: "Id",
+                    onDelete: ReferentialAction.Cascade);
             });
 
         migrationBuilder.CreateTable(
@@ -338,12 +472,16 @@ public partial class Init : Migration
         migrationBuilder.InsertData(
             table: "AspNetRoles",
             columns: new[] { "Id", "ConcurrencyStamp", "Description", "Name", "NormalizedName", "SystemDefined" },
-            values: new object[] { "7b7a2de3-52b0-40cd-b074-e9cfc26aff96", "828849a7-8073-4635-bbff-800e707074d4", "Has access to all portals and all operations", "Superuser", "SUPERUSER", true });
+            values: new object[,]
+            {
+                { "7b7a2de3-52b0-40cd-b074-e9cfc26aff96", "828849a7-8073-4635-bbff-800e707074d4", "Has access to all portals and all operations", "Superuser", "SUPERUSER", true },
+                { "910e3de8-1c0c-40c9-b19f-20dcf072bdd6", "eed7af6e-1c4d-4ab1-8ed2-1f03e4cef8d8", "Manage tenant personnel", "TenantAdmin", "TENANTADMIN", true }
+            });
 
         migrationBuilder.InsertData(
             table: "AspNetUsers",
-            columns: new[] { "Id", "AccessFailedCount", "ConcurrencyStamp", "CreatedById", "CreatedOn", "DisplayName", "Email", "EmailConfirmed", "FirstName", "Gender", "IsActive", "LastName", "LocaleCode", "LockoutEnabled", "LockoutEnd", "NormalizedEmail", "NormalizedUserName", "PasswordHash", "PhoneNumber", "PhoneNumberConfirmed", "ProfileImage", "SecurityStamp", "TimeZone", "TwoFactorEnabled", "UpdatedById", "UpdatedOn", "UserName" },
-            values: new object[] { "16d81679-26ad-4ea7-8f93-1a12268ba340", 0, "828849a7-8073-4635-bbff-800e707074d4", null, new DateTime(2022, 7, 8, 16, 37, 32, 163, DateTimeKind.Utc).AddTicks(7893), "BlogArray Admin", "admin@blogarray.net", true, "BlogArray", "Male", true, "Admin", "en-IN", true, null, "ADMIN@BLOGARRAY.NET", "ADMIN@BLOGARRAY.NET", null, null, false, "/_content/BlogArray.SaaS.Resources/resources/images/user-icon.webp", "6OSIMZ5JEKWSK7SC7ZSANW3WTV2KPCA7", "AUS Eastern Standard Time", false, null, null, "admin@blogarray.net" });
+            columns: new[] { "Id", "AccessFailedCount", "ConcurrencyStamp", "CreatedById", "CreatedOn", "DisplayName", "Email", "EmailConfirmed", "FirstName", "Gender", "IsActive", "LastName", "LocaleCode", "LockoutEnabled", "LockoutEnd", "MustChangePassword", "NormalizedEmail", "NormalizedUserName", "PasswordHash", "PhoneNumber", "PhoneNumberConfirmed", "ProfileImage", "SecurityStamp", "TimeZone", "TwoFactorEnabled", "UpdatedById", "UpdatedOn", "UserName" },
+            values: new object[] { "16d81679-26ad-4ea7-8f93-1a12268ba340", 0, "828849a7-8073-4635-bbff-800e707074d4", null, new DateTime(2022, 7, 8, 16, 37, 32, 163, DateTimeKind.Utc).AddTicks(7893), "BlogArray Admin", "admin@blogarray.net", true, "BlogArray", "Male", true, "Admin", "en-IN", true, null, true, "ADMIN@BLOGARRAY.NET", "ADMIN@BLOGARRAY.NET", null, null, false, "/_content/BlogArray.SaaS.Resources/resources/images/user-icon.webp", "6OSIMZ5JEKWSK7SC7ZSANW3WTV2KPCA7", "AUS Eastern Standard Time", false, null, null, "admin@blogarray.net" });
 
         migrationBuilder.InsertData(
             table: "AspNetUserRoles",
@@ -407,9 +545,31 @@ public partial class Init : Migration
             filter: "[NormalizedUserName] IS NOT NULL");
 
         migrationBuilder.CreateIndex(
-            name: "IX_OpenIddictApplications_AdminId",
+            name: "IX_AuditEvents_ClientId_CreatedOn",
+            table: "AuditEvents",
+            columns: new[] { "ClientId", "CreatedOn" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_AuditEvents_EventType_CreatedOn",
+            table: "AuditEvents",
+            columns: new[] { "EventType", "CreatedOn" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_AuditEvents_TargetUserId",
+            table: "AuditEvents",
+            column: "TargetUserId");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_AuditEvents_UserId_CreatedOn",
+            table: "AuditEvents",
+            columns: new[] { "UserId", "CreatedOn" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_OpenIddictApplications_APIKeyHash",
             table: "OpenIddictApplications",
-            column: "AdminId");
+            column: "APIKeyHash",
+            unique: true,
+            filter: "[APIKeyHash] IS NOT NULL");
 
         migrationBuilder.CreateIndex(
             name: "IX_OpenIddictApplications_ClientId",
@@ -461,6 +621,48 @@ public partial class Init : Migration
             column: "ReferenceId",
             unique: true,
             filter: "[ReferenceId] IS NOT NULL");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_PasswordHistories_UserId",
+            table: "PasswordHistories",
+            column: "UserId");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_SignInEvents_ClientId_CreatedOn",
+            table: "SignInEvents",
+            columns: new[] { "ClientId", "CreatedOn" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_SignInEvents_CreatedOn",
+            table: "SignInEvents",
+            column: "CreatedOn");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_SignInEvents_UserId_CreatedOn",
+            table: "SignInEvents",
+            columns: new[] { "UserId", "CreatedOn" });
+
+        migrationBuilder.CreateIndex(
+            name: "IX_UserSessions_SessionId",
+            table: "UserSessions",
+            column: "SessionId",
+            unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "IX_UserSessions_UserId",
+            table: "UserSessions",
+            column: "UserId");
+
+        migrationBuilder.CreateIndex(
+            name: "IX_WebAuthnCredentials_CredentialId",
+            table: "WebAuthnCredentials",
+            column: "CredentialId",
+            unique: true);
+
+        migrationBuilder.CreateIndex(
+            name: "IX_WebAuthnCredentials_UserId",
+            table: "WebAuthnCredentials",
+            column: "UserId");
     }
 
     /// <inheritdoc />
@@ -482,10 +684,28 @@ public partial class Init : Migration
             name: "AspNetUserTokens");
 
         migrationBuilder.DropTable(
+            name: "AuditEvents");
+
+        migrationBuilder.DropTable(
+            name: "DataProtectionKeys");
+
+        migrationBuilder.DropTable(
             name: "OpenIddictScopes");
 
         migrationBuilder.DropTable(
             name: "OpenIddictTokens");
+
+        migrationBuilder.DropTable(
+            name: "PasswordHistories");
+
+        migrationBuilder.DropTable(
+            name: "SignInEvents");
+
+        migrationBuilder.DropTable(
+            name: "UserSessions");
+
+        migrationBuilder.DropTable(
+            name: "WebAuthnCredentials");
 
         migrationBuilder.DropTable(
             name: "AspNetRoles");

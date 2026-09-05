@@ -27,7 +27,9 @@ public class OpenIdDbContext(DbContextOptions<OpenIdDbContext> options) :
 
     public DbSet<PasswordHistory> PasswordHistories { get; set; }
 
-    public DbSet<SecurityEvent> SecurityEvents { get; set; }
+    public DbSet<SignInEvent> SignInEvents { get; set; }
+
+    public DbSet<AuditEvent> AuditEvents { get; set; }
 
     public DbSet<WebAuthnCredential> WebAuthnCredentials { get; set; }
 

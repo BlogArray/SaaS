@@ -225,6 +225,78 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.AuditEvent", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("ClientId")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DeviceInfo")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("NewValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("OldValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("TargetUserId")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("TriggeredBy")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TargetUserId");
+
+                    b.HasIndex("ClientId", "CreatedOn");
+
+                    b.HasIndex("EventType", "CreatedOn");
+
+                    b.HasIndex("UserId", "CreatedOn");
+
+                    b.ToTable("AuditEvents");
+                });
+
             modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.OpenIdApplication", b =>
                 {
                     b.Property<string>("Id")
@@ -537,9 +609,17 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.ToTable("PasswordHistories");
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.SecurityEvent", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.SignInEvent", b =>
                 {
                     b.Property<string>("Id")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("AuthMethod")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ClientId")
                         .HasMaxLength(400)
                         .HasColumnType("nvarchar(400)");
 
@@ -550,6 +630,10 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("nvarchar(512)");
 
+                    b.Property<string>("DeviceInfo")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
                     b.Property<string>("EventType")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -558,6 +642,11 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.Property<string>("IpAddress")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("UserAgent")
                         .HasMaxLength(512)
@@ -572,9 +661,11 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
                     b.HasIndex("CreatedOn");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("ClientId", "CreatedOn");
 
-                    b.ToTable("SecurityEvents");
+                    b.HasIndex("UserId", "CreatedOn");
+
+                    b.ToTable("SignInEvents");
                 });
 
             modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.UserSession", b =>
@@ -964,7 +1055,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.SecurityEvent", b =>
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.SignInEvent", b =>
                 {
                     b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", null)
                         .WithMany()
