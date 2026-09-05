@@ -279,7 +279,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
                 {
                     // Store the userId for use after two factor check
                     string userId = await UserManager.GetUserIdAsync(user);
-                    await Context.SignInAsync(IdentityConstants.TwoFactorUserIdScheme, StoreTwoFactorInfo(userId, loginProvider, customClaims));
+                    await Context.SignInAsync(IdentityConstants.TwoFactorUserIdScheme, StoreTwoFactorInfo(userId, loginProvider, customClaims), new AuthenticationProperties { IsPersistent = isPersistent });
                 }
 
                 return SignInResult.TwoFactorRequired;

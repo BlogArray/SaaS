@@ -83,8 +83,8 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
         ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
-        //[Display(Name = "Remember me?")]
-        //public bool RememberMe { get; set; }
+        [Display(Name = "Remember me?")]
+        public bool RememberMe { get; set; }
 
         /// <summary>
         ///     Turnstile widget response token (bound from the widget's response field).
@@ -172,7 +172,7 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
             // The session cookie is not persistent: it ends with the browser session unless the
             // user explicitly opts in later. Password failures count towards lockout.
-            Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.PasswordSignInAsync(user, Input.Password, false, true, customClaims);
+            Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.PasswordSignInAsync(user, Input.Password, Input.RememberMe, true, customClaims);
 
             if (result.Succeeded)
             {

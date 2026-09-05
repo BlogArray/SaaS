@@ -35,13 +35,16 @@ public static class ConfigureBlogArrayServices
 {
     public static CookieAuthenticationOptions AddBlogArrayCookieAuthenticationOptions(this CookieAuthenticationOptions options)
     {
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
         options.SlidingExpiration = true;
 
         options.Cookie.HttpOnly = true;
         options.Cookie.IsEssential = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        options.Cookie.SameSite = SameSiteMode.Strict;
+
+        // Strict breaks the OIDC redirect-back from the identity server (top-level
+        // cross-site navigation). Lax is correct for an auth cookie in an SSO flow.
+        options.Cookie.SameSite = SameSiteMode.Lax;
 
         options.Events.OnSigningIn = async context =>
         {
@@ -69,21 +72,44 @@ public static class ConfigureBlogArrayServices
 
             string userAgent = Truncate(context.HttpContext.Request.Headers.UserAgent.ToString(), 512);
             string ipAddress = Truncate(context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "", 64);
-            var uaInfo = UserAgentParser.Parse(userAgent);
+            UserAgentParser.UserAgentInfo uaInfo = UserAgentParser.Parse(userAgent);
+            string deviceName = Truncate(uaInfo.ToString(), 256);
+            string? incomingSessionId = context.Principal?.FindFirst("session_id")?.Value;
 
-            string? sessionId = context.Principal?.FindFirst("session_id")?.Value;
+            UserSession? session = null;
 
-            UserSession? session = string.IsNullOrEmpty(sessionId)
-                ? null
-                : await dbContext.UserSessions.SingleOrDefaultAsync(tracked => tracked.SessionId == sessionId);
-
-            if (session is null)
+            if (!string.IsNullOrEmpty(incomingSessionId))
             {
-                // Fresh login: reuse the user's most recent active session on this device if
-                // one exists, otherwise create a new one.
                 session = await dbContext.UserSessions
-                    .Where(trackedSession => !trackedSession.Revoked && trackedSession.UserAgent == userAgent)
-                    .OrderByDescending(trackedSession => trackedSession.LastSeenOn)
+                    .SingleOrDefaultAsync(tracked => tracked.SessionId == incomingSessionId);
+
+                // Ownership check: never trust an inbound session_id claim without
+                // verifying it actually belongs to this user. Don't assume the IdP
+                // token is infallible — this is defense in depth, not redundancy.
+                if (session is not null && session.UserId != userId)
+                {
+                    session = null;
+                    incomingSessionId = null;
+                }
+            }
+
+            string sessionId;
+
+            if (session is not null)
+            {
+                // SSO attach to an existing, verified session row. Id is not rotated.
+                sessionId = incomingSessionId!;
+            }
+            else
+            {
+                // Fresh local login. Reuse the most recent active session for THIS
+                // user on THIS device — UserId must be part of the filter, or two
+                // different users sharing a common UA string will collide.
+                session = await dbContext.UserSessions
+                    .Where(tracked => !tracked.Revoked
+                        && tracked.UserId == userId
+                        && tracked.UserAgent == userAgent)
+                    .OrderByDescending(tracked => tracked.LastSeenOn)
                     .FirstOrDefaultAsync();
 
                 if (session is null)
@@ -101,12 +127,37 @@ public static class ConfigureBlogArrayServices
             }
 
             session.SessionId = sessionId;
-            session.DeviceName = uaInfo.ToString();
+            session.UserId = userId; // re-assert on every write, not just on create
+            session.DeviceName = deviceName;
             session.UserAgent = userAgent;
             session.IpAddress = ipAddress;
             session.LastSeenOn = DateTime.UtcNow;
 
-            await dbContext.SaveChangesAsync();
+            try
+            {
+                await dbContext.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                // Concurrent fresh logins on the same device raced on the same row.
+                // Requires a unique constraint on SessionId (or UserId+UserAgent)
+                // plus a concurrency token (e.g. rowversion) on UserSession.
+                // Losing side just mints its own fresh row rather than corrupting
+                // the winner's claim.
+                session = new UserSession
+                {
+                    UserId = userId,
+                    SessionId = sessionId,
+                    DeviceName = deviceName,
+                    UserAgent = userAgent,
+                    IpAddress = ipAddress,
+                    CreatedOn = DateTime.UtcNow,
+                    LastSeenOn = DateTime.UtcNow
+                };
+
+                dbContext.UserSessions.Add(session);
+                await dbContext.SaveChangesAsync();
+            }
 
             foreach (ClaimsIdentity identity in context.Principal!.Identities)
             {
@@ -133,24 +184,32 @@ public static class ConfigureBlogArrayServices
                 return;
             }
 
+            string? userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             OpenIdDbContext dbContext = context.HttpContext.RequestServices.GetRequiredService<OpenIdDbContext>();
 
             UserSession? session = await dbContext.UserSessions.SingleOrDefaultAsync(tracked => tracked.SessionId == sessionId);
 
-            if (session is not null)
+            if (session is null)
             {
-                if (session.Revoked)
-                {
-                    context.RejectPrincipal();
-                    return;
-                }
+                // Claim present but no matching row — treat as invalid rather than
+                // fail-open. A dangling claim with no backing row is more likely
+                // corruption/tampering than a legitimate legacy case.
+                context.RejectPrincipal();
+                return;
+            }
 
-                if (DateTime.UtcNow - session.LastSeenOn > TimeSpan.FromMinutes(1))
-                {
-                    session.LastSeenOn = DateTime.UtcNow;
-                    session.IpAddress = Truncate(context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty, 64);
-                    await dbContext.SaveChangesAsync();
-                }
+            if (session.Revoked || session.UserId != userId)
+            {
+                context.RejectPrincipal();
+                return;
+            }
+
+            if (DateTime.UtcNow - session.LastSeenOn > TimeSpan.FromMinutes(1))
+            {
+                session.LastSeenOn = DateTime.UtcNow;
+                session.IpAddress = Truncate(context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty, 64);
+                await dbContext.SaveChangesAsync();
             }
         };
 

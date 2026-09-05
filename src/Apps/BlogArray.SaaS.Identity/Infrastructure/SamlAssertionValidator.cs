@@ -69,7 +69,7 @@ public static class SamlAssertionValidator
     {
         XmlDocument document = new() { XmlResolver = null };
 
-        using (XmlReader reader = XmlReader.Create(new StringReader(responseXml), new XmlReaderSettings
+        using (var reader = XmlReader.Create(new StringReader(responseXml), new XmlReaderSettings
         {
             DtdProcessing = DtdProcessing.Prohibit,
             IgnoreComments = true,
@@ -109,7 +109,7 @@ public static class SamlAssertionValidator
     {
         XmlDocument document = new() { XmlResolver = null };
 
-        using (XmlReader reader = XmlReader.Create(new StringReader(decodedXml), new XmlReaderSettings
+        using (var reader = XmlReader.Create(new StringReader(decodedXml), new XmlReaderSettings
         {
             DtdProcessing = DtdProcessing.Prohibit,
             IgnoreComments = true,

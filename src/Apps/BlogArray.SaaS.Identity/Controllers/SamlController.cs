@@ -183,7 +183,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     /// continues to the post-logout return URL carried in RelayState. Failures redirect to
     /// the error page; a failed IdP logout never blocks the local session cleanup.
     /// </summary>
-    private async Task<IActionResult> ProcessLogoutResponse(string encodedMessage, string tenant, OpenIdApplication client)
+    private async Task<IActionResult> ProcessLogoutResponse(string encodedMessage, string tenant, OpenIdApplication _)
     {
         string? expectedInResponseTo = Request.Cookies[SamlLogoutCookieName(tenant)];
 
