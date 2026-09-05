@@ -10,17 +10,17 @@
 #nullable disable
 
 using BlogArray.SaaS.Domain.Events;
-using Microsoft.EntityFrameworkCore;
+using P.Pager;
 
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class SecurityActivityModel(OpenIdDbContext context, UserManager<ApplicationUser> userManager) : PageModel
 {
-    private const int EventPageSize = 20;
+    private const int PageSize = 10;
 
-    public List<ActivityEntry> Events { get; set; } = [];
+    public IPager<SignInEvent> Events { get; private set; }
 
-    public async Task<IActionResult> OnGetAsync()
+    public async Task<IActionResult> OnGetAsync(int page = 1)
     {
         ApplicationUser user = await userManager.GetUserAsync(User);
         if (user == null)
@@ -28,41 +28,17 @@ public class SecurityActivityModel(OpenIdDbContext context, UserManager<Applicat
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
         }
 
-        List<SignInEvent> signIns = await context.SignInEvents
+        // Self-service activity shows only authentication attempts: configuration changes
+        // (MFA, passkeys, sessions...) are administrative/audit information, not sign-ins.
+        Events = await context.SignInEvents
             .Where(signInEvent => signInEvent.UserId == user.Id)
             .OrderByDescending(signInEvent => signInEvent.CreatedOn)
-            .Take(EventPageSize)
-            .ToListAsync();
-
-        List<AuditEvent> audits = await context.AuditEvents
-            .Where(auditEvent => auditEvent.UserId == user.Id)
-            .OrderByDescending(auditEvent => auditEvent.CreatedOn)
-            .Take(EventPageSize)
-            .ToListAsync();
-
-        List<ActivityEntry> merged =
-        [
-            .. signIns.Select(signInEvent => new ActivityEntry(
-                signInEvent.CreatedOn,
-                DescribeSignIn(signInEvent),
-                signInEvent.IpAddress,
-                signInEvent.UserAgent)),
-            .. audits.Select(auditEvent => new ActivityEntry(
-                auditEvent.CreatedOn,
-                DescribeAudit(auditEvent),
-                auditEvent.IpAddress,
-                auditEvent.UserAgent))
-        ];
-
-        Events = merged
-            .OrderByDescending(entry => entry.CreatedOn)
-            .Take(EventPageSize)
-            .ToList();
+            .ToPagerListAsync(page, PageSize);
 
         return Page();
     }
 
-    private static string DescribeSignIn(SignInEvent signInEvent)
+    public string Describe(SignInEvent signInEvent)
     {
         string method = signInEvent.AuthMethod ?? "unknown method";
 
@@ -80,22 +56,13 @@ public class SecurityActivityModel(OpenIdDbContext context, UserManager<Applicat
         };
     }
 
-    private static string DescribeAudit(AuditEvent auditEvent)
+    public string ResultBadge(SignInEvent signInEvent)
     {
-        return auditEvent.EventType switch
-        {
-            AuditEventTypes.PasswordReset => "Password was reset or changed",
-            AuditEventTypes.MfaEnabled => "Two-factor authentication was enabled",
-            AuditEventTypes.MfaDisabled => "Two-factor authentication was disabled or reset",
-            AuditEventTypes.RecoveryCodesGenerated => "A new set of recovery codes was generated",
-            AuditEventTypes.TrustedBrowsersRevoked => "All trusted browsers were revoked",
-            AuditEventTypes.SessionRevoked => $"Session '{auditEvent.Reason ?? "unknown"}' was signed out",
-            AuditEventTypes.ExternalLoginRemoved => $"External login '{auditEvent.Reason ?? "unknown"}' was removed",
-            AuditEventTypes.PasskeyRegistered => $"Passkey '{auditEvent.Reason ?? "unnamed"}' was registered",
-            AuditEventTypes.PasskeyRemoved => $"Passkey '{auditEvent.Reason ?? "unnamed"}' was removed",
-            _ => auditEvent.EventType
-        };
+        return signInEvent.Result == "Failure" ? "text-bg-danger" : "text-bg-success";
     }
 
-    public record ActivityEntry(DateTime CreatedOn, string Description, string IpAddress, string UserAgent);
+    public string ResultText(SignInEvent signInEvent)
+    {
+        return signInEvent.Result == "Failure" ? "Failed" : "Success";
+    }
 }
