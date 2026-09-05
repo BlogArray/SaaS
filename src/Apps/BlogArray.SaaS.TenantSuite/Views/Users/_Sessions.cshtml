@@ -1,0 +1,65 @@
+@model List<UserSession>
+
+<div class="d-flex justify-content-between align-items-start mb-2">
+    <h6 class="mb-0">Active sessions (@Model.Count(s => !s.Revoked))</h6>
+    @if (Model.Count(s => !s.Revoked) > 0)
+    {
+        <form asp-controller="Users" asp-action="RevokeAllSessions" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This signs the user out of every device, including this admin console session of theirs, and invalidates password-reset links. Continue?" data-ajax-success="sessionsChanged" class="d-inline">
+            <input type="hidden" name="id" value="@(Model.FirstOrDefault()?.UserId)" />
+            <button type="submit" class="btn btn-sm btn-outline-danger">Revoke all sessions</button>
+        </form>
+    }
+</div>
+
+@if (Model.Count == 0)
+{
+    <p class="text-muted small mb-0">No tracked sessions.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Device</th>
+                    <th>IP address</th>
+                    <th>Signed in</th>
+                    <th>Last seen</th>
+                    <th>Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (UserSession session in Model)
+                {
+                    <tr class="@(session.Revoked ? "text-muted" : "")">
+                        <td class="text-truncate" style="max-width:180px" title="@session.UserAgent">@session.DeviceName</td>
+                        <td class="text-muted small">@session.IpAddress</td>
+                        <td class="text-muted small">@session.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</td>
+                        <td class="text-muted small">@session.LastSeenOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</td>
+                        <td>
+                            @if (session.Revoked)
+                            {
+                                <span class="badge rounded-pill text-bg-secondary">Revoked</span>
+                            }
+                            else
+                            {
+                                <span class="badge rounded-pill text-bg-success">Active</span>
+                            }
+                        </td>
+                        <td class="text-end">
+                            @if (!session.Revoked)
+                            {
+                                <form asp-controller="Users" asp-action="RevokeSession" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Sign out this session?" data-ajax-success="sessionsChanged" class="d-inline">
+                                    <input type="hidden" name="id" value="@session.UserId" />
+                                    <input type="hidden" name="sessionId" value="@session.SessionId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
