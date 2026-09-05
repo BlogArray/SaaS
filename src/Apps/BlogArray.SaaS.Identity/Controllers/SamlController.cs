@@ -306,51 +306,6 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         return LocalRedirect(samlAuth.RedirectTo);
     }
 
-    [HttpGet("{tenant}/logout"), HttpPost("{tenant}/logout"), IgnoreAntiforgeryToken]
-    public async Task<IActionResult> Logout(string tenant, string next = null)
-    {
-        OpenIdApplication? client = await appManager.FindByClientIdAsync(tenant);
-
-        if (client == null || !client.Security.IsSsoEnabled)
-        {
-            return RedirectToAction("Index", "Error", new { message = "The specified tenant is not configured to use Single Sign-On (SSO). Please verify the tenant's configuration or contact your system administrator for assistance." });
-        }
-
-        // SAML endpoints and the local entity id are read from configuration
-        // ("Saml:IdpLogoutEndpointTemplate" uses {tenant} as a placeholder, "Links:Issuer"
-        // identifies this application) instead of being hardcoded.
-        string endpointTemplate = configuration["Saml:IdpLogoutEndpointTemplate"]
-            ?? "https://login.microsoftonline.com/76ad4116-d61a-49e3-a27f-c0ed764e945e/{tenant}/saml2";
-
-        string samlEndpoint = endpointTemplate.Replace("{tenant}", tenant);
-
-        string applicationBase = configuration["Links:Issuer"] ?? "https://id.blogarray.dev/";
-
-        string returnAddress = $"{applicationBase.TrimEnd('/')}/saml/{tenant}/acs";
-
-        SignoutRequest request = new(applicationBase, returnAddress);
-
-        // Track the logout request id (RelayState carries the post-logout return URL) so the
-        // LogoutResponse the IdP sends back to the Acs endpoint can be correlated.
-        string logoutRequestId = DecodeRequestId(request.GetRequest());
-
-        Response.Cookies.Append(SamlLogoutCookieName(tenant), logoutRequestId, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            IsEssential = true,
-            Path = "/saml",
-            MaxAge = TimeSpan.FromMinutes(10)
-        });
-
-        string returnUrl = Url.IsLocalUrl(next) || IsRegisteredReturnOrigin(next, client)
-            ? next
-            : applicationBase;
-
-        return Redirect(request.GetRedirectUrl(samlEndpoint, $"inResponseTo={Uri.EscapeDataString(logoutRequestId)}&next={Uri.EscapeDataString(returnUrl)}"));
-    }
-
     /// <summary>
     /// Decodes the base64(deflate(xml)) SAMLRequest/SAMLRequest value produced by the Saml
     /// library and returns the request's ID attribute.
