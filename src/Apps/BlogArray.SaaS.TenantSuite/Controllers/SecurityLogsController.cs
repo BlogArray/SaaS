@@ -114,6 +114,112 @@ public class SecurityLogsController(OpenIdDbContext context) : BaseController
     }
 
     /// <summary>
+    /// All fields of a single sign-in event, rendered as a detail offcanvas.
+    /// </summary>
+    public async Task<IActionResult> SignInLogDetails(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        SignInEvent? entity = await context.SignInEvents.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        List<string> scopedUserIds = await GetScopedUserIds(null).ToListAsync();
+
+        if (!scopedUserIds.Contains(entity.UserId))
+        {
+            return Forbid();
+        }
+
+        ApplicationUser? user = await context.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == entity.UserId);
+
+        return PartialView("_SignInLogDetails", new SignInLogEntry
+        {
+            Id = entity.Id,
+            UserId = entity.UserId,
+            DisplayName = user?.DisplayName ?? entity.UserId,
+            Email = user?.Email ?? entity.UserId,
+            EventType = entity.EventType,
+            AuthMethod = entity.AuthMethod,
+            Result = entity.Result,
+            Details = entity.Details,
+            ClientId = entity.ClientId,
+            TenantName = await context.Applications
+                .Where(a => a.ClientId == entity.ClientId)
+                .Select(a => a.DisplayName)
+                .FirstOrDefaultAsync(),
+            IpAddress = entity.IpAddress,
+            DeviceInfo = entity.DeviceInfo,
+            UserAgent = entity.UserAgent,
+            CreatedOn = entity.CreatedOn
+        });
+    }
+
+    /// <summary>
+    /// All fields of a single audit event, rendered as a detail offcanvas.
+    /// </summary>
+    public async Task<IActionResult> AuditLogDetails(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        AuditEvent? entity = await context.AuditEvents.AsNoTracking().SingleOrDefaultAsync(e => e.Id == id);
+
+        if (entity is null)
+        {
+            return NotFound();
+        }
+
+        List<string> scopedUserIds = await GetScopedUserIds(null).ToListAsync();
+
+        if (!scopedUserIds.Contains(entity.UserId)
+            && (entity.TargetUserId is null || !scopedUserIds.Contains(entity.TargetUserId)))
+        {
+            return Forbid();
+        }
+
+        ApplicationUser? actor = await context.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == entity.UserId);
+        ApplicationUser? target = entity.TargetUserId is null
+            ? null
+            : await context.Users.AsNoTracking().SingleOrDefaultAsync(u => u.Id == entity.TargetUserId);
+
+        AuditLogEntry model = new()
+        {
+            Id = entity.Id,
+            UserId = entity.UserId,
+            TriggeredBy = entity.TriggeredBy,
+            ActorDisplayName = actor?.DisplayName ?? entity.UserId,
+            ActorEmail = actor?.Email ?? entity.UserId,
+            TargetUserId = entity.TargetUserId,
+            TargetDisplayName = target?.DisplayName ?? entity.TargetUserId,
+            TargetEmail = target?.Email ?? entity.TargetUserId,
+            EventType = entity.EventType,
+            Reason = entity.Reason,
+            OldValue = entity.OldValue,
+            NewValue = entity.NewValue,
+            ChangeSummary = AuditDiff.Summarize(entity.OldValue, entity.NewValue),
+            ClientId = entity.ClientId,
+            TenantName = await context.Applications
+                .Where(a => a.ClientId == entity.ClientId)
+                .Select(a => a.DisplayName)
+                .FirstOrDefaultAsync(),
+            IpAddress = entity.IpAddress,
+            DeviceInfo = entity.DeviceInfo,
+            CreatedOn = entity.CreatedOn
+        };
+
+        return PartialView("_AuditLogDetails", model);
+    }
+
+    /// <summary>
     /// User ids visible to the current viewer: TenantAdmins are restricted to users sharing a
     /// tenant authorization with them; Superusers see everything, optionally filtered by tenant.
     /// </summary>

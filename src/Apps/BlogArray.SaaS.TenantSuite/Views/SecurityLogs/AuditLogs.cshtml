@@ -49,10 +49,10 @@
                         <th>Activity</th>
                         <th>Initiated by</th>
                         <th>Target / details</th>
-                        <th>Changes</th>
                         <th>Application</th>
                         <th>IP address</th>
                         <th>Date</th>
+                        <th class="text-end">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -75,6 +75,13 @@
                             <td class="small">@entry.TenantName</td>
                             <td class="text-muted small">@entry.IpAddress</td>
                             <td class="text-muted small">@entry.CreatedOn.ToLocalTime()</td>
+                            <td class="text-end">
+                                @Html.AjaxActionLink("View", "AuditLogDetails", new { id = entry.Id }, new AjaxOptions
+       {
+           UpdateTargetId = "logDetails",
+           OnSuccess = "logDetailsLoaded"
+       }, new { @class = "btn btn-sm btn-outline-secondary", title = "View all details" })
+                            </td>
                         </tr>
                     }
                 </tbody>
@@ -82,6 +89,8 @@
         </div>
     </div>
 </div>
+<div id="logDetails"></div>
+
 @if (Model.Count() > 0)
 {
     <div class="mt-2">
@@ -92,3 +101,12 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
+
+<script>
+    var logDetailsCanvas;
+
+    function logDetailsLoaded() {
+        logDetailsCanvas = new bootstrap.Offcanvas(document.getElementById('logDetailsOffcanvas'));
+        logDetailsCanvas.show();
+    }
+</script>

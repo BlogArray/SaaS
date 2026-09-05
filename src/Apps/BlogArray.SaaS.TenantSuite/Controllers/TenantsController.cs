@@ -244,8 +244,6 @@ public class TenantsController(OpenIdDbContext context,
 
         await AddToCache(entity);
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "basic information updated"));
-
         return JsonSuccess("Tenant information updated successfuly");
     }
 

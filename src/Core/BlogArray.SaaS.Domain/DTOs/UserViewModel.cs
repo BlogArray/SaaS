@@ -167,6 +167,11 @@ public class AuditLogEntry
 {
     public string Id { get; set; } = default!;
 
+    /// <summary>
+    /// The initiator of the action.
+    /// </summary>
+    public string UserId { get; set; } = default!;
+
     public string TriggeredBy { get; set; } = default!;
 
     public string? ActorDisplayName { get; set; }
@@ -176,6 +181,8 @@ public class AuditLogEntry
     public string? TargetDisplayName { get; set; }
 
     public string? TargetEmail { get; set; }
+
+    public string? TargetUserId { get; set; }
 
     public string EventType { get; set; } = default!;
 
@@ -191,6 +198,8 @@ public class AuditLogEntry
     public string? NewValue { get; set; }
 
     public string? ClientId { get; set; }
+
+    public string? UserAgent { get; set; }
 
     public string? TenantName { get; set; }
 
