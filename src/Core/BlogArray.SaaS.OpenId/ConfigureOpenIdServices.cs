@@ -9,7 +9,6 @@
 
 using System.Security.Cryptography.X509Certificates;
 using BlogArray.SaaS.Domain.Entities;
-using BlogArray.SaaS.Domain.Events;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -207,8 +206,7 @@ public static class ConfigureOpenIdServices
         .AddEntityFrameworkStores<OpenIdDbContext>()
         .AddPasswordValidator<PasswordHistoryValidator>()
         .AddPasswordValidator<BreachedPasswordValidator>()
-        .AddDefaultTokenProviders()
-        .AddTokenProvider<DataProtectorTokenProvider<ApplicationUser>>(MfaResetTokenDefaults.ProviderName);
+        .AddDefaultTokenProviders();
 
         builder.Services.AddScoped<ISignInEventLogger, SignInEventLogger>();
         builder.Services.AddScoped<IAuditEventLogger, AuditEventLogger>();
@@ -226,10 +224,9 @@ public static class ConfigureOpenIdServices
             .AddEntityFrameworkStores<OpenIdDbContext>()
             .AddPasswordValidator<PasswordHistoryValidator>()
             .AddPasswordValidator<BreachedPasswordValidator>()
-            .AddDefaultTokenProviders()
-            .AddTokenProvider<DataProtectorTokenProvider<ApplicationUser>>(MfaResetTokenDefaults.ProviderName);
+            .AddDefaultTokenProviders();
 
-        // TenantSuite audit loggers.
+        // Tenant management actions (e.g. API key rotation) are audited from TenantSuite.
         builder.Services.AddScoped<ISignInEventLogger, SignInEventLogger>();
         builder.Services.AddScoped<IAuditEventLogger, AuditEventLogger>();
 
