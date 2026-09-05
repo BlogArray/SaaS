@@ -43,16 +43,16 @@
     </div>
     <div class="card-body py-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover table-sm align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>Activity</th>
-                        <th>Initiated by</th>
-                        <th>Target / details</th>
-                        <th>Application</th>
-                        <th>IP address</th>
-                        <th>Date</th>
-                        <th class="text-end">Actions</th>
+                        <th style="min-width:150px">Activity</th>
+                        <th style="min-width:200px">Initiated by</th>
+                        <th style="min-width:260px">Target / details</th>
+                        <th style="min-width:150px">Application</th>
+                        <th style="min-width:120px">IP address</th>
+                        <th style="min-width:150px">Date</th>
+                        <th class="text-end" style="width:80px">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -61,20 +61,13 @@
                         <tr>
                             <td><span class="badge rounded-pill text-bg-secondary">@entry.EventType</span></td>
                             <td>
-                                <div class="fw-semibold">@entry.ActorDisplayName <span class="badge rounded-pill text-bg-light">via @entry.TriggeredBy</span></div>
-                                <div class="text-muted small">@entry.ActorEmail</div>
+                                <div class="fw-semibold text-truncate" style="max-width:200px">@entry.ActorDisplayName</div>
+                                <div class="text-muted small text-truncate" style="max-width:200px" title="@entry.ActorEmail">@entry.ActorEmail</div>
                             </td>
-                            <td class="small">
-                                @entry.Reason
-                                @if (!string.IsNullOrEmpty(entry.TargetEmail))
-                                {
-                                    <div class="text-muted">target: @entry.TargetEmail</div>
-                                }
-                            </td>
-                            <td class="text-wrap small">@entry.ChangeSummary</td>
-                            <td class="small">@entry.TenantName</td>
+                            <td class="text-truncate" style="max-width:260px" title="@entry.Reason">@entry.Reason</td>
+                            <td class="text-truncate small" style="max-width:150px" title="@entry.TenantName">@entry.TenantName</td>
                             <td class="text-muted small">@entry.IpAddress</td>
-                            <td class="text-muted small">@entry.CreatedOn.ToLocalTime()</td>
+                            <td class="text-muted small">@entry.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm:ss")</td>
                             <td class="text-end">
                                 @Html.AjaxActionLink("View", "AuditLogDetails", new { id = entry.Id }, new AjaxOptions
        {

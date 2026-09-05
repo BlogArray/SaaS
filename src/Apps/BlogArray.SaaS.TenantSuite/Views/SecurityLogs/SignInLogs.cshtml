@@ -43,17 +43,17 @@
     </div>
     <div class="card-body py-0">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover table-sm align-middle mb-0">
                 <thead>
                     <tr>
-                        <th>User</th>
-                        <th>Application</th>
-                        <th>Method</th>
-                        <th>Result</th>
-                        <th>IP address</th>
-                        <th>Device</th>
-                        <th>Date</th>
-                        <th class="text-end">Actions</th>
+                        <th style="min-width:200px">User</th>
+                        <th style="min-width:150px">Application</th>
+                        <th style="min-width:110px">Method</th>
+                        <th style="min-width:110px">Result</th>
+                        <th style="min-width:120px">IP address</th>
+                        <th style="min-width:150px">Device</th>
+                        <th style="min-width:150px">Date</th>
+                        <th class="text-end" style="width:80px">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -62,10 +62,10 @@
                         bool failed = entry.Result == "Failure";
                         <tr>
                             <td>
-                                <div class="fw-semibold">@entry.DisplayName</div>
-                                <div class="text-muted small">@entry.Email</div>
+                                <div class="fw-semibold text-truncate" style="max-width:200px">@entry.DisplayName</div>
+                                <div class="text-muted small text-truncate" style="max-width:200px" title="@entry.Email">@entry.Email</div>
                             </td>
-                            <td class="small">@entry.TenantName</td>
+                            <td class="text-truncate small" style="max-width:150px" title="@entry.TenantName">@entry.TenantName</td>
                             <td class="small">@entry.AuthMethod</td>
                             <td>
                                 <span class="badge rounded-pill text-bg-@(failed ? "danger" : "success")">
@@ -73,8 +73,8 @@
                                 </span>
                             </td>
                             <td class="text-muted small">@entry.IpAddress</td>
-                            <td class="text-muted small">@entry.DeviceInfo</td>
-                            <td class="text-muted small">@entry.CreatedOn.ToLocalTime()</td>
+                            <td class="text-muted small text-truncate" style="max-width:150px" title="@entry.DeviceInfo">@entry.DeviceInfo</td>
+                            <td class="text-muted small">@entry.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm:ss")</td>
                             <td class="text-end">
                                 @Html.AjaxActionLink("View", "SignInLogDetails", new { id = entry.Id }, new AjaxOptions
        {
