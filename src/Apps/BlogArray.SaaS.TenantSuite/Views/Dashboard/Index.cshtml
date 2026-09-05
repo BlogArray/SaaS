@@ -1,4 +1,4 @@
-﻿@model DashboardViewModel
+﻿    @model DashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
 
@@ -120,7 +120,7 @@
                     <span class="fs-6 text-uppercase fw-semibold">Sign-ins — last 14 days</span>
                     <span class="text-muted small">total sign-ins per day</span>
                 </div>
-                <div class="d-flex align-items-end gap-1 mt-2" style="height:70px">
+                <div class="d-flex align-items-end gap-1 mt-2" style="height:170px">
                     @foreach (SignInTrendPoint point in Model.SignInTrend)
                     {
                         int height = maxTrend == 0 ? 4 : Math.Max(6, (int)Math.Round(100.0 * point.Total / maxTrend));
