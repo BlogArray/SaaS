@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.Domain.Events;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -73,7 +74,7 @@ public class DashboardController(OpenIdDbContext context) : Controller
             .OrderBy(point => point.Date)
             .ToListAsync();
 
-        var trendByDate = trend.ToDictionary(point => point.Date);
+        Dictionary<DateTime, SignInTrendPoint> trendByDate = trend.ToDictionary(point => point.Date);
         List<SignInTrendPoint> zeroFilledTrend = [];
 
         for (int i = 0; i < TrendDays; i++)
