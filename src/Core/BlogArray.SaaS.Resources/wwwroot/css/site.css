@@ -12459,4 +12459,8 @@ mbe-0 {
   height: auto;
 }
 
+.white-space-pre-line {
+  white-space: pre-line;
+}
+
 /*# sourceMappingURL=site.css.map */

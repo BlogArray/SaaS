@@ -7,9 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
-using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.Domain.Events;
-using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -72,7 +70,7 @@ public class SecurityLogsController(OpenIdDbContext context) : BaseController
             from actor in actorJoin.DefaultIfEmpty()
             join target in context.Users on e.TargetUserId equals target.Id into targetJoin
             from target in targetJoin.DefaultIfEmpty()
-            where userIds.Contains(e.UserId) || (e.TargetUserId != null && userIds.Contains(e.TargetUserId))
+            where userIds.Contains(e.UserId) || e.TargetUserId != null && userIds.Contains(e.TargetUserId)
             orderby e.CreatedOn descending
             select new AuditLogEntry
             {
@@ -207,6 +205,7 @@ public class SecurityLogsController(OpenIdDbContext context) : BaseController
             NewValue = entity.NewValue,
             ChangeSummary = AuditDiff.Summarize(entity.OldValue, entity.NewValue),
             ClientId = entity.ClientId,
+            UserAgent = entity.UserAgent,
             TenantName = await context.Applications
                 .Where(a => a.ClientId == entity.ClientId)
                 .Select(a => a.DisplayName)

@@ -124,7 +124,7 @@ public static class AuditDiff
                 return $"{key}: {oldText ?? "-"} → {newText ?? "-"}";
             });
 
-            return string.Join("; ", parts);
+            return string.Join(Environment.NewLine, parts);
         }
         catch (JsonException)
         {
