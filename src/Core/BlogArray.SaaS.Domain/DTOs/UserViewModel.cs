@@ -181,6 +181,11 @@ public class AuditLogEntry
 
     public string? Reason { get; set; }
 
+    /// <summary>
+    /// Compact human-readable rendering of the Old/New diff, e.g. "IsMfaEnforced: True → False".
+    /// </summary>
+    public string? ChangeSummary { get; set; }
+
     public string? OldValue { get; set; }
 
     public string? NewValue { get; set; }

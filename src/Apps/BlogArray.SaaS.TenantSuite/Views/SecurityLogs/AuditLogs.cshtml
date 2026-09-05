@@ -49,6 +49,7 @@
                         <th>Activity</th>
                         <th>Initiated by</th>
                         <th>Target / details</th>
+                        <th>Changes</th>
                         <th>Application</th>
                         <th>IP address</th>
                         <th>Date</th>
@@ -70,6 +71,7 @@
                                     <div class="text-muted">target: @entry.TargetEmail</div>
                                 }
                             </td>
+                            <td class="text-wrap small">@entry.ChangeSummary</td>
                             <td class="small">@entry.TenantName</td>
                             <td class="text-muted small">@entry.IpAddress</td>
                             <td class="text-muted small">@entry.CreatedOn.ToLocalTime()</td>

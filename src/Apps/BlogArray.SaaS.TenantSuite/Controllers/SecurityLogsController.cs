@@ -7,6 +7,9 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using BlogArray.SaaS.Domain.DTOs;
+using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -100,7 +103,14 @@ public class SecurityLogsController(OpenIdDbContext context) : BaseController
 
         await SetTenantFilter(tenantId);
 
-        return View(await logs.ToPagerListAsync(page, take));
+        IPager<AuditLogEntry> result = await logs.ToPagerListAsync(page, take);
+
+        foreach (AuditLogEntry entry in result)
+        {
+            entry.ChangeSummary = AuditDiff.Summarize(entry.OldValue, entry.NewValue);
+        }
+
+        return View(result);
     }
 
     /// <summary>

@@ -211,6 +211,8 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
+        var profileBefore = new { entity.FirstName, entity.LastName, entity.DisplayName, entity.Gender, entity.TimeZone, entity.LocaleCode };
+
         entity.FirstName = editUserViewModel.FirstName;
         entity.LastName = editUserViewModel.LastName;
         entity.DisplayName = editUserViewModel.DisplayName;
@@ -222,7 +224,10 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id));
+        var profileAfter = new { entity.FirstName, entity.LastName, entity.DisplayName, entity.Gender, entity.TimeZone, entity.LocaleCode };
+        (string? oldValueJson, string? newValueJson) = AuditDiff.Changed(profileBefore, profileAfter);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id, OldValueJson: oldValueJson, NewValueJson: newValueJson));
 
         return JsonSuccess("User information has been successfully saved.");
     }
@@ -302,34 +307,46 @@ public class UsersController(OpenIdDbContext context,
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
-        int unassignedRoles = await context.UserRoles.Where(r => r.UserId == assignViewModel.UserId).ExecuteDeleteAsync();
+        // Capture the previous role names before they are replaced so the audit row can
+        // carry the old -> new diff.
+        List<string> previousRoles = await context.UserRoles
+            .Where(ur => ur.UserId == assignViewModel.UserId)
+            .Join(context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+            .ToListAsync();
 
-        if (assignViewModel.RolesSelected is not null && assignViewModel.RolesSelected.Count > 0)
+        List<string> newRoles = assignViewModel.RolesSelected ?? [];
+
+        await context.UserRoles.Where(r => r.UserId == assignViewModel.UserId).ExecuteDeleteAsync();
+
+        if (newRoles.Count > 0)
         {
-            IdentityResult identityResult = await userManager.AddToRolesAsync(user, assignViewModel.RolesSelected);
+            IdentityResult identityResult = await userManager.AddToRolesAsync(user, newRoles);
 
-            if (identityResult.Succeeded)
-            {
-                await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRolesChanged, TargetUserId: user.Id, Reason: $"roles set to [{string.Join(", ", assignViewModel.RolesSelected)}]"));
-
-                string successMessage = $"Successfully assigned {assignViewModel.RolesSelected.Count} role(s) to the user.";
-
-                return JsonSuccess(successMessage);
-            }
-            else
+            if (!identityResult.Succeeded)
             {
                 return IdentityErrorResult(identityResult.Errors);
             }
         }
 
-        if (unassignedRoles > 0)
+        bool changed = previousRoles.Count != newRoles.Count || previousRoles.Except(newRoles).Any();
+
+        if (!changed)
         {
-            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRolesChanged, TargetUserId: user.Id, Reason: "all roles removed"));
+            return JsonError("Please select at least one role to assign.");
         }
 
-        return unassignedRoles > 0
-            ? JsonSuccess($"Successfully unassigned {unassignedRoles} role(s) to the user.")
-            : JsonError("Please select at least one role to assign.");
+        (string? oldValueJson, string? newValueJson) = AuditDiff.Changed("Roles", previousRoles, newRoles);
+
+        await auditLogger.LogAsync(new AuditEventRecord(
+            LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRolesChanged,
+            TargetUserId: user.Id,
+            OldValueJson: oldValueJson,
+            NewValueJson: newValueJson,
+            Reason: newRoles.Count > 0 ? $"roles set to [{string.Join(", ", newRoles)}]" : "all roles removed"));
+
+        return newRoles.Count > 0
+            ? JsonSuccess($"Successfully assigned {newRoles.Count} role(s) to the user.")
+            : JsonSuccess($"Successfully unassigned {previousRoles.Count} role(s) from the user.");
     }
 
     #endregion Detais/edit

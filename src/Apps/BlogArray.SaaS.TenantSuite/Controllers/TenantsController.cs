@@ -229,11 +229,18 @@ public class TenantsController(OpenIdDbContext context,
             return ModelStateError(ModelState);
         }
 
+        var infoBefore = new { entity.DisplayName, entity.Legalname, entity.Website, entity.Description, entity.TenantUrl };
+
         MapProperties(openIdApplication, entity);
 
         entity.AdminEmail = adminEmail;
 
         await manager.UpdateAsync(entity);
+
+        var infoAfter = new { entity.DisplayName, entity.Legalname, entity.Website, entity.Description, entity.TenantUrl };
+        (string? infoOldValueJson, string? infoNewValueJson) = AuditDiff.Changed(infoBefore, infoAfter);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "basic information updated", OldValueJson: infoOldValueJson, NewValueJson: infoNewValueJson));
 
         await AddToCache(entity);
 
@@ -298,6 +305,8 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
+        var themeBefore = new { entity.Theme.NavbarColor, entity.Theme.NavbarTextAndIconColor, entity.Theme.PrimaryColor };
+
         entity.Theme.NavbarColor = themeViewModel.NavbarColor;
         entity.Theme.NavbarTextAndIconColor = themeViewModel.NavbarTextAndIconColor;
         entity.Theme.PrimaryColor = themeViewModel.PrimaryColor;
@@ -306,7 +315,10 @@ public class TenantsController(OpenIdDbContext context,
 
         await AddToCache(entity);
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "theme updated"));
+        var themeAfter = new { entity.Theme.NavbarColor, entity.Theme.NavbarTextAndIconColor, entity.Theme.PrimaryColor };
+        (string? themeOldValueJson, string? themeNewValueJson) = AuditDiff.Changed(themeBefore, themeAfter);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "theme updated", OldValueJson: themeOldValueJson, NewValueJson: themeNewValueJson));
 
         return JsonSuccess("Tenant theme information updated successfuly");
     }
@@ -382,6 +394,8 @@ public class TenantsController(OpenIdDbContext context,
             securityViewModel.IsMfaEnforced = false;
         }
 
+        var securityBefore = new { entity.Security.IsSocialAuthEnabled, entity.Security.IsMfaEnforced, entity.Security.IsSsoEnabled, entity.Security.SsoSignInUrl, entity.Security.SsoSignOutUrl, entity.Security.SsoX509Certificate, entity.Security.SsoEntityId, entity.Security.IsSingleSignOutEnabled };
+
         entity.Security.IsSocialAuthEnabled = securityViewModel.IsSocialAuthEnabled;
         entity.Security.IsMfaEnforced = securityViewModel.IsMfaEnforced;
         entity.Security.IsSsoEnabled = securityViewModel.IsSsoEnabled;
@@ -392,6 +406,11 @@ public class TenantsController(OpenIdDbContext context,
         entity.Security.IsSingleSignOutEnabled = securityViewModel.IsSingleSignOutEnabled;
 
         await manager.UpdateAsync(entity);
+
+        var securityAfter = new { entity.Security.IsSocialAuthEnabled, entity.Security.IsMfaEnforced, entity.Security.IsSsoEnabled, entity.Security.SsoSignInUrl, entity.Security.SsoSignOutUrl, entity.Security.SsoX509Certificate, entity.Security.SsoEntityId, entity.Security.IsSingleSignOutEnabled };
+        (string? securityOldValueJson, string? securityNewValueJson) = AuditDiff.Changed(securityBefore, securityAfter);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "security settings updated", OldValueJson: securityOldValueJson, NewValueJson: securityNewValueJson));
 
         await AddToCache(entity);
 
