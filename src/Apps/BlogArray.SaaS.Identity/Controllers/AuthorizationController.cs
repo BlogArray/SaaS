@@ -325,7 +325,23 @@ public class AuthorizationController(
             return baseUrl.TrimEnd('/') + "/authentication/frontchannellogout";
         }
 
-        return null;
+        // Fallback for tenants whose registered URIs are all handler callback paths
+        // (post-migration data: post_logout_redirect_uri = {origin}/signout-callback-oidc
+        // with no TenantUrl set): the origin of such a URI is the application's front-channel
+        // base. Never append the tenant path segment to these - that produced
+        // /signout-callback-oidc/authentication/frontchannellogout (404) and silently broke
+        // single sign-out for every subdomain tenant.
+        string? callbackUri = new[]
+            {
+                DeserializeFirstUri(application.PostLogoutRedirectUris),
+                DeserializeFirstUri(application.RedirectUris)
+            }
+            .Where(candidate => !string.IsNullOrWhiteSpace(candidate))
+            .Select(candidate => Uri.TryCreate(candidate, UriKind.Absolute, out Uri? parsed) ? parsed : null)
+            .FirstOrDefault(uri => uri is not null)
+            ?.GetLeftPart(UriPartial.Authority);
+
+        return callbackUri is null ? null : callbackUri.TrimEnd('/') + "/authentication/frontchannellogout";
     }
 
     /// <summary>
