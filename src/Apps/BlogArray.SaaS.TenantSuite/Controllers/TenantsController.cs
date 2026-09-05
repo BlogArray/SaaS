@@ -11,8 +11,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Cryptography;
 using System.Text.Json;
 using BlogArray.SaaS.Application.Services;
-using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -118,6 +118,8 @@ public class TenantsController(OpenIdDbContext context,
         await AddToCache(entity);
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantCreated, ClientId: entity.ClientId, Reason: entity.DisplayName));
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ApiKeyCreated, ClientId: entity.ClientId, Reason: entity.DisplayName));
 
         // Deliver the credentials by email, but never let a mail failure fail the creation:
         // the secrets are also shown once in the browser so the admin can hand them over.
@@ -235,6 +237,8 @@ public class TenantsController(OpenIdDbContext context,
 
         await AddToCache(entity);
 
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "basic information updated"));
+
         return JsonSuccess("Tenant information updated successfuly");
     }
 
@@ -301,6 +305,8 @@ public class TenantsController(OpenIdDbContext context,
         await manager.UpdateAsync(entity);
 
         await AddToCache(entity);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "theme updated"));
 
         return JsonSuccess("Tenant theme information updated successfuly");
     }
@@ -388,6 +394,8 @@ public class TenantsController(OpenIdDbContext context,
         await manager.UpdateAsync(entity);
 
         await AddToCache(entity);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "security settings updated"));
 
         return JsonSuccess("Tenant security information updated successfuly");
     }
@@ -496,6 +504,8 @@ public class TenantsController(OpenIdDbContext context,
             SetClientSecret(openIdApplication, rotateKeys.Key);
 
             await manager.UpdateAsync(openIdApplication, rotateKeys.Key);
+
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ClientSecretRotated, ClientId: openIdApplication.ClientId, Reason: openIdApplication.DisplayName));
         }
         else if (type == "apikey")
         {

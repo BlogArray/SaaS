@@ -90,6 +90,7 @@ public static class AuditEventTypes
     public const string PasskeyRemoved = "PasskeyRemoved";
     public const string ApiKeyCreated = "ApiKeyCreated";
     public const string ApiKeyRotated = "ApiKeyRotated";
+    public const string ClientSecretRotated = "ClientSecretRotated";
 
     /// <summary>
     /// Not produced yet: API keys cannot be revoked today, only rotated.
