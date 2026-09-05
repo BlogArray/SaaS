@@ -1,0 +1,41 @@
+@page
+@model ResetMfaModel
+@{
+    ViewData["Title"] = "Reset multi-factor authentication";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+
+<h6 class="text-center mb-3">
+    Reset multi-factor authentication
+</h6>
+<div class="alert alert-warning mb-3" role="alert">
+    Resetting removes your current authenticator enrollment and signs out other devices.
+    You will set up your authenticator again at next sign-in.
+</div>
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+    <input asp-for="Input.Code" type="hidden" />
+    <div class="mb-3">
+        <label asp-for="Input.Email" class="form-label"></label>
+        <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="Enter your email" />
+        <span asp-validation-for="Input.Email" class="text-danger"></span>
+    </div>
+    @if (Model.CaptchaEnabled)
+    {
+        <div class="cf-turnstile mb-3"
+             data-sitekey="@Model.CaptchaSiteKey"
+             data-response-field-name="Input.CaptchaToken"
+             data-theme="light">
+        </div>
+        <span asp-validation-for="Input.CaptchaToken" class="text-danger"></span>
+    }
+    <button type="submit" class="w-100 btn btn-primary">Reset authenticator</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    @if (Model.CaptchaEnabled)
+    {
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+    }
+}

@@ -1,0 +1,44 @@
+@page
+@model ForgotMfaModel
+@{
+    ViewData["Title"] = "Lost your authenticator?";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+<form method="post">
+    <h6 class="text-center mb-3">
+        Lost your authenticator?
+    </h6>
+    <p class="form-text mb-3">
+        Enter your email and we will send a link to reset multi-factor authentication.
+        You will then sign in with your password and set up your authenticator again.
+    </p>
+    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+    <div class="mb-3">
+        <label asp-for="Input.Email" class="form-label"></label>
+        <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="Enter your email" />
+        <span asp-validation-for="Input.Email" class="text-danger"></span>
+    </div>
+    @if (Model.CaptchaEnabled)
+    {
+        <div class="cf-turnstile mb-3"
+             data-sitekey="@Model.CaptchaSiteKey"
+             data-response-field-name="Input.CaptchaToken"
+             data-theme="light">
+        </div>
+        <span asp-validation-for="Input.CaptchaToken" class="text-danger"></span>
+    }
+    <button type="submit" class="w-100 btn btn-primary">Send reset link</button>
+</form>
+
+<div class="text-center mt-3">
+    <p>
+        <a asp-page="./Login">Go back to login</a>
+    </p>
+</div>
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    @if (Model.CaptchaEnabled)
+    {
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
+    }
+}

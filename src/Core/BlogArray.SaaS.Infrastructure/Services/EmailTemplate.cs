@@ -1,4 +1,4 @@
-//
+ï»¿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -37,6 +37,10 @@ public interface IEmailTemplate
     void TwoFactorCode(string toEmail, string name, string code);
 
     void TenantWelcome(string toEmail, string tenantName, string tenantUrl, string clientSecret, string apiKey);
+
+    void MfaResetRequested(string toEmail, string name, string callbackUrl);
+
+    void MfaResetCompleted(string toEmail, string name);
 
     void ApiKeyRotated(string toEmail, string tenantName, string apiKey, string rotatedBy);
 }
@@ -167,11 +171,11 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
             $"You are invited to join {Encode(org)} on App. " +
             $"To get started, please set up your account by creating a password using the link below:" +
             $"{MakeLinkButton(callbackUrl, "Change password")}" +
-            $"If you’ve already set a password, you can log in directly to your account here:" +
+            $"If youâ€™ve already set a password, you can log in directly to your account here:" +
             $"{MakeLinkButton(orgUrl, "Login")}" +
-            $"Once inside, you’ll gain access to your organization’s resources. " +
+            $"Once inside, youâ€™ll gain access to your organizationâ€™s resources. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
-            $"We’re excited to have you on board!";
+            $"Weâ€™re excited to have you on board!";
 
         string body = GenerateEmail(name, template);
 
@@ -184,9 +188,9 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
             $"You are invited to join {Encode(org)} on App. " +
             $"You can log in directly to your account here:" +
             $"{MakeLinkButton(orgUrl, "Login")}" +
-            $"Once inside, you’ll gain access to your organization’s resources. " +
+            $"Once inside, youâ€™ll gain access to your organizationâ€™s resources. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
-            $"We’re excited to have you on board!";
+            $"Weâ€™re excited to have you on board!";
 
         string body = GenerateEmail(name, template);
 
@@ -222,6 +226,37 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         string body = GenerateEmail(tenantName, template);
 
         Send(toEmail, $"The API key for {Encode(tenantName)} has been rotated - App", body);
+    }
+
+    public void MfaResetRequested(string toEmail, string name, string callbackUrl)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"You are receiving this email because a request to reset multi-factor authentication for your App account has been initiated. " +
+            $"If you did not request this, please disregard this email - your authenticator is still active.{newLine}" +
+            $"To reset multi-factor authentication, please click the link below (valid for a limited time):" +
+            $"{MakeLinkButton(callbackUrl, "Reset multi-factor authentication")}" +
+            $"After the reset you will sign in with your password and set up your authenticator again. " +
+            $"For any questions or concerns, please contact our support team.{newLine}" +
+            $"Thank you for choosing App.";
+
+        string body = GenerateEmail(name, template);
+
+        Send(toEmail, "Reset your App account multi-factor authentication", body);
+    }
+
+    public void MfaResetCompleted(string toEmail, string name)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"This is to inform you that multi-factor authentication for your App account has been reset on {DateTime.UtcNow} UTC " +
+            $"via an emailed recovery link. Your authenticator enrollment has been cleared and other devices have been signed out.{newLine}" +
+            $"If you did not initiate this reset, your email account may be compromised - " +
+            $"please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")} " +
+            $"and contact our support team.{newLine}" +
+            $"Thank you for choosing App.";
+
+        string body = GenerateEmail(name, template);
+
+        Send(toEmail, "Your App account multi-factor authentication has been reset", body);
     }
 
     private static string MakeSecretBox(string secret)

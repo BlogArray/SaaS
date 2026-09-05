@@ -1,0 +1,26 @@
+@page
+@{
+    ViewData["Title"] = "Check your email";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+
+<h6 class="text-center mb-3">
+    Check your email
+</h6>
+<div class="alert alert-info mb-3" role="alert">
+    <p class="mb-0">
+        If multi-factor authentication is enabled for your account and a reset link was
+        requested, an email with further instructions is on its way. Please check your inbox
+        (and spam folder).
+    </p>
+</div>
+<p class="text-muted small mb-0">
+    Didn't receive anything? The address may not have multi-factor authentication enabled,
+    or no account matches it.
+</p>
+
+<div class="text-center mt-3">
+    <p>
+        <a asp-page="./Login">Go back to login</a>
+    </p>
+</div>
