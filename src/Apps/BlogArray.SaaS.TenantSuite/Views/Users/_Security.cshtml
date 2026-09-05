@@ -1,0 +1,70 @@
+@model UserSecurityViewModel
+
+<div class="d-flex justify-content-between align-items-start mb-2">
+    <div>
+        <h6 class="mb-1">Multi-factor authentication</h6>
+        @if (Model.TwoFactorEnabled)
+        {
+            <span class="badge rounded-pill text-bg-success">Enabled</span>
+            @if (Model.HasAuthenticator)
+            {
+                <span class="badge rounded-pill text-bg-secondary ms-1">Authenticator app (TOTP)</span>
+            }
+        }
+        else
+        {
+            <span class="badge rounded-pill text-bg-secondary">Disabled</span>
+        }
+    </div>
+    <div class="text-nowrap">
+        @if (Model.TwoFactorEnabled)
+        {
+            <form asp-controller="Users" asp-action="DisableMfa" method="post" data-ajax="true" data-ajax-method="post" data-ajax-success="securityChanged" class="d-inline ms-1" title="Turns 2FA off but keeps the authenticator enrollment">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Disable 2FA</button>
+            </form>
+            <form asp-controller="Users" asp-action="ResetMfa" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This clears the authenticator enrollment entirely. The user must re-enroll at next sign-in. Continue?" data-ajax-success="securityChanged" class="d-inline ms-1">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button type="submit" class="btn btn-sm btn-outline-danger">Reset MFA</button>
+            </form>
+        }
+    </div>
+</div>
+
+<h6 class="mt-4 mb-2">Passkeys (@Model.Passkeys.Count)</h6>
+@if (Model.Passkeys.Count == 0)
+{
+    <p class="text-muted small mb-0">No passkeys enrolled.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Created</th>
+                    <th>Last used</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (WebAuthnCredential passkey in Model.Passkeys)
+                {
+                    <tr>
+                        <td>@passkey.Name</td>
+                        <td class="text-muted small">@passkey.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</td>
+                        <td class="text-muted small">@(passkey.LastUsedOn?.ToLocalTime().ToString("dd-MM-yyyy HH:mm") ?? "never")</td>
+                        <td class="text-end">
+                            <form asp-controller="Users" asp-action="RemovePasskey" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Remove passkey '@passkey.Name'? The user will no longer be able to sign in with it." data-ajax-success="securityChanged" class="d-inline">
+                                <input type="hidden" name="id" value="@Model.Id" />
+                                <input type="hidden" name="credentialId" value="@passkey.Id" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

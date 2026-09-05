@@ -9,6 +9,7 @@
 
 using System.Security.Cryptography.X509Certificates;
 using BlogArray.SaaS.Domain.Entities;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -142,6 +142,12 @@ public static class AuditEventTypes
     /// Not produced yet: tenants cannot be deleted today.
     /// </summary>
     public const string TenantDeleted = "TenantDeleted";
+
+    /// <summary>
+    /// An administrator revoked all of the target user's sessions and rotated their security
+    /// stamp (stopgap containment pending a full MFA/credential clear).
+    /// </summary>
+    public const string SessionsRevokedByAdmin = "SessionsRevokedByAdmin";
 }
 
 /// <summary>

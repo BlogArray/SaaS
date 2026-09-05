@@ -9,6 +9,7 @@
 
 using System.Text;
 using BlogArray.SaaS.Application.Services;
+using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
@@ -349,6 +350,161 @@ public class UsersController(OpenIdDbContext context,
             : JsonSuccess($"Successfully unassigned {previousRoles.Count} role(s) from the user.");
     }
 
+    #region Security
+
+    [HttpGet]
+    public async Task<IActionResult> Security(string id)
+    {
+        ApplicationUser? user = await userManager.FindByIdAsync(id);
+
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        List<WebAuthnCredential> passkeys = await context.WebAuthnCredentials
+            .Where(c => c.UserId == id)
+            .OrderByDescending(c => c.CreatedOn)
+            .ToListAsync();
+
+        return PartialView("_Security", new UserSecurityViewModel
+        {
+            Id = user.Id,
+            DisplayName = user.DisplayName,
+            Email = user.Email,
+            TwoFactorEnabled = user.TwoFactorEnabled,
+            HasAuthenticator = !string.IsNullOrEmpty(await userManager.GetAuthenticatorKeyAsync(user)),
+            Passkeys = passkeys
+        });
+    }
+
+    /// <summary>
+    /// Disables two-factor authentication only; the authenticator enrollment is left intact
+    /// so the user can re-enable 2FA themselves without re-scanning.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DisableMfa(string id)
+    {
+        ApplicationUser? user = await userManager.FindByIdAsync(id);
+
+        if (user is null)
+        {
+            return JsonError("User not found.");
+        }
+
+        IdentityResult result = await userManager.SetTwoFactorEnabledAsync(user, false);
+
+        if (!result.Succeeded)
+        {
+            return IdentityErrorResult(result.Errors);
+        }
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.MfaDisabled, TargetUserId: user.Id, Reason: "two-factor authentication disabled by administrator"));
+
+        await emailTemplate.SecurityActionByAdminNotice(user.Email, user.DisplayName, "Two-factor authentication has been disabled on your account by an administrator.");
+
+        return JsonSuccess("Multi-factor authentication has been disabled for this user.");
+    }
+
+    /// <summary>
+    /// Resets the user's multi-factor authentication: 2FA disabled and the authenticator
+    /// enrollment cleared, forcing full re-enrollment at next sign-in. Audited and notified.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetMfa(string id)
+    {
+        ApplicationUser? user = await userManager.FindByIdAsync(id);
+
+        if (user is null)
+        {
+            return JsonError("User not found.");
+        }
+
+        await userManager.SetTwoFactorEnabledAsync(user, false);
+        await userManager.ResetAuthenticatorKeyAsync(user);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.MfaDisabled, TargetUserId: user.Id, Reason: "multi-factor authentication reset by administrator (re-enrollment required)"));
+
+        await emailTemplate.MfaResetByAdminNotice(user.Email, user.DisplayName);
+
+        return JsonSuccess("Multi-factor authentication has been reset. The user must re-enroll their authenticator at next sign-in.");
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemovePasskey(string id, string credentialId)
+    {
+        WebAuthnCredential? credential = await context.WebAuthnCredentials
+            .SingleOrDefaultAsync(c => c.Id == credentialId && c.UserId == id);
+
+        if (credential is null)
+        {
+            return JsonError("Passkey not found.");
+        }
+
+        ApplicationUser? owner = await userManager.FindByIdAsync(credential.UserId);
+
+        context.WebAuthnCredentials.Remove(credential);
+        await context.SaveChangesAsync();
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PasskeyRemoved, TargetUserId: credential.UserId, Reason: $"passkey '{credential.Name}' removed by administrator"));
+
+        if (owner is not null)
+        {
+            await emailTemplate.SecurityActionByAdminNotice(owner.Email, owner.DisplayName, $"Your passkey '{credential.Name}' has been removed from your account by an administrator.");
+        }
+
+        return JsonSuccess($"Passkey '{credential.Name}' has been removed.");
+    }
+
+    #endregion Security
+
+    #region Sessions
+
+    [HttpGet]
+    public async Task<IActionResult> Sessions(string id)
+    {
+        List<UserSession> sessions = await context.UserSessions
+            .Where(s => s.UserId == id)
+            .OrderByDescending(s => s.LastSeenOn)
+            .ToListAsync();
+
+        return PartialView("_Sessions", sessions);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeSession(string id, string sessionId)
+    {
+        UserSession? session = await context.UserSessions
+            .SingleOrDefaultAsync(s => s.SessionId == sessionId && s.UserId == id);
+
+        if (session is null)
+        {
+            return JsonError("Session not found.");
+        }
+
+        session.Revoked = true;
+        await context.SaveChangesAsync();
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionRevoked, TargetUserId: session.UserId, Reason: $"session on '{session.DeviceName}' revoked by administrator"));
+
+        await emailTemplate.SecurityActionByAdminNotice(
+            await GetUserEmailAsync(session.UserId), session.UserId,
+            $"Your session on '{session.DeviceName}' ({session.IpAddress}) has been signed out by an administrator.");
+
+        return JsonSuccess($"Session on '{session.DeviceName}' has been revoked.");
+    }
+
+    private async Task<string> GetUserEmailAsync(string userId)
+    {
+        return await context.Users.Where(u => u.Id == userId).Select(u => u.Email).FirstOrDefaultAsync() ?? userId;
+    }
+
+    #endregion Sessions
+
     #endregion Detais/edit
 
     #region Actions
@@ -677,6 +833,8 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id, Reason: "email and phone confirmed by administrator"));
+
         return JsonSuccess("User information has been successfully saved.");
     }
 
@@ -740,6 +898,37 @@ public class UsersController(OpenIdDbContext context,
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountUnlocked, TargetUserId: entity.Id));
 
         return JsonSuccess("The user account is now unlocked, allowing the user to log in and access their account without any restrictions.");
+    }
+
+    /// <summary>
+    /// Stopgap containment pending a full MFA/credential clear: revokes every tracked
+    /// session and rotates the security stamp, killing any live attacker session on the
+    /// account. The user re-enters via a password reset (bridge into the email-verified
+    /// MFA-reset recovery flow).
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeAllSessions(string id)
+    {
+        ApplicationUser? entity = await userManager.FindByIdAsync(id);
+
+        if (entity is null)
+        {
+            return JsonError("User not found.");
+        }
+
+        List<UserSession> sessions = await context.UserSessions
+            .Where(s => s.UserId == id)
+            .ToListAsync();
+
+        context.UserSessions.RemoveRange(sessions);
+        await context.SaveChangesAsync();
+
+        await userManager.UpdateSecurityStampAsync(entity);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionsRevokedByAdmin, TargetUserId: entity.Id, Reason: $"{sessions.Count} session(s) revoked; security stamp rotated"));
+
+        return JsonSuccess($"{sessions.Count} session(s) revoked and the security stamp rotated. The user must sign in again.");
     }
 
     public IActionResult IsCurrentuser(string id)

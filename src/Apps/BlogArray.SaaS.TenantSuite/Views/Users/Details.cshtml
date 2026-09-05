@@ -27,6 +27,10 @@
         @Html.DynamicContentLoader("basicInfo", Url.Action("BasicInfo", "Users", new { @id = Model.Id }))
         <hr class="my-3">
         @Html.DynamicContentLoader("userRoles", Url.Action("Roles", "Users", new { @id = Model.Id }))
+        <hr class="my-3">
+        @Html.DynamicContentLoader("security", Url.Action("Security", "Users", new { @id = Model.Id }))
+        <hr class="my-3">
+        @Html.DynamicContentLoader("sessions", Url.Action("Sessions", "Users", new { @id = Model.Id }))
     </div>
 </div>
 
@@ -38,15 +42,23 @@
 
 <script>
     var userEditCanvas;
+    var logDetailsCanvas;
 
     function userEditFormLoaded() {
         userEditCanvas = new bootstrap.Offcanvas(document.getElementById('userEditOffcanvas'));
         userEditCanvas.show();
     }
 
+    function logDetailsLoaded() {
+        logDetailsCanvas = new bootstrap.Offcanvas(document.getElementById('logDetailsOffcanvas'));
+        logDetailsCanvas.show();
+    }
+
      function onUserChangeSuccess(e) {
         DynamicContentLoader.load('toolbar');
         DynamicContentLoader.load('basicInfo');
+        DynamicContentLoader.load('security');
+        DynamicContentLoader.load('sessions');
         onUserChange(e);
     }
 
@@ -54,7 +66,18 @@
         DynamicContentLoader.load('userRoles');
         onUserChange(e);
     }
-    
+
+    function securityChanged(e) {
+        DynamicContentLoader.load('security');
+        DynamicContentLoader.load('sessions');
+        Toast.success(e.message);
+    }
+
+    function sessionsChanged(e) {
+        DynamicContentLoader.load('sessions');
+        Toast.success(e.message);
+    }
+
     function onUserChange(e){
         userEditCanvas.hide();
         Toast.success(e.message);

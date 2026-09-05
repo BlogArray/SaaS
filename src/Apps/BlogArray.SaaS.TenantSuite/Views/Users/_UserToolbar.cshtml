@@ -59,6 +59,11 @@
            UpdateTargetId = "changeUserInfo",
            OnSuccess = "userEditFormLoaded"
        }, new { @class = "btn btn-outline-secondary", title = "Re-send the onboarding invite email" })
+
+            <form asp-controller="Users" asp-action="RevokeAllSessions" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This will sign the user out everywhere and invalidate their password-reset links. Continue?" data-ajax-success="changeState" class="d-inline">
+                <input type="hidden" name="id" value="@Model.Id" />
+                <button type="submit" class="btn btn-outline-secondary" title="Revoke all sessions and rotate the security stamp.">Revoke sessions</button>
+            </form>
             }
 
             @Html.AjaxActionLink("Reset password", "ResetPassword", new { id = Model.Id }, new AjaxOptions

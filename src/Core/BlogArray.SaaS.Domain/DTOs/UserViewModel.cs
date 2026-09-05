@@ -222,6 +222,25 @@ public class ResendInviteViewModel
     public List<SelectListItem>? Tenants { get; set; }
 }
 
+/// <summary>
+/// Per-user security posture shown to administrators: multi-factor status and enrolled
+/// passkeys, with admin revocation actions.
+/// </summary>
+public class UserSecurityViewModel
+{
+    public string Id { get; set; } = default!;
+
+    public string DisplayName { get; set; } = default!;
+
+    public string Email { get; set; } = default!;
+
+    public bool TwoFactorEnabled { get; set; }
+
+    public bool HasAuthenticator { get; set; }
+
+    public List<BlogArray.SaaS.Domain.Entities.WebAuthnCredential> Passkeys { get; set; } = [];
+}
+
 public class AssignTenantViewModel
 {
     public string UserId { get; set; } = default!;

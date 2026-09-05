@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using BlogArray.SaaS.Domain.Events;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
@@ -15,7 +16,7 @@ using P.Pager;
 namespace BlogArray.SaaS.TenantSuite.Controllers;
 
 [Authorize(Roles = "Superuser")]
-public class ScopesController(OpenIdDbContext context, OpenIddictScopeManager<OpenIdScope> manager) : Controller
+public class ScopesController(OpenIdDbContext context, OpenIddictScopeManager<OpenIdScope> manager, IAuditEventLogger auditLogger) : BaseController
 {
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
@@ -74,6 +75,8 @@ public class ScopesController(OpenIdDbContext context, OpenIddictScopeManager<Op
             DisplayName = openIdScope.DisplayName
         });
 
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PermissionsChanged, Reason: $"scope '{openIdScope.Name}' created"));
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -111,11 +114,18 @@ public class ScopesController(OpenIdDbContext context, OpenIddictScopeManager<Op
             return NotFound();
         }
 
+        var before = new { entity.Name, entity.DisplayName, entity.Description };
+
         entity.Name = openIdScope.Name;
         entity.DisplayName = openIdScope.DisplayName;
         entity.Description = openIdScope.Description;
 
         await manager.UpdateAsync(entity);
+
+        var after = new { entity.Name, entity.DisplayName, entity.Description };
+        (string? oldValueJson, string? newValueJson) = AuditDiff.Changed(before, after);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PermissionsChanged, Reason: $"scope '{openIdScope.Name}' updated", OldValueJson: oldValueJson, NewValueJson: newValueJson));
 
         return RedirectToAction(nameof(Index));
     }
@@ -145,6 +155,8 @@ public class ScopesController(OpenIdDbContext context, OpenIddictScopeManager<Op
         }
 
         await manager.DeleteAsync(entity);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PermissionsChanged, Reason: $"scope '{entity.Name}' deleted"));
 
         return RedirectToAction(nameof(Index));
     }
