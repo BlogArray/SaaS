@@ -290,26 +290,57 @@ public class AuthorizationController(
     }
 
     /// <summary>
-    /// Resolves an application's front-channel logout URL from its registered URIs: the
-    /// application base (origin, plus the first path segment for route-based tenants) with
-    /// the conventional "/authentication/frontchannellogout" endpoint appended.
+    /// Resolves an application's front-channel logout URL: the application origin (plus the
+    /// first path segment for legacy route-based tenants) with the conventional
+    /// "/authentication/frontchannellogout" endpoint appended.
+    ///
+    /// Candidate URIs are tried in order: TenantUrl first (the canonical origin set during
+    /// the subdomain migration), then the registered post-logout and redirect URIs. URIs
+    /// whose path is an OIDC handler route (signin-oidc, signout-callback-oidc, ...) are
+    /// skipped - they are valid redirect targets but their first path segment is a handler
+    /// route, not the application base: appending the front-channel endpoint to them
+    /// produced /signout-callback-oidc/authentication/frontchannellogout (404), which
+    /// silently broke single sign-out for every tenant migrated to subdomains.
     /// </summary>
     private static string? ResolveFrontChannelLogoutUri(OpenIdApplication application)
     {
-        string? registeredUri = DeserializeFirstUri(application.PostLogoutRedirectUris)
-            ?? DeserializeFirstUri(application.RedirectUris)
-            ?? application.TenantUrl;
-
-        if (string.IsNullOrWhiteSpace(registeredUri) || !Uri.TryCreate(registeredUri, UriKind.Absolute, out Uri? uri))
+        foreach (string? registeredUri in new[]
+                 {
+                     application.TenantUrl,
+                     DeserializeFirstUri(application.PostLogoutRedirectUris),
+                     DeserializeFirstUri(application.RedirectUris)
+                 })
         {
-            return null;
+            if (string.IsNullOrWhiteSpace(registeredUri)
+                || !Uri.TryCreate(registeredUri, UriKind.Absolute, out Uri? uri)
+                || IsCallbackPath(uri))
+            {
+                continue;
+            }
+
+            string tenantSegment = uri.Segments.Length > 1 ? uri.Segments[1].TrimEnd('/') : string.Empty;
+
+            string baseUrl = uri.GetLeftPart(UriPartial.Authority) + (tenantSegment.Length > 0 ? "/" + tenantSegment : string.Empty);
+
+            return baseUrl.TrimEnd('/') + "/authentication/frontchannellogout";
         }
 
-        string tenantSegment = uri.Segments.Length > 1 ? uri.Segments[1].TrimEnd('/') : string.Empty;
+        return null;
+    }
 
-        string baseUrl = uri.GetLeftPart(UriPartial.Authority) + (tenantSegment.Length > 0 ? "/" + tenantSegment : string.Empty);
-
-        return baseUrl.TrimEnd('/') + "/authentication/frontchannellogout";
+    /// <summary>
+    /// True when the URI's path is an authentication handler route (OIDC sign-in/sign-out
+    /// callbacks, the front-channel endpoint itself, or the logout-success page) rather
+    /// than an application base URL.
+    /// </summary>
+    private static bool IsCallbackPath(Uri uri)
+    {
+        return uri.Segments.Any(segment => segment.TrimEnd('/') is
+            "signin-oidc"
+            or "signout-callback-oidc"
+            or "frontchannellogout"
+            or "logoutsuccess"
+            or "login");
     }
 
     private static string? DeserializeFirstUri(string? serializedUris)
