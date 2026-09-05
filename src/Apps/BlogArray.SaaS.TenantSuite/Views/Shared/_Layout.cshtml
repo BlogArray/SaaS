@@ -11,6 +11,10 @@
                     onclick="toggleMobileMenu()">
                 <i class="bi bi-list"></i>
             </button>
+            <button class="btn btn-outline-secondary border-0 text-white d-none d-md-inline-flex align-items-center me-1"
+                    type="button" aria-label="Toggle sidebar" onclick="toggleSidenav()">
+                <i class="bi bi-layout-sidebar" id="sidenavToggleIcon"></i>
+            </button>
             <a class="navbar-brand" style="font-size:1.5rem" asp-controller="Dashboard" asp-action="Index">
                 <img src="~/_content/BlogArray.SaaS.Resources/resources/images/blogarray-tenant-full-icon.png" alt="Logo" height="30"
                      class="d-inline-block align-text-top">
@@ -28,46 +32,45 @@
         <aside class="d-flex flex-column flex-shrink-0 p-3 bg-body app-sidenav border-end z-3" data-bs-theme="dark">
             <ul class="nav nav-pills flex-column mb-auto hoverable-bg">
                 <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Dashboard" class="nav-link text-body-emphasis">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Dashboard" title="Dashboard" class="nav-link text-body-emphasis">
                         <i class="bi bi-speedometer2 me-2"></i>
-                        <span class="ml-3">Dashboard</span>
+                        <span class="sidenav-label">Dashboard</span>
                     </a>
                 </li>
                 <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Tenants" class="nav-link text-body-emphasis">
-                        @* <i class="bi bi-app-indicator me-2"></i> *@
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Tenants" title="Tenants" class="nav-link text-body-emphasis">
                         <i class="bi bi-buildings me-2"></i>
-                        <span class="ml-3">Tenants</span>
+                        <span class="sidenav-label">Tenants</span>
                     </a>
                 </li>
                 <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Users" class="nav-link text-body-emphasis">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Users" title="Users" class="nav-link text-body-emphasis">
                         <i class="bi bi-people me-2"></i>
-                        <span class="ml-3">Users</span>
+                        <span class="sidenav-label">Users</span>
                     </a>
                 </li>
                 <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="SignInLogs" asp-controller="SecurityLogs" class="nav-link text-body-emphasis">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="SignInLogs" asp-controller="SecurityLogs" title="Sign-in logs" class="nav-link text-body-emphasis">
                         <i class="bi bi-box-arrow-in-right me-2"></i>
-                        <span class="ml-3">Sign-in logs</span>
+                        <span class="sidenav-label">Sign-in logs</span>
                     </a>
                 </li>
                 <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="AuditLogs" asp-controller="SecurityLogs" class="nav-link text-body-emphasis">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="AuditLogs" asp-controller="SecurityLogs" title="Audit logs" class="nav-link text-body-emphasis">
                         <i class="bi bi-journal-text me-2"></i>
-                        <span class="ml-3">Audit logs</span>
+                        <span class="sidenav-label">Audit logs</span>
                     </a>
                 </li>
                 <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Roles" class="nav-link text-body-emphasis">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Roles" title="Roles" class="nav-link text-body-emphasis">
                         <i class="bi bi-lock me-2"></i>
-                        <span class="ml-3">Roles</span>
+                        <span class="sidenav-label">Roles</span>
                     </a>
                 </li>
                 <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Scopes" class="nav-link text-body-emphasis">
+                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Scopes" title="Scopes" class="nav-link text-body-emphasis">
                         <i class="bi bi-key me-2"></i>
-                        <span class="ml-3">Scopes</span>
+                        <span class="sidenav-label">Scopes</span>
                     </a>
                 </li>
             </ul>
@@ -90,6 +93,31 @@
 @await RenderSectionAsync("Scripts", required: false)
 
 <script>
+    var sidenavLocalStorageKey = 'sidenav-collapsed';
+
+    function toggleSidenav() {
+        var collapsed = document.getElementById('app-main').classList.toggle('sidenav-collapsed');
+        localStorage.setItem(sidenavLocalStorageKey, collapsed ? 'true' : 'false');
+        updateSidenavToggleIcon(collapsed);
+    }
+
+    function updateSidenavToggleIcon(collapsed) {
+        var icon = document.getElementById('sidenavToggleIcon');
+        if (!icon) return;
+
+        // Expanded: arrow points left (click to collapse). Collapsed: arrow points right
+        // (click to expand).
+        icon.classList.toggle('bi-arrow-bar-left', !collapsed);
+        icon.classList.toggle('bi-arrow-bar-right', collapsed);
+    }
+
+    (function () {
+        if (localStorage.getItem(sidenavLocalStorageKey) === 'true') {
+            document.getElementById('app-main').classList.add('sidenav-collapsed');
+            updateSidenavToggleIcon(true);
+        }
+    })();
+
     function toggleMobileMenu() {
         $('#app-main').toggleClass('open');
     }
