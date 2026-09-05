@@ -142,6 +142,30 @@ public static class AuditEventTypes
     /// Not produced yet: tenants cannot be deleted today.
     /// </summary>
     public const string TenantDeleted = "TenantDeleted";
+
+    /// <summary>
+    /// A recovery code was redeemed to complete sign-in. Treated as an account-recovery
+    /// event: the enrolled authenticator is reset and re-enrollment is forced.
+    /// </summary>
+    public const string RecoveryCodeUsed = "RecoveryCodeUsed";
+
+    /// <summary>
+    /// An administrator revoked all of the target user's sessions and rotated their security
+    /// stamp (stopgap containment pending a full MFA/credential clear).
+    /// </summary>
+    public const string SessionsRevokedByAdmin = "SessionsRevokedByAdmin";
+}
+
+/// <summary>
+/// Registration and purpose constants for the purpose-scoped token provider used by the
+/// email-verified MFA-reset recovery flow. Distinct from password-reset tokens so one can
+/// never be replayed as the other.
+/// </summary>
+public static class MfaResetTokenDefaults
+{
+    public const string ProviderName = "MfaReset";
+    public const string Purpose = "MfaReset";
+    public static TimeSpan TokenLifespan { get; } = TimeSpan.FromMinutes(10);
 }
 
 /// <summary>

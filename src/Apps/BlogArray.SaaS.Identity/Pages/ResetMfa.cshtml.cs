@@ -20,14 +20,16 @@ using Microsoft.Extensions.Configuration;
 namespace BlogArray.SaaS.Identity.Pages;
 
 /// <summary>
-/// Completes the email-verified authenticator reset: disables two-factor authentication,
-/// clears the enrolled authenticator and invalidates the lost device's sessions.
+/// Completes the email-verified authenticator reset. Requires BOTH the emailed token and the
+/// still-present two-factor-pending cookie - the link alone is never sufficient. On success
+/// the user is signed out everywhere: the password re-entry that follows is the step-up
+/// before re-enrolling a new authenticator.
 /// </summary>
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class ResetMfaModel(UserManager<ApplicationUser> userManager,
+    SignInManagerExtension<ApplicationUser> signInManager,
     IEmailTemplate emailTemplate,
     IAuditEventLogger auditLogger,
-    IConfiguration configuration,
     ICaptchaService captcha) : PageModel
 {
     /// <summary>
@@ -48,17 +50,13 @@ public class ResetMfaModel(UserManager<ApplicationUser> userManager,
         [Required]
         public string Code { get; set; }
 
-        [Required(AllowEmptyStrings = false, ErrorMessage = "Enter an email address")]
-        [EmailAddress]
-        public string Email { get; set; }
-
         /// <summary>
         ///     Turnstile widget response token (bound from the widget's response field).
         /// </summary>
         public string CaptchaToken { get; set; }
     }
 
-    public IActionResult OnGet(string code = null, string email = null)
+    public async Task<IActionResult> OnGetAsync(string code = null)
     {
         if (code == null)
         {
@@ -67,17 +65,28 @@ public class ResetMfaModel(UserManager<ApplicationUser> userManager,
 
         Input = new InputModel
         {
-            Code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code)),
-            Email = email
+            Code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code))
         };
+
+        // The link is only usable mid-recovery: the two-factor-pending cookie from the
+        // password sign-in must still be present.
+        ApplicationUser pendingUser = await signInManager.GetTwoFactorAuthenticationUserAsync();
+
+        if (pendingUser == null)
+        {
+            return RedirectToPage("./Login");
+        }
+
         return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (!ModelState.IsValid)
+        ApplicationUser pendingUser = await signInManager.GetTwoFactorAuthenticationUserAsync();
+
+        if (pendingUser == null)
         {
-            return Page();
+            return RedirectToPage("./Login");
         }
 
         if (captcha.IsEnabled && !await captcha.VerifyAsync(Input?.CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
@@ -86,37 +95,38 @@ public class ResetMfaModel(UserManager<ApplicationUser> userManager,
             return Page();
         }
 
-        ApplicationUser user = await userManager.FindByEmailAsync(Input.Email);
-        if (user == null)
-        {
-            // Don't reveal that the user does not exist
-            return RedirectToPage("./ResetMfaConfirmation");
-        }
+        // Purpose-scoped verification against the security stamp: consuming the token here
+        // (or regenerating the key) invalidates any earlier reset link for this user.
+        bool validToken = await userManager.VerifyUserTokenAsync(
+            pendingUser, MfaResetTokenDefaults.ProviderName, MfaResetTokenDefaults.Purpose, Input.Code);
 
-        // Same token provider purpose as password reset: both certify control of the mailbox.
-        // Verify (rather than silently ignore) so an expired/garbage link gets a clear retry.
-        if (!await userManager.VerifyUserTokenAsync(user, userManager.Options.Tokens.PasswordResetTokenProvider, "PasswordReset", Input.Code))
+        if (!validToken)
         {
             ModelState.AddModelError(string.Empty, "This reset link is invalid or has expired. Request a new one.");
             return Page();
         }
 
         // Disarm the lost factor: two-factor off, authenticator key cleared, security stamp
-        // rotated (this also signs out the lost device's sessions and burns any outstanding
-        // tokens of the same purpose).
-        IdentityResult result = await userManager.SetTwoFactorEnabledAsync(user, false);
+        // rotated - this signs out the lost device's sessions and burns any outstanding
+        // tokens of the same purpose. The subsequent password sign-in is the step-up before
+        // re-enrolling a new authenticator.
+        IdentityResult result = await userManager.SetTwoFactorEnabledAsync(pendingUser, false);
 
         if (result.Succeeded)
         {
-            await userManager.ResetAuthenticatorKeyAsync(user);
-            await userManager.UpdateSecurityStampAsync(user);
+            await userManager.ResetAuthenticatorKeyAsync(pendingUser);
+            await userManager.UpdateSecurityStampAsync(pendingUser);
 
             await auditLogger.LogAsync(new AuditEventRecord(
-                user.Id, AuditTrigger.User, AuditEventTypes.MfaDisabled,
-                TargetUserId: user.Id,
+                pendingUser.Id, AuditTrigger.User, AuditEventTypes.MfaDisabled,
+                TargetUserId: pendingUser.Id,
                 Reason: "authenticator reset via email-verified recovery"));
 
-            emailTemplate.MfaResetCompleted(user.Email, user.DisplayName);
+            emailTemplate.MfaResetCompleted(pendingUser.Email, pendingUser.DisplayName);
+
+            // Force the password step-up: clear the recovery state and any local session so
+            // re-enrollment can only happen after a fresh password sign-in.
+            await signInManager.SignOutAsync();
 
             return RedirectToPage("./ResetMfaConfirmation");
         }

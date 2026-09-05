@@ -9,6 +9,8 @@
 
 using System.Security.Cryptography.X509Certificates;
 using BlogArray.SaaS.Domain.Entities;
+using BlogArray.SaaS.Domain.Events;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -207,6 +209,19 @@ public static class ConfigureOpenIdServices
         .AddPasswordValidator<BreachedPasswordValidator>()
         .AddDefaultTokenProviders();
 
+        // Purpose-scoped, 10-minute token provider for the MFA-reset recovery flow. Distinct
+        // name and protector from the default provider so a password-reset token can never be
+        // replayed as an MFA-reset token and vice versa.
+        builder.Services.AddSingleton<IUserTwoFactorTokenProvider<ApplicationUser>>(
+            sp => new DataProtectorTokenProvider<ApplicationUser>(
+                sp.GetRequiredService<IDataProtectionProvider>().CreateProtector("MfaResetTokenProvider"),
+                Microsoft.Extensions.Options.Options.Create(new DataProtectionTokenProviderOptions
+                {
+                    Name = MfaResetTokenDefaults.ProviderName,
+                    TokenLifespan = MfaResetTokenDefaults.TokenLifespan
+                }),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<DataProtectorTokenProvider<ApplicationUser>>.Instance));
+
         builder.Services.AddScoped<ISignInEventLogger, SignInEventLogger>();
         builder.Services.AddScoped<IAuditEventLogger, AuditEventLogger>();
 
@@ -224,6 +239,18 @@ public static class ConfigureOpenIdServices
             .AddPasswordValidator<PasswordHistoryValidator>()
             .AddPasswordValidator<BreachedPasswordValidator>()
             .AddDefaultTokenProviders();
+
+        // Purpose-scoped, 10-minute token provider for the MFA-reset recovery flow (same
+        // rationale as in AddAspIdentity above).
+        builder.Services.AddSingleton<IUserTwoFactorTokenProvider<ApplicationUser>>(
+            sp => new DataProtectorTokenProvider<ApplicationUser>(
+                sp.GetRequiredService<IDataProtectionProvider>().CreateProtector("MfaResetTokenProvider"),
+                Microsoft.Extensions.Options.Options.Create(new DataProtectionTokenProviderOptions
+                {
+                    Name = MfaResetTokenDefaults.ProviderName,
+                    TokenLifespan = MfaResetTokenDefaults.TokenLifespan
+                }),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<DataProtectorTokenProvider<ApplicationUser>>.Instance));
 
         // Tenant management actions (e.g. API key rotation) are audited from TenantSuite.
         builder.Services.AddScoped<ISignInEventLogger, SignInEventLogger>();

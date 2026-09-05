@@ -742,6 +742,37 @@ public class UsersController(OpenIdDbContext context,
         return JsonSuccess("The user account is now unlocked, allowing the user to log in and access their account without any restrictions.");
     }
 
+    /// <summary>
+    /// Stopgap containment pending a full MFA/credential clear: revokes every tracked
+    /// session and rotates the security stamp, killing any live attacker session on the
+    /// account. The user re-enters via a password reset (bridge into the email-verified
+    /// MFA-reset recovery flow).
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeAllSessions(string id)
+    {
+        ApplicationUser? entity = await userManager.FindByIdAsync(id);
+
+        if (entity is null)
+        {
+            return JsonError("User not found.");
+        }
+
+        List<UserSession> sessions = await context.UserSessions
+            .Where(s => s.UserId == id)
+            .ToListAsync();
+
+        context.UserSessions.RemoveRange(sessions);
+        await context.SaveChangesAsync();
+
+        await userManager.UpdateSecurityStampAsync(entity);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionsRevokedByAdmin, TargetUserId: entity.Id, Reason: $"{sessions.Count} session(s) revoked; security stamp rotated"));
+
+        return JsonSuccess($"{sessions.Count} session(s) revoked and the security stamp rotated. The user must sign in again.");
+    }
+
     public IActionResult IsCurrentuser(string id)
     {
         return Ok(id == LoggedInUserID);

@@ -20,14 +20,22 @@ using Microsoft.Extensions.Configuration;
 namespace BlogArray.SaaS.Identity.Pages;
 
 /// <summary>
-/// Self-service recovery for users who lost access to their authenticator app: proves
-/// mailbox control with an emailed, single-purpose link that resets the authenticator.
+/// Self-service recovery for users stuck at the two-factor challenge without their
+/// authenticator. Gated by the two-factor-pending principal: reachable only after a
+/// successful password sign-in, so "user still knows their password" is an enforced
+/// precondition - mailbox access alone is never sufficient.
 /// </summary>
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("email")]
-public class ForgotMfaModel(UserManager<ApplicationUser> userManager,
+public class ForgotMfaModel(SignInManagerExtension<ApplicationUser> signInManager,
+    UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate, IConfiguration configuration,
     ICaptchaService captcha) : PageModel
 {
+    /// <summary>
+    ///     The user resolved from the two-factor-pending cookie.
+    /// </summary>
+    public ApplicationUser PendingUser { get; private set; }
+
     /// <summary>
     ///     True when the Cloudflare Turnstile challenge is configured.
     /// </summary>
@@ -39,54 +47,55 @@ public class ForgotMfaModel(UserManager<ApplicationUser> userManager,
     public string CaptchaSiteKey => captcha.SiteKey;
 
     [BindProperty]
-    public InputModel Input { get; set; }
+    public string CaptchaToken { get; set; }
 
-    public class InputModel
+    private async Task<ApplicationUser> ResolvePendingUserAsync()
     {
-        [Required(AllowEmptyStrings = false, ErrorMessage = "Enter an email address")]
-        [EmailAddress]
-        [Display(Name = "Send a reset link to")]
-        public string Email { get; set; }
+        return await signInManager.GetTwoFactorAuthenticationUserAsync();
+    }
 
-        /// <summary>
-        ///     Turnstile widget response token (bound from the widget's response field).
-        /// </summary>
-        public string CaptchaToken { get; set; }
+    public async Task<IActionResult> OnGetAsync()
+    {
+        PendingUser = await ResolvePendingUserAsync();
+
+        if (PendingUser == null)
+        {
+            // No two-factor-pending principal: the entry gate (password sign-in) was not
+            // completed, so the recovery flow must not be reachable.
+            return RedirectToPage("./Login");
+        }
+
+        return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (ModelState.IsValid)
+        PendingUser = await ResolvePendingUserAsync();
+
+        if (PendingUser == null)
         {
-            if (captcha.IsEnabled && !await captcha.VerifyAsync(Input?.CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
-            {
-                ModelState.AddModelError("Input.CaptchaToken", "Please complete the verification.");
-                return Page();
-            }
-
-            ApplicationUser user = await userManager.FindByEmailAsync(Input.Email);
-            if (user == null || !await userManager.IsEmailConfirmedAsync(user) || !await userManager.GetTwoFactorEnabledAsync(user))
-            {
-                // Don't reveal that the user does not exist, is unconfirmed, or has no
-                // authenticator enrolled
-                return RedirectToPage("./ForgotMfaConfirmation");
-            }
-
-            // Reuses the password-reset token provider: mailbox control proves identity for
-            // factor reset exactly as it does for password reset. Consuming the token on the
-            // ResetMfa page updates the security stamp, which invalidates any outstanding
-            // token of this kind.
-            string code = await userManager.GeneratePasswordResetTokenAsync(user);
-
-            code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-
-            string callbackUrl = configuration["Links:Identity"].BuildUrl("resetmfa", new { code, email = Input.Email });
-
-            emailTemplate.MfaResetRequested(user.Email, user.DisplayName, callbackUrl);
-
-            return RedirectToPage("./ForgotMfaConfirmation");
+            return RedirectToPage("./Login");
         }
 
-        return Page();
+        if (captcha.IsEnabled && !await captcha.VerifyAsync(CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
+        {
+            ModelState.AddModelError("CaptchaToken", "Please complete the verification.");
+            return Page();
+        }
+
+        // Regenerating invalidates any previously issued reset link for this user, and the
+        // token is validated against the security stamp: consuming it (or any later
+        // regeneration) invalidates earlier ones. Distinct provider+purpose from password
+        // reset, so the two can never be replayed as each other.
+        string code = await userManager.GenerateUserTokenAsync(
+            PendingUser, MfaResetTokenDefaults.ProviderName, MfaResetTokenDefaults.Purpose);
+
+        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+        string callbackUrl = configuration["Links:Identity"].BuildUrl("resetmfa", new { code });
+
+        emailTemplate.MfaResetRequested(PendingUser.Email, PendingUser.DisplayName, callbackUrl);
+
+        return RedirectToPage("./ForgotMfaConfirmation");
     }
 }

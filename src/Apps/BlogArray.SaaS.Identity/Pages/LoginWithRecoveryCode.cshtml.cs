@@ -9,15 +9,25 @@
 
 #nullable disable
 
+using System.Security.Claims;
+using System.Text;
+using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.OpenId;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
+
 namespace BlogArray.SaaS.Identity.Pages;
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWithRecoveryCodeModel(
     SignInManagerExtension<ApplicationUser> signInManager,
+    UserManager<ApplicationUser> userManager,
+    IAuditEventLogger auditLogger,
+    IEmailTemplate emailTemplate,
     ICaptchaService captcha,
     ILogger<LoginWithRecoveryCodeModel> logger) : PageModel
 {
-
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
@@ -112,11 +122,25 @@ public class LoginWithRecoveryCodeModel(
 
         Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorRecoveryCodeSignInAsync(recoveryCode, customClaims);
 
-        //var userId = await _userManager.GetUserIdAsync(user);
-
         if (result.Succeeded)
         {
-            logger.LogInformation("User with ID '{UserId}' logged in with a recovery code.", user.Id);
+            // A recovery-code sign-in is an account-recovery event: audit it, notify the
+            // user, disarm the authenticator and rotate the security stamp. The stamp
+            // rotation signs this fresh session out at the next validation, which forces
+            // the password step-up before the user re-enrolls their authenticator.
+            await auditLogger.LogAsync(new AuditEventRecord(
+                user.Id, AuditTrigger.User, AuditEventTypes.RecoveryCodeUsed,
+                TargetUserId: user.Id,
+                Reason: "recovery code redeemed"));
+
+            await emailTemplate.RecoveryCodeUsedNotice(user.Email, user.DisplayName, HttpContext.Connection.RemoteIpAddress?.ToString());
+
+            await userManager.SetTwoFactorEnabledAsync(user, false);
+            await userManager.ResetAuthenticatorKeyAsync(user);
+            await userManager.UpdateSecurityStampAsync(user);
+
+            logger.LogInformation("User with ID '{UserId}' logged in with a recovery code; authenticator reset forced.", user.Id);
+
             return LocalRedirect(next ?? Url.Content("~/"));
         }
         if (result.IsLockedOut)

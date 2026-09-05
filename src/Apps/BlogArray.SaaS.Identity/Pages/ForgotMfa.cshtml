@@ -9,25 +9,21 @@
         Lost your authenticator?
     </h6>
     <p class="form-text mb-3">
-        Enter your email and we will send a link to reset multi-factor authentication.
-        You will then sign in with your password and set up your authenticator again.
+        Signed in as <span class="fw-semibold">@Model.PendingUser.Email</span>. We will email
+        a reset link to this address. Opening it resets multi-factor authentication for this
+        account; you will then sign in with your password and set up your authenticator again.
     </p>
     <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-    <div class="mb-3">
-        <label asp-for="Input.Email" class="form-label"></label>
-        <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="Enter your email" />
-        <span asp-validation-for="Input.Email" class="text-danger"></span>
-    </div>
     @if (Model.CaptchaEnabled)
     {
         <div class="cf-turnstile mb-3"
              data-sitekey="@Model.CaptchaSiteKey"
-             data-response-field-name="Input.CaptchaToken"
+             data-response-field-name="CaptchaToken"
              data-theme="light">
         </div>
-        <span asp-validation-for="Input.CaptchaToken" class="text-danger"></span>
+        <span asp-validation-for="CaptchaToken" class="text-danger"></span>
     }
-    <button type="submit" class="w-100 btn btn-primary">Send reset link</button>
+    <button type="submit" class="w-100 btn btn-primary">Email me a reset link</button>
 </form>
 
 <div class="text-center mt-3">
