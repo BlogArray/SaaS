@@ -78,7 +78,7 @@ public class LoginWithPasskeyModel(
 
         // Creates the normal authenticated session (roles/claims via the principal factory).
         // No two-factor or lockout logic applies: the verified assertion IS the authentication.
-        await signInManager.SignInAsync(user, isPersistent: false, customClaims, authenticationMethod: "webauthn");
+        await signInManager.SignInAsync(user, isPersistent: true, customClaims, authenticationMethod: "webauthn");
 
         await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(Next), SignInEventTypes.LoginSucceeded, SignInAuthMethod.Passkey, SignInResultType.Success, "passkey"));
 
