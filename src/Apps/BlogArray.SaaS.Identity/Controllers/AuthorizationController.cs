@@ -258,6 +258,26 @@ public class AuthorizationController(
         // be trusted here. Redirect to the client's post-logout URL with its state, if any.
         string redirectUrl = BuildPostLogoutRedirectUrl(HttpContext.GetOpenIddictServerRequest());
 
+        // SAML-federated sessions (amr: x509) are additionally signed out at the tenant's
+        // SAML identity provider: the browser is routed through the SAML SLO round trip
+        // (LogoutRequest -> LogoutResponse -> Acs), which clears the tenant IdP's session.
+        // Without this, the next sign-in silently re-federates and logout appears broken.
+        // The FrontChannelLogout view still notifies the other OIDC applications via their
+        // iframes before the top-level navigation to the IdP.
+        string? samlTenant = User.FindFirst("saml_tenant")?.Value;
+
+        if (!string.IsNullOrEmpty(samlTenant)
+            && await applicationManager.FindByClientIdAsync(samlTenant) is OpenIdApplication samlApplication
+            && samlApplication.Security.IsSsoEnabled
+            && samlApplication.Security.IsSingleSignOutEnabled)
+        {
+            return View("FrontChannelLogout", new FrontChannelLogoutViewModel
+            {
+                LogoutUrls = frontChannelLogoutUrls,
+                RedirectUrl = Url.Action("Logout", "Saml", new { tenant = samlTenant, next = redirectUrl })!
+            });
+        }
+
         if (frontChannelLogoutUrls.Count > 0)
         {
             return View("FrontChannelLogout", new FrontChannelLogoutViewModel
