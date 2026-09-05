@@ -48,6 +48,7 @@
                     <tr>
                         <th style="min-width:200px">User</th>
                         <th style="min-width:150px">Application</th>
+                        <th style="min-width:110px">Event</th>
                         <th style="min-width:110px">Method</th>
                         <th style="min-width:110px">Result</th>
                         <th style="min-width:120px">IP address</th>
@@ -66,6 +67,7 @@
                                 <div class="text-muted small text-truncate" style="max-width:200px" title="@entry.Email">@entry.Email</div>
                             </td>
                             <td class="text-truncate small" style="max-width:150px" title="@entry.TenantName">@entry.TenantName</td>
+                            <td class="small">@entry.EventType</td>
                             <td class="small">@entry.AuthMethod</td>
                             <td>
                                 <span class="badge rounded-pill text-bg-@(failed ? "danger" : "success")">
