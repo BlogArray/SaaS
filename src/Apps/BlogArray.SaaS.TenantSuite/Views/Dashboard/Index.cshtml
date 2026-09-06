@@ -1,48 +1,197 @@
-﻿@model DashboardViewModel
+﻿    @model DashboardViewModel
 @{
     ViewData["Title"] = "Dashboard";
+
+    int tenantDelta = Model.NewApplications - Model.PrevNewApplications;
+    string tenantDeltaIcon = tenantDelta > 0 ? "bi-arrow-up" : tenantDelta < 0 ? "bi-arrow-down" : "bi-dash";
+    string tenantDeltaColor = tenantDelta > 0 ? "text-success" : tenantDelta < 0 ? "text-danger" : "text-muted";
+
+    int userDelta = Model.NewUsers - Model.PrevNewUsers;
+    string userDeltaIcon = userDelta > 0 ? "bi-arrow-up" : userDelta < 0 ? "bi-arrow-down" : "bi-dash";
+    string userDeltaColor = userDelta > 0 ? "text-success" : userDelta < 0 ? "text-danger" : "text-muted";
+
+    int mfaAdoption = Model.Users > 0 ? (int)Math.Round(100.0 * Model.MfaEnabledUsers / Model.Users) : 0;
+
+    var maxTrend = Model.SignInTrend.Count > 0 ? Model.SignInTrend.Max(point => point.Total) : 0;
 }
-<h3>Dashboard</h3>
-<div class="row">
-    <div class="col-lg-6 col-md-12 col-12">
-        <div class="card mb-4">
+
+<h3 class="d-flex justify-content-between align-items-center">
+    Dashboard
+    <span class="fs-6">
+        <a asp-action="Create" asp-controller="Tenants" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1"></i>New tenant</a>
+        <a asp-action="Index" asp-controller="Users" class="btn btn-sm btn-outline-secondary"><i class="bi bi-people me-1"></i>Users</a>
+        <a asp-action="SignInLogs" asp-controller="SecurityLogs" class="btn btn-sm btn-outline-secondary"><i class="bi bi-box-arrow-in-right me-1"></i>Sign-in logs</a>
+        <a asp-action="AuditLogs" asp-controller="SecurityLogs" class="btn btn-sm btn-outline-secondary"><i class="bi bi-journal-text me-1"></i>Audit logs</a>
+    </span>
+</h3>
+
+<div class="row g-3 mb-1">
+    <div class="col-xl-3 col-md-6 col-12">
+        <div class="card mb-1">
             <div class="px-4 py-2">
-                <div class="d-flex align-items-center justify-content-between">
-                    <span class="fs-6 text-uppercase fw-semibold">
-                        Tenants
-                    </span>
-                </div>
-                <h2 class="fw-bold d-flex align-items-center h1 lh-1">
-                    @Model.Applications
-                </h2>
+                <span class="fs-6 text-uppercase fw-semibold">Tenants</span>
+                <h2 class="fw-bold lh-1 mb-1">@Model.Applications</h2>
                 <span class="d-flex justify-content-between align-items-center">
-                    <span>Last month</span>
-                    <span class="badge @(Model.PrevApplications>0?"bg-success":"bg-secondary") ms-2">
-                        <i class="bi @(Model.PrevApplications>0?"bi-arrow-up":"")"></i>
-                        @Model.PrevApplications
+                    <span class="text-muted small">New in last 30 days</span>
+                    <span class="small @tenantDeltaColor">
+                        <i class="bi @tenantDeltaIcon"></i>
+                        @Model.NewApplications <span class="text-muted">(prev: @Model.PrevNewApplications)</span>
                     </span>
                 </span>
             </div>
         </div>
     </div>
-    <div class="col-lg-6 col-md-12 col-12">
-        <div class="card mb-4">
+    <div class="col-xl-3 col-md-6 col-12">
+        <div class="card mb-1">
             <div class="px-4 py-2">
-                <div class="d-flex align-items-center justify-content-between">
-                    <span class="fs-6 text-uppercase fw-semibold">
-                        Users
-                    </span>
-                </div>
-                <h2 class="fw-bold d-flex align-items-center h1 lh-1">
-                    @Model.Users
-                </h2>
+                <span class="fs-6 text-uppercase fw-semibold">Users</span>
+                <h2 class="fw-bold lh-1 mb-1">@Model.Users</h2>
                 <span class="d-flex justify-content-between align-items-center">
-                    <span>Last month</span>
-                    <span class="badge @(Model.PrevUsers>0?"bg-success":"bg-secondary") ms-2">
-                        <i class="bi @(Model.PrevUsers>0?"bi-arrow-up":"")"></i>
-                        @Model.PrevUsers
+                    <span class="text-muted small">New in last 30 days</span>
+                    <span class="small @userDeltaColor">
+                        <i class="bi @userDeltaIcon"></i>
+                        @Model.NewUsers <span class="text-muted">(prev: @Model.PrevNewUsers)</span>
                     </span>
                 </span>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 col-12">
+        <div class="card mb-1">
+            <div class="px-4 py-2">
+                <span class="fs-6 text-uppercase fw-semibold">Active sessions</span>
+                <h2 class="fw-bold lh-1 mb-1">@Model.ActiveSessions</h2>
+                <span class="text-muted small">Sessions seen in the last 30 minutes</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 col-12">
+        <div class="card mb-1">
+            <div class="px-4 py-2">
+                <span class="fs-6 text-uppercase fw-semibold">MFA adoption</span>
+                <h2 class="fw-bold lh-1 mb-1">@mfaAdoption%</h2>
+                <div class="progress" style="height:6px" title="@Model.MfaEnabledUsers of @Model.Users users">
+                    <div class="progress-bar bg-success" style="width:@mfaAdoption%"></div>
+                </div>
+                <span class="text-muted small">@Model.Passkeys passkey(s) enrolled</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-1">
+    <div class="col-xl-6 col-12">
+        <div class="card mb-1">
+            <div class="px-4 py-2">
+                <span class="fs-6 text-uppercase fw-semibold">Sign-in activity (7 days)</span>
+                <div class="d-flex justify-content-between align-items-center mt-1">
+                    <span><i class="bi bi-box-arrow-in-right text-success me-1"></i>@Model.SuccessfulSignIns successful</span>
+                    <span><i class="bi bi-x-octagon text-danger me-1"></i>@Model.FailedSignIns failed</span>
+                    <span><i class="bi bi-slash-circle text-warning me-1"></i>@Model.Lockouts locked</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 col-12">
+        <div class="card mb-1">
+            <div class="px-4 py-2">
+                <span class="fs-6 text-uppercase fw-semibold">Pending onboarding</span>
+                <h2 class="fw-bold lh-1 mb-1">@Model.PendingOnboarding</h2>
+                <span class="text-muted small">Invited users without a password</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6 col-12">
+        <div class="card mb-1">
+            <div class="px-4 py-2">
+                <span class="fs-6 text-uppercase fw-semibold">Locked out</span>
+                <h2 class="fw-bold lh-1 mb-1">@Model.LockedOutUsers</h2>
+                <span class="text-muted small">Currently locked accounts</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-1">
+    <div class="col-12">
+        <div class="card mb-1">
+            <div class="px-4 py-2">
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="fs-6 text-uppercase fw-semibold">Sign-ins — last 14 days</span>
+                    <span class="text-muted small">total sign-ins per day</span>
+                </div>
+                <div class="d-flex align-items-end gap-1 mt-2" style="height:180px">
+                    @foreach (SignInTrendPoint point in Model.SignInTrend)
+                    {
+                        int height = maxTrend == 0 ? 4 : Math.Max(6, (int)Math.Round(100.0 * point.Total / maxTrend));
+                        <div class="flex-fill text-center">
+                            <div class="mx-auto rounded-top trend-bar" style="height:@(height)px; width:70%" title="@point.Date.ToString("dd MMM yyyy"): @point.Total sign-in(s), @point.Failed failed"></div>
+                            <div class="text-muted" style="font-size:.65rem">@point.Date.ToString("dd")</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6 col-12">
+        <div class="card mb-1">
+            <div class="px-4 py-2">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fs-6 text-uppercase fw-semibold">Recent tenants</span>
+                    <a asp-action="Index" asp-controller="Tenants" class="small">View all</a>
+                </div>
+                @if (Model.RecentTenants.Count == 0)
+                {
+                    <p class="text-muted small mb-0">No tenants created yet.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (RecentTenantItem tenant in Model.RecentTenants)
+                        {
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center bg-transparent">
+                                <div>
+                                    <a asp-action="Details" asp-controller="Tenants" asp-route-id="@tenant.Id" class="fw-semibold">@tenant.DisplayName</a>
+                                    <div class="text-muted small">@tenant.ClientId</div>
+                                </div>
+                                <span class="text-muted small">@tenant.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy")</span>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 col-12">
+        <div class="card mb-1">
+            <div class="px-4 py-2">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="fs-6 text-uppercase fw-semibold">Recent audit events</span>
+                    <a asp-action="AuditLogs" asp-controller="SecurityLogs" class="small">View all</a>
+                </div>
+                @if (Model.RecentAuditEvents.Count == 0)
+                {
+                    <p class="text-muted small mb-0">No audit events recorded yet.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (RecentAuditItem auditEvent in Model.RecentAuditEvents)
+                        {
+                            <li class="list-group-item px-0 d-flex justify-content-between align-items-center bg-transparent">
+                                <div class="text-truncate me-2">
+                                    <span class="badge rounded-pill text-bg-secondary">@auditEvent.EventType</span>
+                                    <span class="small">@auditEvent.Reason</span>
+                                    <div class="text-muted small text-truncate" style="max-width:280px">@auditEvent.ActorEmail</div>
+                                </div>
+                                <span class="text-muted small text-nowrap">@auditEvent.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</span>
+                            </li>
+                        }
+                    </ul>
+                }
             </div>
         </div>
     </div>

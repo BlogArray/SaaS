@@ -12427,6 +12427,16 @@ mbe-0 {
     width: 100%;
   }
 }
+.trend-bar {
+  background-color: var(--bs-primary);
+  min-height: 4px;
+  opacity: 0.85;
+}
+
+.trend-bar:hover {
+  opacity: 1;
+}
+
 .height-50p {
   height: 50px;
 }

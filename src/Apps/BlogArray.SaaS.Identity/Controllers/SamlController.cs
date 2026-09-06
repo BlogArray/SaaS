@@ -18,7 +18,7 @@ namespace BlogArray.SaaS.Identity.Controllers;
 [Route("saml")]
 public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appManager,
     SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager,
-    ISignInEventLogger auditLogger, IConfiguration configuration) : Controller
+    ISignInEventLogger signInEventLogger, IAuditEventLogger auditLogger, IConfiguration configuration) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Login(string tenant, string next = null)
@@ -93,7 +93,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         if (!string.IsNullOrEmpty(getResponse))
         {
-            return await ProcessLogoutResponse(getResponse, tenant, client);
+            return await ProcessLogoutResponse(getResponse, isPostBinding: false, tenant: tenant, client: client, relay: null, expectedInResponseTo: null);
         }
 
         string? requestCookie = Request.Cookies[SamlRequestCookieName(tenant)];
@@ -110,6 +110,28 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         if (string.IsNullOrEmpty(expectedInResponseTo))
         {
             expectedInResponseTo = requestCookie;
+        }
+
+        // An IdP single sign-out can arrive at this same endpoint via the POST binding with
+        // the SAMLResponse field carrying a LogoutResponse (e.g. Entra routes SLO responses
+        // to the Assertion Consumer Service). Detect it before treating the message as an
+        // authentication response - otherwise the SLO round trip would sign the user back in.
+        string postMessage = Request.Form["SAMLResponse"].ToString();
+
+        if (!string.IsNullOrEmpty(postMessage))
+        {
+            string? decodedPostMessage = TryDecodePostMessage(postMessage);
+
+            if (decodedPostMessage != null && SamlAssertionValidator.IsLogoutResponse(decodedPostMessage))
+            {
+                return await ProcessLogoutResponse(
+                    postMessage,
+                    isPostBinding: true,
+                    tenant: tenant,
+                    client: client,
+                    relay: relay,
+                    expectedInResponseTo: expectedInResponseTo);
+            }
         }
 
         Response samlResponse = new(client.Security.SsoX509Certificate, Request.Form["SAMLResponse"]);
@@ -158,11 +180,14 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             new Claim("Timezone", user.TimeZone ?? ""),
             new Claim("Locale", user.LocaleCode ?? ""),
             new Claim("amr", "x509"),
+            // Marks the session as SAML-federated for this tenant: the connect/logout flow
+            // reads this to route the user through the SAML single sign-out (SLO) round trip.
+            new Claim("saml_tenant", tenant),
         ];
 
         await signInManager.SignInAsync(user, false, customClaims, IdentityConstants.ApplicationScheme);
 
-        await auditLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, tenant));
+        await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, tenant));
 
         Microsoft.Extensions.Primitives.StringValues relayState = Request.Form["RelayState"];
 
@@ -178,25 +203,36 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     }
 
     /// <summary>
-    /// Validates a LogoutResponse received via the redirect binding (Success + InResponseTo
-    /// correlation with the logout request we issued), completes the local sign-out, and
-    /// continues to the post-logout return URL carried in RelayState. Failures redirect to
-    /// the error page; a failed IdP logout never blocks the local session cleanup.
+    /// Validates a LogoutResponse (redirect binding: base64+deflate; POST binding: plain
+    /// base64) with Success status and InResponseTo correlation against the logout request
+    /// we issued, completes the local sign-out, and continues to the post-logout return URL.
+    /// The return URL is accepted only when local or matching the tenant's registered
+    /// post-logout origins (open-redirect protection). Failures redirect to the error page;
+    /// a failed IdP logout never blocks the local session cleanup.
     /// </summary>
-    private async Task<IActionResult> ProcessLogoutResponse(string encodedMessage, string tenant, OpenIdApplication _)
+    private async Task<IActionResult> ProcessLogoutResponse(
+        string encodedMessage,
+        bool isPostBinding,
+        string tenant,
+        OpenIdApplication client,
+        System.Collections.Specialized.NameValueCollection? relay,
+        string? expectedInResponseTo)
     {
-        string? expectedInResponseTo = Request.Cookies[SamlLogoutCookieName(tenant)];
+        string? logoutCookie = Request.Cookies[SamlLogoutCookieName(tenant)];
 
         Response.Cookies.Delete(SamlLogoutCookieName(tenant), new CookieOptions { Path = "/saml" });
+
+        expectedInResponseTo ??= logoutCookie;
 
         string returnUrl;
 
         try
         {
-            string xml = SamlAssertionValidator.DecodeRedirectMessage(encodedMessage);
+            string xml = isPostBinding
+                ? System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encodedMessage))
+                : SamlAssertionValidator.DecodeRedirectMessage(encodedMessage);
 
-            System.Collections.Specialized.NameValueCollection relay =
-                HttpUtility.ParseQueryString(Request.Query["RelayState"].ToString());
+            relay ??= HttpUtility.ParseQueryString(isPostBinding ? string.Empty : Request.Query["RelayState"].ToString());
 
             returnUrl = string.IsNullOrEmpty(relay["next"]) ? Url.Content("~/") : relay["next"];
 
@@ -209,7 +245,54 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         await signInManager.SignOutAsync();
 
-        return Redirect(Url.IsLocalUrl(returnUrl) ? returnUrl : Url.Content("~/"));
+        await auditLogger.LogAsync(new AuditEventRecord(
+            User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty,
+            AuditTrigger.User,
+            AuditEventTypes.SessionRevoked,
+            TargetUserId: User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value,
+            ClientId: client.ClientId,
+            Reason: "SAML single sign-out completed",
+            Result: "Success"));
+
+        // Open-redirect protection: the return URL must be local or belong to the tenant
+        // application's registered post-logout origins.
+        if (Url.IsLocalUrl(returnUrl) || IsRegisteredReturnOrigin(returnUrl, client))
+        {
+            return Redirect(returnUrl);
+        }
+
+        return Redirect(Url.Content("~/"));
+    }
+
+    /// <summary>
+    /// True when the URL is local to this application or matches the origin of one of the
+    /// tenant's registered post-logout redirect URIs.
+    /// </summary>
+    private bool IsRegisteredReturnOrigin(string returnUrl, OpenIdApplication client)
+    {
+        if (!Uri.TryCreate(returnUrl, UriKind.Absolute, out Uri? returnUri))
+        {
+            return false;
+        }
+
+        string returnUrlOrigin = returnUri.GetLeftPart(UriPartial.Authority).TrimEnd('/');
+
+        foreach (string? registered in new string?[]
+                 {
+                     client.TenantUrl,
+                     DeserializeFirstUri(client.PostLogoutRedirectUris),
+                     DeserializeFirstUri(client.RedirectUris)
+                 })
+        {
+            if (!string.IsNullOrWhiteSpace(registered)
+                && Uri.TryCreate(registered, UriKind.Absolute, out Uri? registeredUri)
+                && registeredUri.GetLeftPart(UriPartial.Authority).TrimEnd('/') == returnUrlOrigin)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -221,49 +304,6 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     public IActionResult Logon(SamlAuth samlAuth)
     {
         return LocalRedirect(samlAuth.RedirectTo);
-    }
-
-    [HttpGet("{tenant}/logout"), HttpPost("{tenant}/logout"), IgnoreAntiforgeryToken]
-    public async Task<IActionResult> Logout(string tenant, string next = null)
-    {
-        OpenIdApplication? client = await appManager.FindByClientIdAsync(tenant);
-
-        if (client == null || !client.Security.IsSsoEnabled)
-        {
-            return RedirectToAction("Index", "Error", new { message = "The specified tenant is not configured to use Single Sign-On (SSO). Please verify the tenant's configuration or contact your system administrator for assistance." });
-        }
-
-        // SAML endpoints and the local entity id are read from configuration
-        // ("Saml:IdpLogoutEndpointTemplate" uses {tenant} as a placeholder, "Links:Issuer"
-        // identifies this application) instead of being hardcoded.
-        string endpointTemplate = configuration["Saml:IdpLogoutEndpointTemplate"]
-            ?? "https://login.microsoftonline.com/76ad4116-d61a-49e3-a27f-c0ed764e945e/{tenant}/saml2";
-
-        string samlEndpoint = endpointTemplate.Replace("{tenant}", tenant);
-
-        string applicationBase = configuration["Links:Issuer"] ?? "https://id.blogarray.dev/";
-
-        string returnAddress = $"{applicationBase.TrimEnd('/')}/saml/{tenant}/acs";
-
-        SignoutRequest request = new(applicationBase, returnAddress);
-
-        // Track the logout request id (RelayState carries the post-logout return URL) so the
-        // LogoutResponse the IdP sends back to the Acs endpoint can be correlated.
-        string logoutRequestId = DecodeRequestId(request.GetRequest());
-
-        Response.Cookies.Append(SamlLogoutCookieName(tenant), logoutRequestId, new CookieOptions
-        {
-            HttpOnly = true,
-            Secure = true,
-            SameSite = SameSiteMode.None,
-            IsEssential = true,
-            Path = "/saml",
-            MaxAge = TimeSpan.FromMinutes(10)
-        });
-
-        string returnUrl = Url.IsLocalUrl(next) ? next : applicationBase;
-
-        return Redirect(request.GetRedirectUrl(samlEndpoint, $"inResponseTo={Uri.EscapeDataString(logoutRequestId)}&next={Uri.EscapeDataString(returnUrl)}"));
     }
 
     /// <summary>
@@ -288,5 +328,45 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     private static string SamlRequestCookieName(string tenant)
     {
         return $"saml_request_{tenant}";
+    }
+
+    /// <summary>
+    /// Best-effort decode of a POST-binding SAML message (plain base64 XML). Returns the
+    /// document's outer XML, or null when the payload is not well-formed.
+    /// </summary>
+    private static string? TryDecodePostMessage(string encodedMessage)
+    {
+        try
+        {
+            System.Xml.XmlDocument document = new() { XmlResolver = null };
+            document.LoadXml(System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encodedMessage)));
+
+            return document.DocumentElement?.OuterXml;
+        }
+        catch (Exception ex) when (ex is FormatException or System.Xml.XmlException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Returns the first URI from a space-delimited multi-URI field
+    /// (PostLogoutRedirectUris / RedirectUris), or null when empty.
+    /// </summary>
+    private static string? DeserializeFirstUri(string? serializedUris)
+    {
+        if (string.IsNullOrWhiteSpace(serializedUris))
+        {
+            return null;
+        }
+
+        try
+        {
+            return System.Text.Json.JsonSerializer.Deserialize<string[]>(serializedUris)?.FirstOrDefault();
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
     }
 }

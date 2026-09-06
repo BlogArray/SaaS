@@ -556,7 +556,8 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountEnabled, TargetUserId: entity.Id));
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountEnabled, TargetUserId: entity.Id, Reason: "account enabled by administrator"));
+        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been enabled by an administrator. You can sign in again.");
 
         return JsonSuccess($"User {entity.Email} has been enabled successfully.");
     }
@@ -588,7 +589,8 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountDisabled, TargetUserId: entity.Id));
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountDisabled, TargetUserId: entity.Id, Reason: "account disabled by administrator"));
+        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been disabled by an administrator. You can no longer sign in.");
 
         return JsonSuccess($"User {entity.Email} has been disabled successfully.");
     }
@@ -834,6 +836,7 @@ public class UsersController(OpenIdDbContext context,
         await context.SaveChangesAsync();
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id, Reason: "email and phone confirmed by administrator"));
+        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your email address and phone number have been confirmed by an administrator.");
 
         return JsonSuccess("User information has been successfully saved.");
     }
@@ -864,7 +867,8 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountLockedByAdmin, TargetUserId: entity.Id));
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountLockedByAdmin, TargetUserId: entity.Id, Reason: "account locked by administrator"));
+        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been locked by an administrator. You can no longer sign in until it is unlocked.");
 
         return JsonSuccess("The user account is currently locked, preventing any further login attempts until the lock is lifted.");
     }
@@ -895,7 +899,8 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountUnlocked, TargetUserId: entity.Id));
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountUnlocked, TargetUserId: entity.Id, Reason: "account unlocked by administrator"));
+        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been unlocked by an administrator. You can sign in again.");
 
         return JsonSuccess("The user account is now unlocked, allowing the user to log in and access their account without any restrictions.");
     }
