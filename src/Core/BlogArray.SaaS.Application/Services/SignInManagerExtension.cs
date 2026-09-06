@@ -303,6 +303,31 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     }
 
     /// <summary>
+    /// Initiates the sign-in for a user whose identity was just proven by an upstream
+    /// authentication (e.g. a SAML federation). When the user has multi-factor authentication
+    /// enrolled, the sign-in is held in a two-factor-pending state and
+    /// <see cref="SignInResult.TwoFactorRequired"/> is returned so the caller routes to the
+    /// second-factor challenge; the pending cookie carries the caller-supplied claims so they
+    /// are preserved in the final sign-in. Without enrolled MFA the sign-in completes
+    /// immediately and <see cref="SignInResult.Success"/> is returned.
+    /// </summary>
+    public virtual async Task<SignInResult> SignInWithPendingTwoFactorAsync(ApplicationUser user, bool isPersistent, List<Claim> customClaims, string? loginProvider = null)
+        => await SignInOrTwoFactorAsync(user, isPersistent, customClaims, loginProvider);
+
+    /// <summary>
+    /// Returns the custom claims stored in the two-factor-pending cookie (empty when absent).
+    /// Callers completing a two-factor challenge should merge these into the final principal.
+    /// </summary>
+    public virtual async Task<IReadOnlyList<Claim>?> GetTwoFactorPendingClaimsAsync()
+    {
+        AuthenticateResult result = await Context.AuthenticateAsync(IdentityConstants.TwoFactorUserIdScheme);
+
+        return result.Succeeded
+            ? result.Principal?.Claims.ToList()
+            : null;
+    }
+
+    /// <summary>
     /// Signs in the specified <paramref name="user"/>.
     /// </summary>
     /// <param name="user">The user to sign-in.</param>
