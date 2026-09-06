@@ -385,11 +385,10 @@ public class TenantsController(OpenIdDbContext context,
 
         if (securityViewModel.IsSsoEnabled)
         {
-            // When SAML SSO is enabled it takes precedence over the local social-login and
-            // MFA policies (the UI disables those switches in this state, and disabled
+            // When SAML SSO is enabled it takes precedence over the local social-login
+            // (the UI disables those switches in this state, and disabled
             // checkboxes are not submitted at all).
             securityViewModel.IsSocialAuthEnabled = false;
-            securityViewModel.IsMfaEnforced = false;
         }
 
         var securityBefore = new { entity.Security.IsSocialAuthEnabled, entity.Security.IsMfaEnforced, entity.Security.IsSsoEnabled, entity.Security.SsoSignInUrl, entity.Security.SsoSignOutUrl, entity.Security.SsoX509Certificate, entity.Security.SsoEntityId, entity.Security.IsSingleSignOutEnabled };
