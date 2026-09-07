@@ -218,7 +218,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         if (pending.RequiresTwoFactor)
         {
-            return RedirectToPage("./LoginWith2fa", new { next = returnUrl });
+            return RedirectToPage("/LoginWith2fa", new { next = returnUrl });
         }
 
         await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, tenant));
