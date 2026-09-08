@@ -11,6 +11,7 @@
 using System.Text;
 using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -26,6 +27,7 @@ public class ExternalLoginModel : PageModel
     private readonly IUserEmailStore<ApplicationUser> _emailStore;
     private readonly IEmailTemplate _emailTemplate;
     private readonly ISignInEventLogger _auditLogger;
+    private readonly IMfaEnrollmentService _mfaEnrollmentService;
     private readonly ILogger<ExternalLoginModel> _logger;
 
     public ExternalLoginModel(
@@ -34,6 +36,7 @@ public class ExternalLoginModel : PageModel
         IUserStore<ApplicationUser> userStore,
         IEmailTemplate emailTemplate,
         ISignInEventLogger auditLogger,
+        IMfaEnrollmentService mfaEnrollmentService,
         ILogger<ExternalLoginModel> logger)
     {
         _signInManager = signInManager;
@@ -42,6 +45,7 @@ public class ExternalLoginModel : PageModel
         _emailStore = GetEmailStore();
         _emailTemplate = emailTemplate;
         _auditLogger = auditLogger;
+        _mfaEnrollmentService = mfaEnrollmentService;
         _logger = logger;
     }
 
@@ -127,6 +131,22 @@ public class ExternalLoginModel : PageModel
             if (auditUser is not null)
             {
                 await _auditLogger.LogAsync(new SignInEventRecord(auditUser.Id, null, SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, info.LoginProvider));
+            }
+
+            // STRICT MFA ENROLLMENT: federated identity proves the account, but when any of
+            // the user's tenants enforces MFA without a completed enrollment, a restricted
+            // enrollment cookie is issued and the user is blocked on the enrollment page.
+            if (auditUser is not null && await _mfaEnrollmentService.IsRequiredAsync(auditUser))
+            {
+                System.Security.Claims.ClaimsPrincipal enrollmentPrincipal = new(new System.Security.Claims.ClaimsIdentity(
+                [
+                    new Claim(System.Security.Claims.ClaimTypes.NameIdentifier, auditUser.Id),
+                    new Claim(MfaEnrollmentDefaults.EnrollmentRequiredClaimType, MfaEnrollmentDefaults.EnrollmentRequiredClaimValue),
+                ], MfaEnrollmentDefaults.Scheme));
+
+                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, enrollmentPrincipal);
+
+                return RedirectToPage("/MfaEnrollment");
             }
 
             return LocalRedirect(next);

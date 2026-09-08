@@ -18,7 +18,9 @@ namespace BlogArray.SaaS.Identity.Controllers;
 [Route("saml")]
 public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appManager,
     SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager,
-    ISignInEventLogger signInEventLogger, IAuditEventLogger auditLogger, IConfiguration configuration) : Controller
+    ISignInEventLogger signInEventLogger, IAuditEventLogger auditLogger, IConfiguration configuration,
+    IMfaEnrollmentService mfaEnrollmentService,
+    Microsoft.Extensions.Options.IOptionsMonitor<OpenIddict.Server.OpenIddictServerOptions> openIddictServerOptions) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Login(string tenant, string next = null)
@@ -172,6 +174,43 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             return RedirectToAction("Index", "Error", new { message = "The user account is inactive. Please contact your administrator to reactivate the account." });
         }
 
+        // STRICT MFA ENROLLMENT: the SAML assertion proves identity via the tenant IdP, but
+        // when the tenant enforces MFA and the user has not enrolled, a restricted enrollment
+        // cookie is issued and the user is blocked on the enrollment page until it completes.
+        if (await mfaEnrollmentService.IsRequiredAsync(user))
+        {
+            System.Security.Claims.ClaimsPrincipal enrollmentPrincipal = new(new System.Security.Claims.ClaimsIdentity(
+            [
+                new Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id),
+                new Claim(MfaEnrollmentDefaults.EnrollmentRequiredClaimType, MfaEnrollmentDefaults.EnrollmentRequiredClaimValue),
+            ], MfaEnrollmentDefaults.Scheme));
+
+            await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, enrollmentPrincipal);
+
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, "mfa enrollment required"));
+
+            return RedirectToPage("/MfaEnrollment");
+        }
+
+        // Capture the SAML session identifiers from the assertion: the SLO round trip needs
+        // the SessionIndex (to target this exact IdP session) and the NameID (to identify the
+        // subject) when we later issue the LogoutRequest.
+        string assertionXml = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(Request.Form["SAMLResponse"].ToString()));
+
+        System.Xml.XmlDocument assertion = new() { XmlResolver = null };
+        assertion.LoadXml(assertionXml);
+
+        string? sessionIndex = assertion.SelectSingleNode("//*[local-name()='AuthnStatement']/@SessionIndex")?.Value;
+        System.Xml.XmlNode? nameIdNode = assertion.SelectSingleNode("//*[local-name()='NameID']");
+        string? nameId = nameIdNode?.InnerText;
+        string? nameIdFormat = nameIdNode?.Attributes?["Format"]?.Value;
+
+        Microsoft.Extensions.Primitives.StringValues relayState = Request.Form["RelayState"];
+
+        System.Collections.Specialized.NameValueCollection relayStateParams = HttpUtility.ParseQueryString(relayState);
+
+        string returnUrl = string.IsNullOrEmpty(relayStateParams["next"]) ? Url.Content("~/") : relayStateParams["next"];
+
         List<Claim> customClaims =
         [
             new Claim(ClaimTypes.GivenName, user.DisplayName??user.Email),
@@ -183,17 +222,26 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             // Marks the session as SAML-federated for this tenant: the connect/logout flow
             // reads this to route the user through the SAML single sign-out (SLO) round trip.
             new Claim("saml_tenant", tenant),
+            new Claim("saml_session_index", sessionIndex ?? string.Empty),
+            new Claim("saml_nameid", nameId ?? string.Empty),
+            new Claim("saml_nameid_format", nameIdFormat ?? string.Empty),
         ];
 
-        await signInManager.SignInAsync(user, false, customClaims, IdentityConstants.ApplicationScheme);
+        // EXTENDED FACTOR: the SAML assertion proves identity via the tenant IdP; applications
+        // additionally require the BlogArray-issued MFA as a second layer, so a compromised
+        // tenant IdP session cannot yield an application session. Users with local MFA
+        // enrolled are routed through the TOTP challenge (LoginWith2fa); users without
+        // enrollment fall through - the OIDC authorize endpoint's MFA-enforcement routes
+        // them to authenticator setup.
+        Microsoft.AspNetCore.Identity.SignInResult pending = await signInManager.SignInWithPendingTwoFactorAsync(
+            user, isPersistent: false, customClaims, loginProvider: $"saml:{tenant}");
+
+        if (pending.RequiresTwoFactor)
+        {
+            return RedirectToPage("/LoginWith2fa", new { next = returnUrl });
+        }
 
         await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, tenant));
-
-        Microsoft.Extensions.Primitives.StringValues relayState = Request.Form["RelayState"];
-
-        System.Collections.Specialized.NameValueCollection relayStateParams = HttpUtility.ParseQueryString(relayState);
-
-        string returnUrl = string.IsNullOrEmpty(relayStateParams["next"]) ? Url.Content("~/") : relayStateParams["next"];
 
         //Silent view to post the form to tenant's Logon action
         return View(new SamlAuth
