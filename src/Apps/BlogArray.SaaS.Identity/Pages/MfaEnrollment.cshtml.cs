@@ -22,9 +22,10 @@ namespace BlogArray.SaaS.Identity.Pages;
 
 /// <summary>
 /// Strict multi-factor enrollment: the only page reachable while an enrollment is pending.
-/// The user scans the QR code, confirms a TOTP code, receives recovery codes, and the full
-/// application session is issued only after enrollment completes. A "cancel" handler signs
-/// out of the enrollment state entirely (abandoning the login).
+/// The user scans the QR code, confirms a TOTP code, receives recovery codes on the shared
+/// ShowRecoveryCodes page, and the full application session is issued only after enrollment
+/// completes. A "cancel" handler signs out of the enrollment state entirely (abandoning the
+/// login).
 /// </summary>
 public class MfaEnrollmentModel(
     SignInManagerExtension<ApplicationUser> signInManager,
@@ -39,14 +40,11 @@ public class MfaEnrollmentModel(
     public string AuthenticatorUri { get; set; }
 
     /// <summary>
-    /// Set after a successful verification: the one-time recovery codes to save.
+    /// Recovery codes generated at enrollment, surfaced on the shared ShowRecoveryCodes page
+    /// via TempData (same contract as the settings EnableAuthenticator flow).
     /// </summary>
-    public IEnumerable<string> RecoveryCodes { get; set; }
-
-    /// <summary>
-    /// True when recovery codes were generated and must be saved before leaving.
-    /// </summary>
-    public bool ShowRecoveryCodes => RecoveryCodes is not null;
+    [TempData]
+    public string[] RecoveryCodes { get; set; }
 
     [TempData]
     public string StatusMessage { get; set; }
@@ -90,7 +88,8 @@ public class MfaEnrollmentModel(
         // needs the blocking state - finish the sign-in and move on.
         if (user.TwoFactorEnabled)
         {
-            return await CompleteEnrollmentAsync(user, skipRecoveryCodes: true);
+            await CompleteSignInAsync(user);
+            return LocalRedirect("~/");
         }
 
         await LoadSharedKeyAndQrCodeUriAsync(user);
@@ -134,29 +133,15 @@ public class MfaEnrollmentModel(
             Reason: "completed enforced multi-factor enrollment"));
 
         // The enrollment state is consumed: issue the full application session and clear the
-        // restricted cookie.
-        List<Claim> customClaims =
-        [
-            new Claim(ClaimTypes.GivenName, user.DisplayName??user.Email),
-            new Claim("Icon", user.ProfileImage ?? ""),
-            new Claim(ClaimTypes.Gender, user.Gender ?? ""),
-            new Claim("Timezone", user.TimeZone ?? ""),
-            new Claim("Locale", user.LocaleCode ?? ""),
-            new Claim("amr", "pwd"),
-        ];
-
-        await signInManager.SignInAsync(user, isPersistent: false, customClaims, IdentityConstants.ApplicationScheme);
-
-        await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
+        // restricted cookie, then surface the recovery codes on the shared page.
+        await CompleteSignInAsync(user);
 
         if (await userManager.CountRecoveryCodesAsync(user) == 0)
         {
-            RecoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
+            RecoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10)).ToArray();
         }
 
-        await LoadSharedKeyAndQrCodeUriAsync(user);
-
-        return Page();
+        return RedirectToPage("/Settings/ShowRecoveryCodes");
     }
 
     /// <summary>
@@ -170,7 +155,7 @@ public class MfaEnrollmentModel(
         return RedirectToPage("/Login");
     }
 
-    private async Task<IActionResult> CompleteEnrollmentAsync(ApplicationUser user, bool skipRecoveryCodes)
+    private async Task CompleteSignInAsync(ApplicationUser user)
     {
         List<Claim> customClaims =
         [
@@ -184,8 +169,6 @@ public class MfaEnrollmentModel(
         await signInManager.SignInAsync(user, isPersistent: false, customClaims, IdentityConstants.ApplicationScheme);
 
         await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
-
-        return skipRecoveryCodes ? LocalRedirect("~/") : Page();
     }
 
     private async Task LoadSharedKeyAndQrCodeUriAsync(ApplicationUser user)
