@@ -127,23 +127,13 @@ public class EnableAuthenticatorModel(
 
         StatusMessage = "Your authenticator app has been verified.";
 
-        if (await userManager.CountRecoveryCodesAsync(user) == 0)
+        RecoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10)).ToArray();
+        // Show the recovery codes before continuing; after saving them the user is
+        // returned to the original authorization request (when enrolling on demand).
+        return RedirectToPage("./ShowRecoveryCodes", new
         {
-            IEnumerable<string> recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
-            RecoveryCodes = recoveryCodes.ToArray();
-            // Show the recovery codes before continuing; after saving them the user is
-            // returned to the original authorization request (when enrolling on demand).
-            return RedirectToPage("./ShowRecoveryCodes", new
-            {
-                returnUrl = Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : null
-            });
-        }
-        else
-        {
-            return Url.IsLocalUrl(ReturnUrl)
-                ? Redirect(ReturnUrl)
-                : RedirectToPage("./TwoFactorAuthentication");
-        }
+            returnUrl = Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : null
+        });
     }
 
     private async Task LoadSharedKeyAndQrCodeUriAsync(ApplicationUser user)

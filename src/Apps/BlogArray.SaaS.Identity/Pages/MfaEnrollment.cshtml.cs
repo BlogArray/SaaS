@@ -136,10 +136,7 @@ public class MfaEnrollmentModel(
         // restricted cookie, then surface the recovery codes on the shared page.
         await CompleteSignInAsync(user);
 
-        if (await userManager.CountRecoveryCodesAsync(user) == 0)
-        {
-            RecoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10)).ToArray();
-        }
+        RecoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10)).ToArray();
 
         return RedirectToPage("/Settings/ShowRecoveryCodes");
     }
