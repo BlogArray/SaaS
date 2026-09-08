@@ -141,6 +141,12 @@ app.UseSerilogRequestLogging();
 
 app.AddBlogArrayApplication(app.Environment.IsDevelopment());
 
+// Strict MFA-enrollment gate (Identity app only): a user holding the restricted enrollment
+// cookie but no completed authentication is blocked from every page except the enrollment
+// page, logout and static assets. TenantSuite and the tenant apps do not use this scheme
+// and must not run this middleware.
+app.UseMiddleware<MfaEnrollmentMiddleware>();
+
 //app.MapControllerRoute(name: "areas", pattern: "{area:exists}/{controller=Dashboard}/{action=Index}/{id?}");
 
 app.MapControllerRoute(name: "default", pattern: "{controller=Settings}/{action=Index}/{id?}");
