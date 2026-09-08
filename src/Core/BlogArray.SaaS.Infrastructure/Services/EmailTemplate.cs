@@ -41,8 +41,7 @@ public interface IEmailTemplate
     void MfaResetRequested(string toEmail, string name, string callbackUrl);
 
     void MfaResetCompleted(string toEmail, string name);
-
-    void RecoveryCodeUsedNotice(string toEmail, string name, string ipAddress);
+
 
     Task SecurityActionByAdminNotice(string toEmail, string name, string action);
 
@@ -249,22 +248,6 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         string body = GenerateEmail(name, template);
 
         Send(toEmail, "Your App account multi-factor authentication has been reset", body);
-    }
-
-    public void RecoveryCodeUsedNotice(string toEmail, string name, string ipAddress)
-    {
-        string template = $"Hey {Encode(name)}!{newLine}" +
-            $"A recovery code was used to sign in to your App account on {DateTime.UtcNow} UTC from IP {Encode(ipAddress ?? "unknown")}. " +
-            $"Because a recovery code typically means your authenticator was unavailable, multi-factor authentication has been reset " +
-            $"and you will be asked to set up your authenticator again at next sign-in.{newLine}" +
-            $"If this was not you, someone may have obtained your recovery codes - " +
-            $"please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")} " +
-            $"and contact our support team.{newLine}" +
-            $"Thank you for choosing App.";
-
-        string body = GenerateEmail(name, template);
-
-        Send(toEmail, "A recovery code was used to sign in to your App account", body);
     }
 
     public Task SecurityActionByAdminNotice(string toEmail, string name, string action)
