@@ -42,6 +42,11 @@ public static class ConfigureBlogArrayApplication
 
         app.UseAuthentication();
 
+        // Strict MFA-enrollment gate: a user holding the restricted enrollment cookie but no
+        // completed authentication is blocked from every page except the enrollment page,
+        // logout and static assets.
+        app.UseMiddleware<MfaEnrollmentMiddleware>();
+
         app.UseAuthorization();
 
         return app;

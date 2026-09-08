@@ -7,8 +7,14 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using System.Security.Claims;
 using System.Text;
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.OpenId;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
 
 namespace BlogArray.SaaS.Identity.Pages;
@@ -18,6 +24,7 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
     ILogger<LoginWithPasswordModel> logger,
     UserManager<ApplicationUser> userManager,
     ISignInEventLogger signInEventLogger,
+    IMfaEnrollmentService mfaEnrollmentService,
     ICaptchaService captcha) : PageModel
 {
     /// <summary>
@@ -170,44 +177,63 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
                 new Claim("Locale", user.LocaleCode??""),
             ];
 
-            // The session cookie is not persistent: it ends with the browser session unless the
-            // user explicitly opts in later. Password failures count towards lockout.
-            Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.PasswordSignInAsync(user, Input.Password, Input.RememberMe, true, customClaims);
+            // STRICT MFA ENROLLMENT: the password check does not issue the application
+            // cookie. When any of the user's tenants enforces MFA and the user has not
+            // completed enrollment, a restricted enrollment cookie is issued and every page
+            // except the enrollment page is blocked until it completes.
+            Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.CheckPasswordSignInAsync(user, Input.Password, lockoutOnFailure: true);
 
-            if (result.Succeeded)
-            {
-                logger.LogInformation("User logged in.");
-                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Password, SignInResultType.Success, "password"));
-
-                // A temporary password (assigned by an administrator or bootstrap) only grants
-                // access to the reset-password flow: redirect there with a valid token.
-                if (user.MustChangePassword)
-                {
-                    string token = await userManager.GeneratePasswordResetTokenAsync(user);
-                    string code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-
-                    return RedirectToPage("./ResetPassword", new { code, email = user.Email });
-                }
-
-                return LocalRedirect(next);
-            }
-
-            if (result.RequiresTwoFactor)
-            {
-                return RedirectToPage("./LoginWith2fa", new { next });
-            }
             if (result.IsLockedOut)
             {
                 logger.LogWarning("User account locked out.");
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
                 return RedirectToPage("./Lockout");
             }
-            else
+
+            if (!result.Succeeded)
             {
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedInvalidPassword, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return Page();
             }
+
+            if (await mfaEnrollmentService.IsRequiredAsync(user))
+            {
+                ClaimsPrincipal enrollmentPrincipal = new(new ClaimsIdentity(
+                [
+                    new Claim(ClaimTypes.NameIdentifier, user.Id),
+                    new Claim(MfaEnrollmentDefaults.EnrollmentRequiredClaimType, MfaEnrollmentDefaults.EnrollmentRequiredClaimValue),
+                ], MfaEnrollmentDefaults.Scheme));
+
+                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, enrollmentPrincipal);
+
+                return RedirectToPage("/MfaEnrollment");
+            }
+
+            // Two-factor-enabled users continue through the TOTP challenge; everyone else
+            // completes the sign-in here.
+            Microsoft.AspNetCore.Identity.SignInResult twoFactor = await signInManager.SignInWithPendingTwoFactorAsync(
+                user, isPersistent: Input.RememberMe, customClaims);
+
+            if (twoFactor.RequiresTwoFactor)
+            {
+                return RedirectToPage("./LoginWith2fa", new { next });
+            }
+
+            logger.LogInformation("User logged in.");
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Password, SignInResultType.Success, "password"));
+
+            // A temporary password (assigned by an administrator or bootstrap) only grants
+            // access to the reset-password flow: redirect there with a valid token.
+            if (user.MustChangePassword)
+            {
+                string token = await userManager.GeneratePasswordResetTokenAsync(user);
+                string code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+                return RedirectToPage("./ResetPassword", new { code, email = user.Email });
+            }
+
+            return LocalRedirect(next);
         }
 
         // If we got this far, something failed, redisplay form

@@ -1,0 +1,98 @@
+@page
+@model MfaEnrollmentModel
+@{
+    ViewData["Title"] = "Set up multi-factor authentication";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
+}
+
+@if (Model.ShowRecoveryCodes)
+{
+    <h6 class="text-center mb-3">
+        Your recovery codes
+    </h6>
+    <div class="alert alert-warning mb-3" role="alert">
+        <p class="fw-semibold mb-1">Save these codes somewhere safe.</p>
+        <p class="mb-0">
+            If you lose your authenticator device, each of these codes can be used once to
+            sign in. They will not be shown again.
+        </p>
+    </div>
+    <div class="card">
+        <div class="card-body">
+            <ul class="list-group list-group-flush text-center font-monospace">
+                @foreach (string recoveryCode in Model.RecoveryCodes)
+                {
+                    <li class="list-group-item">@recoveryCode</li>
+                }
+            </ul>
+        </div>
+    </div>
+    <div class="text-center mt-3">
+        <a class="btn btn-primary w-100" href="~/">I have saved my recovery codes - continue</a>
+    </div>
+}
+else
+{
+    <h6 class="text-center mb-3">
+        Set up multi-factor authentication
+    </h6>
+    <div class="alert alert-primary mb-3" role="alert">
+        <p class="fw-semibold mb-1">Extra security is required for your account.</p>
+        <p class="mb-0">
+            Your organization requires multi-factor authentication. Set up an authenticator
+            app to continue - this is required on every sign-in.
+        </p>
+    </div>
+    <div class="card mb-3">
+        <div class="card-body">
+            <p>To use an authenticator app go through the following steps:</p>
+            <ol class="list">
+                <li>
+                    <p>
+                        Download a two-factor authenticator app like Microsoft Authenticator for
+                        <a href="https://go.microsoft.com/fwlink/?Linkid=825072">Android</a> and
+                        <a href="https://go.microsoft.com/fwlink/?Linkid=825073">iOS</a> or
+                        Google Authenticator for
+                        <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&amp;hl=en">Android</a> and
+                        <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8">iOS</a> or another equivalent authentication tool.
+                    </p>
+                </li>
+                <li>
+                    <p>Use the authenticator app to scan the QR Code</p>
+                    <div id="qrCode" style="height:150px;"></div>
+                    <p class="mt-3">Unable to scan? Enter this setup key <kbd>@Model.SharedKey</kbd> into your two-factor authenticator app.</p>
+                </li>
+            </ol>
+        </div>
+    </div>
+    <form method="post">
+        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+        <div class="mb-3">
+            <label asp-for="Input.Code" class="form-label"></label>
+            <input asp-for="Input.Code" class="form-control" autocomplete="off" placeholder="Enter the code" />
+            <span asp-validation-for="Input.Code" class="text-danger"></span>
+        </div>
+        <button type="submit" asp-page-handler="VerifyCode" class="w-100 btn btn-primary">Verify and continue</button>
+    </form>
+    <form method="post" asp-page-handler="Cancel" class="mt-2">
+        <button type="submit" class="w-100 btn btn-outline-secondary">Cancel and sign out</button>
+    </form>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    @if (!Model.ShowRecoveryCodes)
+    {
+        <script src="~/_content/BlogArray.SaaS.Resources/lib/qrcodejs/qrcode.min.js"></script>
+        <script>
+            window.addEventListener("load", () => {
+                new QRCode(document.getElementById("qrCode"),
+                    {
+                        text: '@Model.AuthenticatorUri',
+                        width: 150,
+                        height: 150
+                    });
+            });
+        </script>
+    }
+}

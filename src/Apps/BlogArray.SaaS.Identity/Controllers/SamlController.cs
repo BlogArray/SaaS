@@ -18,7 +18,9 @@ namespace BlogArray.SaaS.Identity.Controllers;
 [Route("saml")]
 public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appManager,
     SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager,
-    ISignInEventLogger signInEventLogger, IAuditEventLogger auditLogger, IConfiguration configuration) : Controller
+    ISignInEventLogger signInEventLogger, IAuditEventLogger auditLogger, IConfiguration configuration,
+    IMfaEnrollmentService mfaEnrollmentService,
+    Microsoft.Extensions.Options.IOptionsMonitor<OpenIddict.Server.OpenIddictServerOptions> openIddictServerOptions) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
     public async Task<IActionResult> Login(string tenant, string next = null)
@@ -170,6 +172,24 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         if (!user.IsActive)
         {
             return RedirectToAction("Index", "Error", new { message = "The user account is inactive. Please contact your administrator to reactivate the account." });
+        }
+
+        // STRICT MFA ENROLLMENT: the SAML assertion proves identity via the tenant IdP, but
+        // when the tenant enforces MFA and the user has not enrolled, a restricted enrollment
+        // cookie is issued and the user is blocked on the enrollment page until it completes.
+        if (await mfaEnrollmentService.IsRequiredAsync(user))
+        {
+            System.Security.Claims.ClaimsPrincipal enrollmentPrincipal = new(new System.Security.Claims.ClaimsIdentity(
+            [
+                new Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id),
+                new Claim(MfaEnrollmentDefaults.EnrollmentRequiredClaimType, MfaEnrollmentDefaults.EnrollmentRequiredClaimValue),
+            ], MfaEnrollmentDefaults.Scheme));
+
+            await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, enrollmentPrincipal);
+
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, "mfa enrollment required"));
+
+            return RedirectToPage("/MfaEnrollment");
         }
 
         // Capture the SAML session identifiers from the assertion: the SLO round trip needs
