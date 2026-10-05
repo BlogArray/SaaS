@@ -1,4 +1,4 @@
-﻿//
+//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -12,67 +12,48 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.OpenId;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace BlogArray.SaaS.Identity.Pages.Settings;
+namespace BlogArray.SaaS.Identity.Pages;
 
-public class EnableAuthenticatorModel(
+/// <summary>
+/// Strict multi-factor enrollment: the only page reachable while an enrollment is pending.
+/// The user scans the QR code, confirms a TOTP code, receives recovery codes on the shared
+/// ShowRecoveryCodes page, and the full application session is issued only after enrollment
+/// completes. A "cancel" handler signs out of the enrollment state entirely (abandoning the
+/// login).
+/// </summary>
+public class MfaEnrollmentModel(
+    SignInManagerExtension<ApplicationUser> signInManager,
     UserManager<ApplicationUser> userManager,
     IAuditEventLogger auditLogger,
-    ILogger<EnableAuthenticatorModel> logger,
     UrlEncoder urlEncoder) : PageModel
 {
     private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     public string SharedKey { get; set; }
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     public string AuthenticatorUri { get; set; }
 
     /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
+    /// Recovery codes generated at enrollment, surfaced on the shared ShowRecoveryCodes page
+    /// via TempData (same contract as the settings EnableAuthenticator flow).
     /// </summary>
     [TempData]
     public string[] RecoveryCodes { get; set; }
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     [TempData]
     public string StatusMessage { get; set; }
 
-    /// <summary>
-    ///     Optional local URL the user is returned to after completing enrollment. Set when the
-    /// user was sent here by the MFA-enforcement policy of an application authorization.
-    /// </summary>
-    [BindProperty(SupportsGet = true)]
-    public string ReturnUrl { get; set; }
-
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     [BindProperty]
     public InputModel Input { get; set; }
 
-    /// <summary>
-    ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-    ///     directly from your code. This API may change or be removed in future releases.
-    /// </summary>
     public class InputModel
     {
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         [Required(ErrorMessage = "Enter the code from app")]
         [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
         [DataType(DataType.Text)]
@@ -80,12 +61,35 @@ public class EnableAuthenticatorModel(
         public string Code { get; set; }
     }
 
+    private async Task<ApplicationUser> ResolveUserAsync()
+    {
+        AuthenticateResult enrollment = await HttpContext.AuthenticateAsync(MfaEnrollmentDefaults.Scheme);
+
+        if (!enrollment.Succeeded)
+        {
+            return null;
+        }
+
+        string userId = enrollment.Principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        return string.IsNullOrEmpty(userId) ? null : await userManager.FindByIdAsync(userId);
+    }
+
     public async Task<IActionResult> OnGetAsync()
     {
-        ApplicationUser user = await userManager.GetUserAsync(User);
+        ApplicationUser user = await ResolveUserAsync();
+
         if (user == null)
         {
-            return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+            return RedirectToPage("/Login");
+        }
+
+        // Self-heal: a user that completed enrollment elsewhere (another window) no longer
+        // needs the blocking state - finish the sign-in and move on.
+        if (user.TwoFactorEnabled)
+        {
+            await CompleteSignInAsync(user);
+            return LocalRedirect("~/");
         }
 
         await LoadSharedKeyAndQrCodeUriAsync(user);
@@ -93,12 +97,13 @@ public class EnableAuthenticatorModel(
         return Page();
     }
 
-    public async Task<IActionResult> OnPostAsync()
+    public async Task<IActionResult> OnPostVerifyCodeAsync()
     {
-        ApplicationUser user = await userManager.GetUserAsync(User);
+        ApplicationUser user = await ResolveUserAsync();
+
         if (user == null)
         {
-            return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+            return RedirectToPage("/Login");
         }
 
         if (!ModelState.IsValid)
@@ -121,25 +126,52 @@ public class EnableAuthenticatorModel(
         }
 
         await userManager.SetTwoFactorEnabledAsync(user, true);
-        string userId = await userManager.GetUserIdAsync(user);
-        logger.LogInformation("User with ID '{UserId}' has enabled 2FA with an authenticator app.", userId);
-        await auditLogger.LogAsync(new AuditEventRecord(userId, AuditTrigger.User, AuditEventTypes.MfaEnabled));
 
-        StatusMessage = "Your authenticator app has been verified.";
+        await auditLogger.LogAsync(new AuditEventRecord(
+            user.Id, AuditTrigger.User, AuditEventTypes.MfaEnabled,
+            TargetUserId: user.Id,
+            Reason: "completed enforced multi-factor enrollment"));
+
+        // The enrollment state is consumed: issue the full application session and clear the
+        // restricted cookie, then surface the recovery codes on the shared page.
+        await CompleteSignInAsync(user);
 
         RecoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10)).ToArray();
-        // Show the recovery codes before continuing; after saving them the user is
-        // returned to the original authorization request (when enrolling on demand).
-        return RedirectToPage("./ShowRecoveryCodes", new
-        {
-            returnUrl = Url.IsLocalUrl(ReturnUrl) ? ReturnUrl : null
-        });
+
+        return RedirectToPage("/Settings/ShowRecoveryCodes");
+    }
+
+    /// <summary>
+    /// Cancels the enrollment: clears the restricted cookie and abandons the login. The
+    /// user returns to the login page unauthenticated.
+    /// </summary>
+    public async Task<IActionResult> OnPostCancelAsync()
+    {
+        await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
+
+        return RedirectToPage("/Login");
+    }
+
+    private async Task CompleteSignInAsync(ApplicationUser user)
+    {
+        List<Claim> customClaims =
+        [
+            new Claim(ClaimTypes.GivenName, user.DisplayName??user.Email),
+            new Claim("Icon", user.ProfileImage ?? ""),
+            new Claim(ClaimTypes.Gender, user.Gender ?? ""),
+            new Claim("Timezone", user.TimeZone ?? ""),
+            new Claim("Locale", user.LocaleCode ?? ""),
+        ];
+
+        await signInManager.SignInAsync(user, isPersistent: false, customClaims, IdentityConstants.ApplicationScheme);
+
+        await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
     }
 
     private async Task LoadSharedKeyAndQrCodeUriAsync(ApplicationUser user)
     {
-        // Load the authenticator key & QR code URI to display on the form
         string unformattedKey = await userManager.GetAuthenticatorKeyAsync(user);
+
         if (string.IsNullOrEmpty(unformattedKey))
         {
             await userManager.ResetAuthenticatorKeyAsync(user);
@@ -149,6 +181,7 @@ public class EnableAuthenticatorModel(
         SharedKey = FormatKey(unformattedKey);
 
         string email = await userManager.GetEmailAsync(user);
+
         AuthenticatorUri = GenerateQrCodeUri(email, unformattedKey);
     }
 

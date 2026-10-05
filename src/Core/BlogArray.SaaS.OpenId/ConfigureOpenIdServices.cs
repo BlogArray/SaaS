@@ -208,6 +208,20 @@ public static class ConfigureOpenIdServices
         .AddPasswordValidator<BreachedPasswordValidator>()
         .AddDefaultTokenProviders();
 
+        // Strict MFA-enrollment evaluation (tenant IsMfaEnforced + no completed enrollment)
+        // and the restricted enrollment cookie scheme used while enrollment is pending.
+        builder.Services.AddScoped<IMfaEnrollmentService, MfaEnrollmentService>();
+
+        builder.Services.AddAuthentication()
+            .AddCookie(MfaEnrollmentDefaults.Scheme, options =>
+            {
+                options.Cookie.Name = "BlogArray.MfaEnrollment";
+                options.Cookie.HttpOnly = true;
+                options.Cookie.IsEssential = true;
+                options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
+                options.SlidingExpiration = false;
+            });
+
         builder.Services.AddScoped<ISignInEventLogger, SignInEventLogger>();
         builder.Services.AddScoped<IAuditEventLogger, AuditEventLogger>();
 
@@ -225,6 +239,9 @@ public static class ConfigureOpenIdServices
             .AddPasswordValidator<PasswordHistoryValidator>()
             .AddPasswordValidator<BreachedPasswordValidator>()
             .AddDefaultTokenProviders();
+
+        // Strict MFA-enrollment evaluation (tenant IsMfaEnforced + no completed enrollment).
+        builder.Services.AddScoped<IMfaEnrollmentService, MfaEnrollmentService>();
 
         // Tenant management actions (e.g. API key rotation) are audited from TenantSuite.
         builder.Services.AddScoped<ISignInEventLogger, SignInEventLogger>();

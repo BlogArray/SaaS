@@ -37,12 +37,49 @@
 
         <div class="text-center mt-3">
             <p>
+                <button type="button" class="btn btn-primary" id="downloadRecoveryCodes">
+                    Download Recovery Codes
+                </button>
                 @if (Url.IsLocalUrl(Model.ReturnUrl))
                 {
-                    <a href="@Model.ReturnUrl" class="btn btn-primary">Continue</a>
+                    <a href="@Model.ReturnUrl" class="btn btn-primary ms-3">Continue</a>
                 }
-                <a asp-page="./TwoFactorAuthentication">Go back to settings</a>
             </p>
         </div>
     </div>
 </div>
+<script>
+    document.getElementById('downloadRecoveryCodes').addEventListener('click', function() {
+        const codes = Array.from(document.querySelectorAll('.recovery-code'))
+            .map(x => x.textContent.trim())
+            .filter(Boolean);
+
+        if (!codes.length) {
+            return;
+        }
+
+        const content = [
+            'BlogArray MFA Recovery Codes',
+            '============================',
+            'Keep these codes in a secure location. Each recovery code can only be used once.',
+            '',
+            ...codes,
+            '',
+            'Do not share these codes with anyone.'
+        ].join('\r\n');
+
+        const blob = new Blob([content], {
+            type: 'text/plain;charset=utf-8'
+        });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        link.href = url;
+        link.download = 'mfa-recovery-codes.txt';
+
+        link.click();
+
+        URL.revokeObjectURL(url);
+    });
+</script>

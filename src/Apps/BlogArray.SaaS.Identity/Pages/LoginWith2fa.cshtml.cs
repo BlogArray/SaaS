@@ -185,6 +185,22 @@ public class LoginWith2faModel(
             new Claim("Locale", user.LocaleCode),
         ];
 
+        // Preserve flow-specific claims from the pending two-factor cookie (e.g. amr and
+        // saml_tenant from a SAML step-up), so the completed sign-in keeps the attributes
+        // the original authentication established.
+        IReadOnlyList<Claim>? pendingClaims = await signInManager.GetTwoFactorPendingClaimsAsync();
+
+        if (pendingClaims is not null)
+        {
+            foreach (Claim pendingClaim in pendingClaims)
+            {
+                if (!customClaims.Any(c => c.Type == pendingClaim.Type))
+                {
+                    customClaims.Add(pendingClaim);
+                }
+            }
+        }
+
         Microsoft.AspNetCore.Identity.SignInResult result = string.Equals(Method, "email", StringComparison.OrdinalIgnoreCase)
             ? await signInManager.TwoFactorEmailCodeSignInAsync(code, false, Input.RememberMachine, customClaims)
             : await signInManager.TwoFactorAuthenticatorSignInAsync(code, false, Input.RememberMachine, customClaims);
