@@ -8,67 +8,75 @@
      OnFailure = "handleAjaxError"
  }, new { id = "saveSecurityForm" }))
 {
-    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="tenantEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="offcanvas-header border-bottom">
+    <dialog class="drawer drawer-end medium" tabindex="-1" id="tenantEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="drawer-header border-bottom">
             <h5 id="offcanvasRightLabel">
                 Security
             </h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close fg-reset" data-bs-dismiss="drawer" aria-label="Close"></button>
         </div>
-        <div class="offcanvas-body">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="drawer-body">
+            <div asp-validation-summary="ModelOnly" class="fg-danger"></div>
             <input type="hidden" asp-for="Id" />
-            <div class="mb-3 form-check form-switch">
-                <input class="form-check-input" asp-for="IsSocialAuthEnabled" type="checkbox" role="switch">
-                <label class="form-check-label" hide-indicator="true" asp-for="IsSocialAuthEnabled">Users can able to login using social accounts like microsoft, google, etc.</label>
+            <div class="mb-5 form-field">
+                <div class="switch">
+                    <input asp-for="IsSocialAuthEnabled" type="checkbox" role="switch" switch>
+                </div>
+                <label hide-indicator="true" asp-for="IsSocialAuthEnabled">Users can able to login using social accounts like microsoft, google, etc.</label>
             </div>
-            <div class="mb-3 form-check form-switch">
-                <input class="form-check-input" asp-for="IsMfaEnforced" type="checkbox" role="switch">
-                <label class="form-check-label" hide-indicator="true" asp-for="IsMfaEnforced">Enforce MFA for users for enhanced security.</label>
+            <div class="mb-5 form-field">
+                <div class="switch">
+                    <input asp-for="IsMfaEnforced" type="checkbox" role="switch" switch>
+                </div>
+                <label hide-indicator="true" asp-for="IsMfaEnforced">Enforce MFA for users for enhanced security.</label>
             </div>
-            <div class="mb-3 form-check form-switch">
-                <input class="form-check-input" asp-for="IsSsoEnabled" type="checkbox" role="switch">
-                <label class="form-check-label" hide-indicator="true" asp-for="IsSsoEnabled">Enable SSO using SAML</label>
+            <div class="mb-5 form-field">
+                <div class="switch">
+                    <input asp-for="IsSsoEnabled" type="checkbox" role="switch" switch>
+                </div>
+                <label hide-indicator="true" asp-for="IsSsoEnabled">Enable SSO using SAML</label>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="SsoSignInUrl" class="form-label">Sign-in URL</label>
                 <input asp-for="SsoSignInUrl" type="url" class="form-control" placeholder="https://">
-                <span asp-validation-for="SsoSignInUrl" class="text-danger"></span>
+                <span asp-validation-for="SsoSignInUrl" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="SsoSignOutUrl" class="form-label">Sign-out URL</label>
                 <input asp-for="SsoSignOutUrl" type="url" class="form-control" placeholder="https://">
-                <span asp-validation-for="SsoSignOutUrl" class="text-danger"></span>
+                <span asp-validation-for="SsoSignOutUrl" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="SsoEntityId" class="form-label">Entity Id</label>
                 <input asp-for="SsoEntityId" class="form-control">
-                <span asp-validation-for="SsoEntityId" class="text-danger"></span>
+                <span asp-validation-for="SsoEntityId" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="SsoX509Certificate" class="form-label">X.509 Certificate</label>
                 <textarea asp-for="SsoX509Certificate" rows="10" aria-describedby="X509CS" placeholder="Base-64 coded .cer, .crt, .cert, or .pem starts with  -----BEGIN CERTIFICATE----- ... -----END CERTIFICATE-----" class="form-control"></textarea>
                 <div id="X509CS" class="form-text">
                     Base-64 coded .cer, .crt, .cert, or .pem
                 </div>
-                <span asp-validation-for="SsoX509Certificate" class="text-danger"></span>
+                <span asp-validation-for="SsoX509Certificate" class="fg-danger"></span>
             </div>
 
-            @* <div class="mb-3 form-check form-switch">
-                <input class="form-check-input" aria-describedby="ssoutCS" asp-for="IsSingleSignOutEnabled" type="checkbox" role="switch">
-                <label class="form-check-label" hide-indicator="true" asp-for="IsSingleSignOutEnabled">Single logout</label>
+            @* <div class="mb-5 form-field">
+                <div class="switch">
+                    <input aria-describedby="ssoutCS" asp-for="IsSingleSignOutEnabled" type="checkbox" role="switch" switch>
+                </div>
+                <label hide-indicator="true" asp-for="IsSingleSignOutEnabled">Single logout</label>
                 <div id="ssoutCS" class="form-text">
                     Enable if you want the users to get signed out from the identity provider when they sign out from App.
                 </div>
             </div> *@
         </div>
-        <div class="offcanvas-header border-top">
+        <div class="drawer-footer border-top">
             <div>
-                <input type="submit" value="Update security info" class="btn btn-primary" />
-                <input type="button" value="Cancel" class="btn btn-secondary" data-bs-dismiss="offcanvas" aria-label="Close" />
+                <input type="submit" value="Update security info" class="btn btn-solid theme-primary" />
+                <input type="button" value="Cancel" class="btn btn-solid theme-secondary" data-bs-dismiss="drawer" aria-label="Close" />
             </div>
         </div>
-    </div>
+    </dialog>
 }
 
 @section Scripts {

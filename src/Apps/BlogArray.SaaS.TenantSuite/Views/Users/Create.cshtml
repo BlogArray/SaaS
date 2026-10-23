@@ -21,63 +21,59 @@
     </div>
     <div class="card-body">
         <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div asp-validation-summary="ModelOnly" class="fg-danger"></div>
             <div class="row">
-                <div class="col col-12 col-lg-6 mb-3">
+                <div class="col col-12 lg:col-6 mb-5">
                     <label asp-for="FirstName" class="form-label">First name</label>
                     <input asp-for="FirstName" class="form-control" placeholder="First name" />
-                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                    <span asp-validation-for="FirstName" class="fg-danger"></span>
                 </div>
-                <div class="col col-12 col-lg-6 mb-3">
+                <div class="col col-12 lg:col-6 mb-5">
                     <label asp-for="LastName" class="form-label">Last name</label>
                     <input asp-for="LastName" class="form-control" placeholder="Last name" />
-                    <span asp-validation-for="LastName" class="text-danger"></span>
+                    <span asp-validation-for="LastName" class="fg-danger"></span>
                 </div>
-                <div class="col col-12 mb-3">
+                <div class="col col-12 mb-5">
                     <label asp-for="DisplayName" class="form-label">Display name</label>
                     <input asp-for="DisplayName" class="form-control" placeholder="Display name" />
-                    <span asp-validation-for="DisplayName" class="text-danger"></span>
+                    <span asp-validation-for="DisplayName" class="fg-danger"></span>
                 </div>
-                <div class="col col-12 mb-3">
+                <div class="col col-12 mb-5">
                     <label asp-for="Email" class="form-label">Email/Username</label>
                     <input asp-for="Email" class="form-control" placeholder="Display name" />
-                    <span asp-validation-for="Email" class="text-danger"></span>
+                    <span asp-validation-for="Email" class="fg-danger"></span>
                 </div>
             </div>
 
             <p class="form-text">Please note: A secure password setup link will be sent to the user's email. Ensure they follow the link promptly, as it will expire soon for security purposes.</p>
 
-            <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" asp-for="SendLinkToMe">
-                <label class="form-check-label" hide-indicator="true" asp-for="SendLinkToMe">
+            <div class="mb-5 form-field">
+                <input class="check" type="checkbox" asp-for="SendLinkToMe">
+                <label hide-indicator="true" asp-for="SendLinkToMe">
                     Email me the password setup link
                 </label>
             </div>
-            <div class="mb-3">
-                <input type="submit" value="Create user" class="btn btn-primary" />
+            <div class="mb-5">
+                <input type="submit" value="Create user" class="btn btn-solid theme-primary" />
             </div>
         </form>
     </div>
 </div>
 
-<div class="modal" id="profileCroppieModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="modal-title fs-5">
-                    Change profile photo
-                </h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="main-cropper">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="uploadFile">Save changes</button>
-            </div>
-        </div>
+<dialog class="dialog dialog-lg" id="profileCroppieModal" tabindex="-1" aria-labelledby="exampleModalLabel">
+    <div class="dialog-header">
+        <h1 class="dialog-title fs-lg">
+            Change profile photo
+        </h1>
+        <button type="button" class="btn-close" data-bs-dismiss="dialog" aria-label="Close"></button>
     </div>
-</div>
+    <div class="dialog-body" id="main-cropper">
+    </div>
+    <div class="dialog-footer">
+        <button type="button" class="btn btn-solid theme-secondary" data-bs-dismiss="dialog">Close</button>
+        <button type="button" class="btn btn-solid theme-primary" id="uploadFile">Save changes</button>
+    </div>
+</dialog>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
@@ -91,7 +87,7 @@
     $(document).ready(function () {
         screenWidth = screen.width ?? window.outerWidth;
 
-        profileCroppieModal = new bootstrap.Modal('#profileCroppieModal');
+        profileCroppieModal = new bootstrap.Dialog('#profileCroppieModal');
 
         viewport = {
             width: 256,

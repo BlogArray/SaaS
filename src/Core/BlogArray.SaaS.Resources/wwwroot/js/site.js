@@ -7,12 +7,13 @@ var alphabetNumbers = alphabets + numbers;
 var allCharset = alphabetNumbers + specialCharacters;
 var activeAjaxRequests = 0;
 
-var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-var tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+// Bootstrap 6 ships as an ES module; bootstrap-global.js (a module script) exposes it as
+// window.bootstrap. Module scripts run before DOMContentLoaded, so Bootstrap-dependent setup
+// waits for it. Menus (data-bs-toggle="menu") initialize through the data API.
+var tooltipTriggerList = [];
+var tooltipList = [];
 
-document.querySelectorAll('[data-bs-toggle="dropdown"]').forEach((dropdownToggleEl) => {
-    bootstrap.Dropdown.getOrCreateInstance(dropdownToggleEl, { popperConfig() { return { strategy: 'fixed' } } });
-});
+document.addEventListener('DOMContentLoaded', resetTooltips);
 
 $(document).ajaxSend(function (event, xhr, options) {
     activeAjaxRequests++;
@@ -37,18 +38,17 @@ $(document).ajaxSend(function (event, xhr, options) {
 
 function resetTooltips() {
     tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
-    tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+    tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => bootstrap.Tooltip.getOrCreateInstance(tooltipTriggerEl))
 }
 
 function handleAjaxError(e) {
     var res = e.responseJSON;
     if (res && !res.status) {
-        $('#globalErrorModal .modal-body p').text(res.message);
+        $('#globalErrorModal .dialog-body p').text(res.message);
     } else {
-        $('#globalErrorModal .modal-body p').text('Unfortunately, there was a problem with the request. Please try again. It is recommended that you contact your administrator if the issue persists, along with relevant information.');
+        $('#globalErrorModal .dialog-body p').text('Unfortunately, there was a problem with the request. Please try again. It is recommended that you contact your administrator if the issue persists, along with relevant information.');
     }
-    var errMdl = new bootstrap.Modal(document.getElementById('globalErrorModal'))
-    errMdl.show();
+    bootstrap.Dialog.getOrCreateInstance(document.getElementById('globalErrorModal')).show();
 }
 
 function setImage(id, url) {
@@ -100,25 +100,25 @@ var Toast = (function () {
         switch (type) {
             case 'success':
                 icon.classList.add('bi-check-circle-fill');
-                toastHeader.classList.add('bg-success', 'text-white');
+                toastHeader.classList.add('bg-success', 'fg-contrast-success');
                 break;
             case 'error':
                 icon.classList.add('bi-x-circle-fill');
-                toastHeader.classList.add('bg-danger', 'text-white');
+                toastHeader.classList.add('bg-danger', 'fg-contrast-danger');
                 break;
             case 'warning':
                 icon.classList.add('bi-exclamation-circle-fill');
-                toastHeader.classList.add('bg-warning', 'text-dark');
+                toastHeader.classList.add('bg-warning', 'fg-contrast-warning');
                 break;
             default:
                 icon.classList.add('bi-info-circle-fill');
-                toastHeader.classList.add('bg-info', 'text-white');
+                toastHeader.classList.add('bg-info', 'fg-contrast-info');
                 break;
         }
 
         var strong = document.createElement('strong');
         strong.classList.add('me-auto');
-        strong.classList.add('ms-2');
+        strong.classList.add('ms-3');
         strong.textContent = header;
 
         var button = document.createElement('button');
@@ -405,5 +405,65 @@ let DynamicContentLoader = (function () {
 
     return {
         load: load
+    };
+})();
+
+let ColorMode = (function () {
+    // Light / dark / system color mode. "auto" removes data-bs-theme so Bootstrap 6's
+    // `color-scheme: light dark` follows the OS preference. _ColorModeHead.cshtml applies
+    // the stored mode before first paint; this module handles the picker.
+    const storageKey = 'bs-color-mode';
+    const icons = { light: 'bi-sun', dark: 'bi-moon-stars', auto: 'bi-circle-half' };
+
+    function get() {
+        try {
+            const mode = localStorage.getItem(storageKey);
+            return mode === 'light' || mode === 'dark' ? mode : 'auto';
+        } catch (e) {
+            return 'auto';
+        }
+    }
+
+    function set(mode) {
+        try {
+            localStorage.setItem(storageKey, mode);
+        } catch (e) { }
+
+        if (mode === 'light' || mode === 'dark') {
+            document.documentElement.setAttribute('data-bs-theme', mode);
+        } else {
+            document.documentElement.removeAttribute('data-bs-theme');
+        }
+
+        sync(mode);
+    }
+
+    function sync(mode) {
+        document.querySelectorAll('[data-color-mode-value]').forEach(item => {
+            const active = item.getAttribute('data-color-mode-value') === mode;
+            item.classList.toggle('active', active);
+            item.setAttribute('aria-pressed', active ? 'true' : 'false');
+        });
+
+        document.querySelectorAll('[data-color-mode-icon]').forEach(icon => {
+            icon.classList.remove(...Object.values(icons));
+            icon.classList.add(icons[mode]);
+        });
+    }
+
+    document.addEventListener('click', function (event) {
+        const item = event.target.closest('[data-color-mode-value]');
+        if (item) {
+            set(item.getAttribute('data-color-mode-value'));
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        sync(get());
+    });
+
+    return {
+        get: get,
+        set: set
     };
 })();

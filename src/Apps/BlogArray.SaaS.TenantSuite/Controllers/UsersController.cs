@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using OpenIddict.Abstractions;
 using P.Pager;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers;
@@ -29,7 +30,8 @@ public class UsersController(OpenIdDbContext context,
     IEmailTemplate emailTemplate,
     IConfiguration configuration,
     IUserManagementService userManagementService,
-    IAuditEventLogger auditLogger) : BaseController
+    IAuditEventLogger auditLogger,
+    IOpenIddictTokenManager tokenManager) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -317,23 +319,40 @@ public class UsersController(OpenIdDbContext context,
 
         List<string> newRoles = assignViewModel.RolesSelected ?? [];
 
-        await context.UserRoles.Where(r => r.UserId == assignViewModel.UserId).ExecuteDeleteAsync();
+        List<string> rolesToRemove = [.. previousRoles.Except(newRoles)];
+        List<string> rolesToAdd = [.. newRoles.Except(previousRoles)];
 
-        if (newRoles.Count > 0)
+        if (rolesToRemove.Count == 0 && rolesToAdd.Count == 0)
         {
-            IdentityResult identityResult = await userManager.AddToRolesAsync(user, newRoles);
-
-            if (!identityResult.Succeeded)
-            {
-                return IdentityErrorResult(identityResult.Errors);
-            }
+            return JsonError("The selected roles are the same as the current roles.");
         }
 
-        bool changed = previousRoles.Count != newRoles.Count || previousRoles.Except(newRoles).Any();
-
-        if (!changed)
+        // Apply only the difference, through UserManager so the security stamp rotates (a
+        // removed role must not survive in existing sessions), and atomically so a failure
+        // never leaves the user with a partial role set.
+        await using (Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction = await context.Database.BeginTransactionAsync())
         {
-            return JsonError("Please select at least one role to assign.");
+            if (rolesToRemove.Count > 0)
+            {
+                IdentityResult removeResult = await userManager.RemoveFromRolesAsync(user, rolesToRemove);
+
+                if (!removeResult.Succeeded)
+                {
+                    return IdentityErrorResult(removeResult.Errors);
+                }
+            }
+
+            if (rolesToAdd.Count > 0)
+            {
+                IdentityResult addResult = await userManager.AddToRolesAsync(user, rolesToAdd);
+
+                if (!addResult.Succeeded)
+                {
+                    return IdentityErrorResult(addResult.Errors);
+                }
+            }
+
+            await transaction.CommitAsync();
         }
 
         (string? oldValueJson, string? newValueJson) = AuditDiff.Changed("Roles", previousRoles, newRoles);
@@ -491,16 +510,16 @@ public class UsersController(OpenIdDbContext context,
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionRevoked, TargetUserId: session.UserId, Reason: $"session on '{session.DeviceName}' revoked by administrator"));
 
-        await emailTemplate.SecurityActionByAdminNotice(
-            await GetUserEmailAsync(session.UserId), session.UserId,
-            $"Your session on '{session.DeviceName}' ({session.IpAddress}) has been signed out by an administrator.");
+        ApplicationUser? owner = await userManager.FindByIdAsync(session.UserId);
+
+        if (owner?.Email is not null)
+        {
+            await emailTemplate.SecurityActionByAdminNotice(
+                owner.Email, owner.DisplayName,
+                $"Your session on '{session.DeviceName}' ({session.IpAddress}) has been signed out by an administrator.");
+        }
 
         return JsonSuccess($"Session on '{session.DeviceName}' has been revoked.");
-    }
-
-    private async Task<string> GetUserEmailAsync(string userId)
-    {
-        return await context.Users.Where(u => u.Id == userId).Select(u => u.Email).FirstOrDefaultAsync() ?? userId;
     }
 
     #endregion Sessions
@@ -589,6 +608,10 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
+        // Disabling must end the sessions and tokens the user already holds, not only block
+        // future sign-ins.
+        await RevokeUserAccessAsync(entity);
+
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountDisabled, TargetUserId: entity.Id, Reason: "account disabled by administrator"));
         await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been disabled by an administrator. You can no longer sign in.");
 
@@ -641,43 +664,17 @@ public class UsersController(OpenIdDbContext context,
 
         if (resetPassword.CreatePassword)
         {
-            // Record the outgoing password in the reuse-prevention history before it is
-            // removed: RemovePasswordAsync clears the hash without running the validator
-            // that would normally record it.
-            if (!string.IsNullOrEmpty(entity.PasswordHash))
+            // A reset replaces the password in one step and only after every validator (policy,
+            // breached-password, reuse history) accepts the new one: on failure the current
+            // password is untouched. The history validator records the outgoing password, and
+            // users without a password yet (pending invites) are handled the same way.
+            string resetToken = await userManager.GeneratePasswordResetTokenAsync(entity);
+            // Password is [RequiredIf(CreatePassword)], enforced by the ModelState check above.
+            IdentityResult resetResult = await userManager.ResetPasswordAsync(entity, resetToken, resetPassword.Password!);
+
+            if (!resetResult.Succeeded)
             {
-                string? lastRecordedHash = await context.PasswordHistories
-                    .Where(history => history.UserId == entity.Id)
-                    .OrderByDescending(history => history.CreatedOn)
-                    .Select(history => history.PasswordHash)
-                    .FirstOrDefaultAsync();
-
-                if (lastRecordedHash != entity.PasswordHash)
-                {
-                    context.PasswordHistories.Add(new PasswordHistory
-                    {
-                        UserId = entity.Id,
-                        PasswordHash = entity.PasswordHash,
-                        CreatedOn = DateTime.UtcNow
-                    });
-
-                    await context.SaveChangesAsync();
-                }
-            }
-
-            IdentityResult removePasswordResult = await userManager.RemovePasswordAsync(entity);
-
-            if (!removePasswordResult.Succeeded)
-            {
-                return JsonError("Failed to remove the current password");
-            }
-
-            // AddPasswordAsync validates the password against the existing password policy.
-            IdentityResult addPasswordResult = await userManager.AddPasswordAsync(entity, resetPassword.Password);
-
-            if (!addPasswordResult.Succeeded)
-            {
-                return JsonError("Failed to set the new password");
+                return IdentityErrorResult(resetResult.Errors);
             }
 
             // An admin-assigned password is a temporary credential: flag the account so the
@@ -689,6 +686,9 @@ public class UsersController(OpenIdDbContext context,
             entity.UpdatedOn = DateTime.UtcNow;
             entity.UpdatedById = LoggedInUserID;
             await userManager.UpdateAsync(entity);
+
+            // Sessions opened with the previous password end now.
+            await RevokeUserAccessAsync(entity);
 
             await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PasswordReset, TargetUserId: entity.Id, Reason: "temporary password assigned by administrator"));
 
@@ -850,6 +850,11 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
+        if (id == LoggedInUserID)
+        {
+            return JsonError("You cannot lock yourself.");
+        }
+
         ApplicationUser? entity = await userManager.FindByIdAsync(id);
 
         if (entity is null)
@@ -866,6 +871,9 @@ public class UsersController(OpenIdDbContext context,
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
+
+        // Locking must end the sessions and tokens the user already holds.
+        await RevokeUserAccessAsync(entity);
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountLockedByAdmin, TargetUserId: entity.Id, Reason: "account locked by administrator"));
         await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been locked by an administrator. You can no longer sign in until it is unlocked.");
@@ -922,18 +930,30 @@ public class UsersController(OpenIdDbContext context,
             return JsonError("User not found.");
         }
 
-        List<UserSession> sessions = await context.UserSessions
-            .Where(s => s.UserId == id)
-            .ToListAsync();
+        int sessionCount = await RevokeUserAccessAsync(entity);
 
-        context.UserSessions.RemoveRange(sessions);
-        await context.SaveChangesAsync();
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionsRevokedByAdmin, TargetUserId: entity.Id, Reason: $"{sessionCount} session(s) revoked; security stamp rotated; tokens revoked"));
 
-        await userManager.UpdateSecurityStampAsync(entity);
+        return JsonSuccess($"{sessionCount} session(s) revoked and the security stamp rotated. The user must sign in again.");
+    }
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionsRevokedByAdmin, TargetUserId: entity.Id, Reason: $"{sessions.Count} session(s) revoked; security stamp rotated"));
+    /// <summary>
+    /// Ends every live credential of the user across the suite: the tracked device sessions
+    /// (Identity, TenantSuite and App cookies are rejected at their next validation), the
+    /// security stamp (Identity cookies) and the OIDC access/refresh tokens (API clients).
+    /// Returns the number of sessions removed.
+    /// </summary>
+    private async Task<int> RevokeUserAccessAsync(ApplicationUser user)
+    {
+        int sessionCount = await context.UserSessions
+            .Where(s => s.UserId == user.Id)
+            .ExecuteDeleteAsync();
 
-        return JsonSuccess($"{sessions.Count} session(s) revoked and the security stamp rotated. The user must sign in again.");
+        await userManager.UpdateSecurityStampAsync(user);
+
+        await tokenManager.RevokeAsync(user.Id, client: null, status: null, type: null);
+
+        return sessionCount;
     }
 
     public IActionResult IsCurrentuser(string id)

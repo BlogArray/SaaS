@@ -1,19 +1,21 @@
-﻿@use "sass:color";
+@use "sass:color";
 
 $choices-selector: "choices" !default;
 $choices-font-size-lg: 16px !default;
 $choices-font-size-md: 14px !default;
 $choices-font-size-sm: 12px !default;
 $choices-guttering: 24px !default;
-$choices-border-radius: var(--bs-border-radius) !default;
+$choices-border-radius: var(--bs-radius-5) !default;
 $choices-border-radius-item: 20px !default;
 $choices-bg-color: var(--bs-body-bg) !default;
-$choices-bg-color-disabled: var(--bs-dropdown-link-disabled-color);
+$choices-bg-color-disabled: var(--bs-bg-2);
 $choices-bg-color-dropdown: var(--bs-body-bg) !default;
-$choices-text-color: #333 !default;
-$choices-keyline-color: #ddd !default;
-$choices-primary-color: $primary;
-$choices-disabled-color: #eaeaea !default;
+$choices-text-color: var(--bs-fg-body) !default;
+$choices-keyline-color: var(--bs-border-color) !default;
+// Outer box of the select: same edge as .form-control (see $form-control-tokens in site.scss).
+$choices-control-border-color: light-dark(var(--bs-gray-300), var(--bs-gray-700)) !default;
+$choices-primary-color: var(--bs-primary-base);
+$choices-disabled-color: var(--bs-bg-3) !default;
 $choices-highlight-color: $choices-primary-color !default;
 $choices-button-dimension: 8px !default;
 $choices-button-offset: 8px !default;
@@ -68,7 +70,7 @@ $choices-z-index: 1 !default;
         width: 100%;
         padding: 10px;
         border-bottom: 1px solid $choices-keyline-color;
-        background-color: #fff;
+        background-color: var(--bs-bg-body);
         margin: 0;
     }
 
@@ -148,7 +150,7 @@ $choices-z-index: 1 !default;
         margin-bottom: 0;
         margin-left: $choices-button-offset;
         padding-left: $choices-button-offset * 2;
-        border-left: 1px solid color.adjust($choices-primary-color, $lightness: -10%);
+        border-left: 1px solid color-mix(in oklch, #{$choices-primary-color}, black 10%);
         background-image: $choices-icon-cross;
         background-size: $choices-button-dimension;
         width: $choices-button-dimension;
@@ -169,7 +171,7 @@ $choices-z-index: 1 !default;
     width: 100%;
     background-color: $choices-bg-color;
     padding: 0.375rem 0.75rem;
-    border: 1px solid $choices-keyline-color;
+    border: 1px solid $choices-control-border-color;
     border-radius: $choices-border-radius;
     //font-size: $choices-font-size-md;
     //min-height: 44px;
@@ -177,7 +179,7 @@ $choices-z-index: 1 !default;
 
     .is-focused &,
     .is-open & {
-        border-color: color.adjust($choices-keyline-color, $lightness: -15%);
+        border-color: var(--bs-primary-border);
     }
 
     .is-open & {
@@ -227,7 +229,7 @@ $choices-z-index: 1 !default;
         margin-right: 3.75px;
         margin-bottom: 3.75px;
         background-color: $choices-primary-color;
-        border: 1px solid color.adjust($choices-primary-color, $lightness: -5%);
+        border: 1px solid color-mix(in oklch, #{$choices-primary-color}, black 5%);
         color: #fff;
         word-break: break-all;
         box-sizing: border-box;
@@ -242,13 +244,13 @@ $choices-z-index: 1 !default;
         }
 
         &.is-highlighted {
-            background-color: color.adjust($choices-primary-color, $lightness: -5%);
-            border: 1px solid color.adjust($choices-primary-color, $lightness: -10%);
+            background-color: color-mix(in oklch, #{$choices-primary-color}, black 5%);
+            border: 1px solid color-mix(in oklch, #{$choices-primary-color}, black 10%);
         }
 
         .is-disabled & {
-            background-color: color.adjust($choices-disabled-color, $lightness: -25%);
-            border: 1px solid color.adjust($choices-disabled-color, $lightness: -35%);
+            background-color: var(--bs-bg-4);
+            border: 1px solid var(--bs-border-color);
         }
     }
 }
@@ -259,7 +261,7 @@ $choices-z-index: 1 !default;
     position: absolute;
     width: 100%;
     background-color: $choices-bg-color-dropdown;
-    border: 1px solid $choices-keyline-color;
+    border: 1px solid $choices-control-border-color;
     top: 100%;
     margin-top: -1px;
     border-bottom-left-radius: $choices-border-radius;
@@ -272,7 +274,7 @@ $choices-z-index: 1 !default;
     }
 
     .is-open & {
-        border-color: color.adjust($choices-keyline-color, $lightness: -15%);
+        border-color: var(--bs-primary-border);
     }
 
     .is-flipped & {
@@ -330,7 +332,7 @@ $choices-z-index: 1 !default;
         }
 
         &.is-highlighted {
-            background-color: color.mix(#000, #fff, 5%);
+            background-color: var(--bs-bg-2);
 
             &::after {
                 opacity: 0.5;
@@ -361,8 +363,8 @@ $choices-z-index: 1 !default;
     font-weight: 600;
     font-size: $choices-font-size-sm;
     padding: 10px;
-    border-bottom: 1px solid color.adjust($choices-keyline-color, $lightness: 10%);
-    color: color.adjust(#333, $lightness: 30%);
+    border-bottom: 1px solid $choices-keyline-color;
+    color: var(--bs-fg-3);
 }
 
 .#{$choices-selector}__button {

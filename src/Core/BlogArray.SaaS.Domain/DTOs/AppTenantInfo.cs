@@ -35,9 +35,11 @@ public class AppTenantInfo : ITenantInfo
     public string Legalname { get; set; } = default!;
 
     /// <summary>
-    /// DB Connection string
+    /// DataProtection-protected database connection string; unprotected only when the tenant
+    /// database context is configured. The tenant store and its distributed cache never hold
+    /// the plaintext.
     /// </summary>
-    public string? ConnectionString { get; set; } = default!;
+    public string? ConnectionStringProtected { get; set; }
 
     /// <summary>
     /// DataProtection-protected client secret; unprotected only when building the tenant's
@@ -46,9 +48,10 @@ public class AppTenantInfo : ITenantInfo
     public string? ClientSecretProtected { get; set; }
 
     /// <summary>
-    /// API Key for authentication
+    /// DataProtection-protected API key for the TenantSuite membership API; unprotected only
+    /// when an outgoing request is signed.
     /// </summary>
-    public string APIKey { get; set; } = default!;
+    public string? APIKeyProtected { get; set; }
 
     private string? logo;
 

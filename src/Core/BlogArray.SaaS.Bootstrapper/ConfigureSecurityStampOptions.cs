@@ -33,9 +33,13 @@ public class ConfigureSecurityStampOptions : IConfigureOptions<SecurityStampVali
 
             if (currentIdentity is not null && newIdentity is not null)
             {
-                // Since this is refreshing an existing principal, we want to merge all claims.
-                // Only work with claims in current identity that are not already present in the new identity with the same Type and Value.
-                IEnumerable<Claim> currentClaimsNotInNewIdentity = currentIdentity.Claims.Where(c => !newIdentity.HasClaim(c.Type, c.Value));
+                // Carry over only the claims the sign-in added (profile, amr, session_id,
+                // saml_*). Claim types the principal factory issues - identity, security stamp
+                // and roles - are authoritative from the fresh principal: merging them back
+                // would resurrect a removed role, which the new principal simply omits.
+                HashSet<string> authoritativeTypes = [.. newIdentity.Claims.Select(c => c.Type), newIdentity.RoleClaimType, ClaimTypes.Role];
+
+                IEnumerable<Claim> currentClaimsNotInNewIdentity = currentIdentity.Claims.Where(c => !authoritativeTypes.Contains(c.Type));
 
                 foreach (Claim claim in currentClaimsNotInNewIdentity)
                 {

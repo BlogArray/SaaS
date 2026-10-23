@@ -39,6 +39,7 @@ public class ActiveClassTagHelper(IHtmlGenerator generator) : AnchorTagHelper(ge
             }
 
             output.Attributes.Add("class", $"{existingClasses} {ActiveClass}");
+            output.Attributes.SetAttribute("aria-current", "page");
         }
         output.Attributes.RemoveAll("active-route");
     }

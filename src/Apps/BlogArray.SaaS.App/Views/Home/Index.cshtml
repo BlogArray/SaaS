@@ -8,11 +8,11 @@
 @if (User.Identity.IsAuthenticated)
 {
     var imageClaim = User.FindFirst("image")?.Value;
-    <div class="alert alert-success p-5">
-        <div class="d-flex align-items-center mb-3">
+    <div class="alert theme-success p-12">
+        <div class="d-flex align-items-center mb-5">
             @if (!string.IsNullOrEmpty(imageClaim))
             {
-                <img src="@imageClaim" alt="Profile" class="rounded-circle me-3" style="width: 50px; height: 50px;">
+                <img src="@imageClaim" alt="Profile" class="rounded-circle me-5" style="width: 50px; height: 50px;">
             }
             <div>
                 <h5 class="mb-0">Welcome back, @User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value!</h5>
@@ -25,7 +25,7 @@
             <strong>Authentication Type:</strong> @User.Identity.AuthenticationType
         </p>
         <form asp-action="LogOut" asp-controller="Authentication" method="post" class="d-inline">
-            <button type="submit" class="btn btn-danger">
+            <button type="submit" class="btn btn-solid theme-danger">
                 <i class="bi bi-box-arrow-right"></i> Logout
             </button>
         </form>
@@ -33,7 +33,7 @@
 }
 else
 {
-    <div class="alert alert-info p-5">
+    <div class="alert theme-info p-12">
         <h5>Hello, Guest!</h5>
         <p>You are currently not logged in. Please log in to access your account and additional features. Here’s what you can do:</p>
         <ul>
@@ -41,7 +41,7 @@ else
             <li><strong>Secure Your Account:</strong> Advanced security options like MFA and SSO.</li>
             <li><strong>Explore:</strong> Log in to unlock more features.</li>
         </ul>
-        <a asp-action="LogIn" asp-controller="Authentication" class="btn btn-primary">
+        <a asp-action="LogIn" asp-controller="Authentication" class="btn btn-solid theme-primary">
             <i class="bi bi-box-arrow-in-right"></i> Login
         </a>
     </div>

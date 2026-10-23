@@ -16,7 +16,7 @@
     <div class="card-body py-0">
         @if (Model.Events.Count() == 0)
         {
-            <div class="alert alert-secondary mb-0 m-3">
+            <div class="alert theme-secondary mb-0 m-5">
                 <p class="mb-0"><i class="bi bi-shield-check"></i> No sign-in activity has been recorded for your account yet.</p>
             </div>
         }
@@ -40,13 +40,13 @@
                             <tr>
                                 <td class="text-wrap">@Model.Describe(signInEvent)</td>
                                 <td>
-                                    <span class="badge rounded-pill text-bg-@(failed ? "danger" : "success")">
+                                    <span class="badge badge-subtle rounded-pill theme-@(failed ? "danger" : "success")">
                                         @Model.ResultText(signInEvent)
                                     </span>
                                 </td>
-                                <td class="text-muted small">@(signInEvent.IpAddress ?? "-")</td>
-                                <td class="text-muted small text-truncate" style="max-width:170px" title="@signInEvent.DeviceInfo">@(signInEvent.DeviceInfo ?? "-")</td>
-                                <td class="text-muted small" title="@signInEvent.CreatedOn.ToUniversalTime().ToString("O")">@signInEvent.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm:ss")</td>
+                                <td class="fg-secondary small">@(signInEvent.IpAddress ?? "-")</td>
+                                <td class="fg-secondary small text-truncate" style="max-width:170px" title="@signInEvent.DeviceInfo">@(signInEvent.DeviceInfo ?? "-")</td>
+                                <td class="fg-secondary small" title="@signInEvent.CreatedOn.ToUniversalTime().ToString("O")">@signInEvent.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm:ss")</td>
                             </tr>
                         }
                     </tbody>
@@ -58,7 +58,7 @@
 
 @if (Model.Events.Count() > 0)
 {
-    <div class="mt-2">
+    <div class="mt-3">
         @Html.Pager((IPager)Model.Events, page => Url.Page("/Settings/SecurityActivity", new { page }), PrePagerOptions.MinimalWithEntriesText)
     </div>
 }

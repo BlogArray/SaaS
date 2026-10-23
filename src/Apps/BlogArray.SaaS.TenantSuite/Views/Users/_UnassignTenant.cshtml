@@ -8,25 +8,25 @@
      OnFailure = "handleAjaxError"
  }, new { id = "saveUnassignForm" }))
 {
-    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="userEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="offcanvas-header border-bottom">
+    <dialog class="drawer drawer-end medium" tabindex="-1" id="userEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="drawer-header border-bottom">
             <h5 id="offcanvasRightLabel">
                 Remove tenants from @Model.Name
             </h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close fg-reset" data-bs-dismiss="drawer" aria-label="Close"></button>
         </div>
-        <div class="offcanvas-body">
+        <div class="drawer-body">
             <input type="hidden" asp-for="UserId" />
             <div class="list-group list-group-flush">
                 @if (Model.Tenants?.Count() == 0)
                 {
-                    <div class="p-5 text-center">
+                    <div class="p-12 text-center">
                         <i class="state-icon bi bi-inbox"></i>
                         <br />
-                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                        <p class="fg-body fs-xl fw-semibold mb-0">
                             No tenants assigned to this user yet.
                         </p>
-                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                        <p class="lg:col-8 mx-auto fs-md fg-secondary">
                             To grant access click on <i class="bi bi-person-add"></i> icon.
                         </p>
                     </div>
@@ -38,11 +38,11 @@
                     </span>
                     @foreach (var tenant in Model.Tenants)
                     {
-                        <label class="list-group-item d-flex gap-3">
-                            <input class="form-check-input flex-shrink-0" type="checkbox" value="@tenant.Id" name="Tenants" id="@tenant.Id" style="font-size: 1.375em;">
+                        <label class="list-group-item d-flex gap-5">
+                            <input class="check flex-shrink-0" type="checkbox" value="@tenant.Id" name="Tenants" id="@tenant.Id" style="font-size: 1.375em;">
                             <span class="form-checked-content">
                                 <strong>@tenant.DisplayName</strong>
-                                <small class="d-block text-body-secondary">
+                                <small class="d-block fg-secondary">
                                     @tenant.ClientId
                                 </small>
                             </span>
@@ -51,16 +51,16 @@
                 }
             </div>
         </div>
-        <div class="offcanvas-header border-top">
+        <div class="drawer-footer border-top">
             <div>
                 @if (Model.Tenants?.Count() > 0)
                 {
-                    <input type="submit" value="Remove selected tenants" class="btn btn-primary" />
+                    <input type="submit" value="Remove selected tenants" class="btn btn-solid theme-primary" />
                 }
-                <input type="button" value="Cancel" class="btn btn-secondary" data-bs-dismiss="offcanvas" aria-label="Close" />
+                <input type="button" value="Cancel" class="btn btn-solid theme-secondary" data-bs-dismiss="drawer" aria-label="Close" />
             </div>
         </div>
-    </div>
+    </dialog>
 }
 
 <script>

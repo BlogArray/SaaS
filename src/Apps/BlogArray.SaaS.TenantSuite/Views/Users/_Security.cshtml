@@ -1,19 +1,19 @@
 @model UserSecurityViewModel
 
-<div class="d-flex justify-content-between align-items-start mb-2">
+<div class="d-flex justify-content-between align-items-start mb-3">
     <div>
         <h6 class="mb-1">Multi-factor authentication</h6>
         @if (Model.TwoFactorEnabled)
         {
-            <span class="badge rounded-pill text-bg-success">Enabled</span>
+            <span class="badge badge-subtle rounded-pill theme-success">Enabled</span>
             @if (Model.HasAuthenticator)
             {
-                <span class="badge rounded-pill text-bg-secondary ms-1">Authenticator app (TOTP)</span>
+                <span class="badge badge-subtle rounded-pill theme-secondary ms-1">Authenticator app (TOTP)</span>
             }
         }
         else
         {
-            <span class="badge rounded-pill text-bg-secondary">Disabled</span>
+            <span class="badge badge-subtle rounded-pill theme-secondary">Disabled</span>
         }
     </div>
     <div class="text-nowrap">
@@ -21,20 +21,20 @@
         {
             <form asp-controller="Users" asp-action="DisableMfa" method="post" data-ajax="true" data-ajax-method="post" data-ajax-success="securityChanged" class="d-inline ms-1" title="Turns 2FA off but keeps the authenticator enrollment">
                 <input type="hidden" name="id" value="@Model.Id" />
-                <button type="submit" class="btn btn-sm btn-outline-secondary">Disable 2FA</button>
+                <button type="submit" class="btn btn-sm btn-subtle theme-secondary">Disable 2FA</button>
             </form>
             <form asp-controller="Users" asp-action="ResetMfa" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This clears the authenticator enrollment entirely. The user must re-enroll at next sign-in. Continue?" data-ajax-success="securityChanged" class="d-inline ms-1">
                 <input type="hidden" name="id" value="@Model.Id" />
-                <button type="submit" class="btn btn-sm btn-outline-danger">Reset MFA</button>
+                <button type="submit" class="btn btn-sm btn-subtle theme-danger">Reset MFA</button>
             </form>
         }
     </div>
 </div>
 
-<h6 class="mt-4 mb-2">Passkeys (@Model.Passkeys.Count)</h6>
+<h6 class="mt-7 mb-3">Passkeys (@Model.Passkeys.Count)</h6>
 @if (Model.Passkeys.Count == 0)
 {
-    <p class="text-muted small mb-0">No passkeys enrolled.</p>
+    <p class="fg-secondary small mb-0">No passkeys enrolled.</p>
 }
 else
 {
@@ -53,13 +53,13 @@ else
                 {
                     <tr>
                         <td>@passkey.Name</td>
-                        <td class="text-muted small">@passkey.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</td>
-                        <td class="text-muted small">@(passkey.LastUsedOn?.ToLocalTime().ToString("dd-MM-yyyy HH:mm") ?? "never")</td>
+                        <td class="fg-secondary small">@passkey.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</td>
+                        <td class="fg-secondary small">@(passkey.LastUsedOn?.ToLocalTime().ToString("dd-MM-yyyy HH:mm") ?? "never")</td>
                         <td class="text-end">
                             <form asp-controller="Users" asp-action="RemovePasskey" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Remove passkey '@passkey.Name'? The user will no longer be able to sign in with it." data-ajax-success="securityChanged" class="d-inline">
                                 <input type="hidden" name="id" value="@Model.Id" />
                                 <input type="hidden" name="credentialId" value="@passkey.Id" />
-                                <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                <button type="submit" class="btn btn-sm btn-subtle theme-danger">Remove</button>
                             </form>
                         </td>
                     </tr>

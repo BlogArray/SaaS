@@ -8,85 +8,85 @@
      OnFailure = "handleAjaxError"
  }, new { id = "saveTenantForm" }))
 {
-    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="tenantEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="offcanvas-header border-bottom">
+    <dialog class="drawer drawer-end medium" tabindex="-1" id="tenantEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="drawer-header border-bottom">
             <h5 id="offcanvasRightLabel">
                 Change basic info
             </h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close fg-reset" data-bs-dismiss="drawer" aria-label="Close"></button>
         </div>
-        <div class="offcanvas-body">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="drawer-body">
+            <div asp-validation-summary="ModelOnly" class="fg-danger"></div>
             <input type="hidden" asp-for="Id" />
             <input type="hidden" asp-for="ClientId" />
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="DisplayName" class="form-label">Display name</label>
                 <input asp-for="DisplayName" class="form-control" />
-                <span asp-validation-for="DisplayName" class="text-danger"></span>
+                <span asp-validation-for="DisplayName" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="Legalname" class="form-label">Legal name</label>
                 <input asp-for="Legalname" class="form-control" />
-                <span asp-validation-for="Legalname" class="text-danger"></span>
+                <span asp-validation-for="Legalname" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="TenantUrl" class="form-label">Tenant Url</label>
                 <input asp-for="TenantUrl" class="form-control" />
                 <div class="form-text">
                     Client Id is used to determine tenant. Example: If Client Id is "site1", the tenant URL prefix is "https://example.com/site1".
                 </div>
-                <span asp-validation-for="TenantUrl" class="text-danger"></span>
+                <span asp-validation-for="TenantUrl" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="ConnectionString" class="form-label">Connection string</label>
                 <textarea asp-for="ConnectionString" aria-describedby="secretCS" class="form-control"></textarea>
                 <div id="secretCS" class="form-text">
                     The connection string to your database instance, e.g. Server=localhost;Database=[db_name];User Id=username;Password=password. Leave blank to keep the existing connection string.
                 </div>
-                <span asp-validation-for="ConnectionString" class="text-danger"></span>
+                <span asp-validation-for="ConnectionString" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="Website" class="form-label"></label>
                 <input asp-for="Website" class="form-control" />
-                <span asp-validation-for="Website" class="text-danger"></span>
+                <span asp-validation-for="Website" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="Description" class="form-label"></label>
                 <textarea asp-for="Description" class="form-control"></textarea>
-                <span asp-validation-for="Description" class="text-danger"></span>
+                <span asp-validation-for="Description" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="AdminEmail" class="form-label">Admin emails</label>
                 <input type="text" asp-for="AdminEmail" class="form-control" placeholder="admin@example.com" />
                 <div class="form-text">
                     Tenant administrator email addresses. Tenant credentials (client secret and API key) are sent here when rotated.
                 </div>
-                <span asp-validation-for="AdminEmail" class="text-danger"></span>
+                <span asp-validation-for="AdminEmail" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="RedirectUri" class="form-label">Redirect Uris</label>
                 <input type="text" asp-for="RedirectUri" class="form-control" />
-                <span asp-validation-for="RedirectUri" class="text-danger"></span>
+                <span asp-validation-for="RedirectUri" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="PostLogoutRedirectUri" class="form-label">Post Logout Redirect Uris</label>
                 <input type="text" asp-for="PostLogoutRedirectUri" class="form-control" />
-                <span asp-validation-for="PostLogoutRedirectUri" class="text-danger"></span>
+                <span asp-validation-for="PostLogoutRedirectUri" class="fg-danger"></span>
             </div>
-            @*  <div class="mb-3">
+            @*  <div class="mb-5">
         <label asp-for="Permissions" class="form-label"></label>
-        <select multiple class="form-select" asp-for="Permissions" asp-items="ViewBag.Permissions">
+        <select multiple class="form-control" asp-for="Permissions" asp-items="ViewBag.Permissions">
         </select>
-        <span asp-validation-for="Permissions" class="text-danger"></span>
+        <span asp-validation-for="Permissions" class="fg-danger"></span>
     </div> *@
         </div>
-        <div class="offcanvas-header border-top">
+        <div class="drawer-footer border-top">
             <div>
-                <input type="submit" value="Update tenant" class="btn btn-primary" />
-                <input type="button" value="Cancel" class="btn btn-secondary" data-bs-dismiss="offcanvas" aria-label="Close" />
+                <input type="submit" value="Update tenant" class="btn btn-solid theme-primary" />
+                <input type="button" value="Cancel" class="btn btn-solid theme-secondary" data-bs-dismiss="drawer" aria-label="Close" />
             </div>
         </div>
-    </div>
+    </dialog>
 }
 
 @section Scripts {

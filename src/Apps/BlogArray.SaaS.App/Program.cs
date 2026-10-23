@@ -115,6 +115,4 @@ app.UseAuthorization();
 // Subdomain tenancy: tenants live at {identifier}.blogarray.dev and the app is rooted.
 app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
 
-await app.AddTenantStoreAsync();
-
 app.Run();

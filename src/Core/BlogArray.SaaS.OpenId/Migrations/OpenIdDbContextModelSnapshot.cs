@@ -668,6 +668,22 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.ToTable("SignInEvents");
                 });
 
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.UsedSamlAssertion", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("ExpiresOn")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresOn");
+
+                    b.ToTable("UsedSamlAssertions");
+                });
+
             modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.UserSession", b =>
                 {
                     b.Property<string>("Id")

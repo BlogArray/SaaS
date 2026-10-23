@@ -208,6 +208,8 @@ public static class ConfigureOpenIdServices
         .AddPasswordValidator<BreachedPasswordValidator>()
         .AddDefaultTokenProviders();
 
+        builder.ConfigureTokenLifespan();
+
         // Strict MFA-enrollment evaluation (tenant IsMfaEnforced + no completed enrollment)
         // and the restricted enrollment cookie scheme used while enrollment is pending.
         builder.Services.AddScoped<IMfaEnrollmentService, MfaEnrollmentService>();
@@ -240,6 +242,8 @@ public static class ConfigureOpenIdServices
             .AddPasswordValidator<BreachedPasswordValidator>()
             .AddDefaultTokenProviders();
 
+        builder.ConfigureTokenLifespan();
+
         // Strict MFA-enrollment evaluation (tenant IsMfaEnforced + no completed enrollment).
         builder.Services.AddScoped<IMfaEnrollmentService, MfaEnrollmentService>();
 
@@ -248,6 +252,21 @@ public static class ConfigureOpenIdServices
         builder.Services.AddScoped<IAuditEventLogger, AuditEventLogger>();
 
         return builder;
+    }
+
+    /// <summary>
+    /// Lifetime of emailed one-time links (invitations, password reset, email confirmation):
+    /// Identity:TokenLifespanHours, default 24 hours (the framework default). One setting
+    /// covers all of them, so raising it for invitations also lengthens password-reset links.
+    /// It must be the same in every app: tokens are issued by TenantSuite and Identity and
+    /// validated by Identity.
+    /// </summary>
+    private static void ConfigureTokenLifespan(this IHostApplicationBuilder builder)
+    {
+        int hours = builder.Configuration.GetValue("Identity:TokenLifespanHours", 24);
+
+        builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+            options.TokenLifespan = TimeSpan.FromHours(Math.Max(1, hours)));
     }
 
 }

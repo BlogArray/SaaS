@@ -5,22 +5,23 @@
     Layout = "/Views/Shared/_LoginLayout.cshtml";
 }
 
-<h6 class="text-center mb-3">
+<h6 class="text-center mb-5">
     Sign in with your passkey
 </h6>
 
-<div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+<div asp-validation-summary="ModelOnly" class="fg-danger" role="alert"></div>
 
-<div class="alert alert-secondary" role="alert" id="passkeyMessage" style="display:none"></div>
+<div class="alert theme-secondary" role="alert" id="passkeyMessage" style="display:none"></div>
 
 <form id="passkey-form" method="post">
     <input type="hidden" asp-for="Input.Response" />
     <input type="hidden" asp-for="Next" />
     <input type="hidden" asp-for="AssertionOptions" />
-    <button type="button" class="w-100 btn btn-primary" id="usePasskey">
+    <input type="hidden" asp-for="CeremonyId" />
+    <button type="button" class="w-100 btn btn-solid theme-primary" id="usePasskey">
         <i class="bi bi-fingerprint me-1"></i> Use passkey
     </button>
-    <div class="text-center mt-3">
+    <div class="text-center mt-5">
         <a asp-page="./LoginWithPassword" asp-route-next="@Model.Next">Use your password instead</a>
     </div>
 </form>

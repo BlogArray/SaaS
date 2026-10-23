@@ -2,12 +2,12 @@
 @{
     string? currentUser = ViewBag.CurrentUserId;
 }
-<div class="btn-toolbar mb-2" role="toolbar" aria-label="Toolbar with button groups">
+<div class="btn-toolbar mb-3" role="toolbar" aria-label="Toolbar with button groups">
     @if (currentUser == Model.Id)
     {
-        <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
+        <div class="btn-group btn-group-sm me-3" role="group" aria-label="First group">
             <a target="_blank" asp-action="Manage" title="Manage your profile" asp-controller="Authentication" asp-area=""
-               class="btn btn-outline-secondary" data-bs-toggle="tooltip" data-bs-title="Manage your profile">
+               class="btn btn-subtle theme-secondary" data-bs-toggle="tooltip" data-bs-title="Manage your profile">
                 View profile
                 <i class="ms-1 bi bi-box-arrow-up-right"></i>
             </a>
@@ -15,40 +15,40 @@
     }
     else
     {
-        <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
+        <div class="btn-group btn-group-sm me-3" role="group" aria-label="First group">
             @if (!Model.IsActive)
             {
                 <form asp-controller="Users" asp-action="EnableUser" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Enabling this user will grant them access to their assigned tenants. Are you sure you want to continue?" data-ajax-success="changeState" class="d-inline">
                     <input type="hidden" name="id" value="@Model.Id" />
-                    <button type="submit" class="btn btn-outline-secondary" title="Enable user">Enable user</button>
+                    <button type="submit" class="btn btn-subtle theme-secondary" title="Enable user">Enable user</button>
                 </form>
             }
             else
             {
                 <form asp-controller="Users" asp-action="DisableUser" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Disabling this user will revoke their access to all assigned tenants. Are you sure you want to continue?" data-ajax-success="changeState" class="d-inline">
                     <input type="hidden" name="id" value="@Model.Id" />
-                    <button type="submit" class="btn btn-outline-secondary" title="Disable user">Disable user</button>
+                    <button type="submit" class="btn btn-subtle theme-secondary" title="Disable user">Disable user</button>
                 </form>
             }
             @if (!Model.IsEmailPhoneConfirmed)
             {
                 <form asp-controller="Users" asp-action="ConfirmEmailPhone" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This will allow them to access the account. Are you sure you want to confirm the user's email and phone number?" data-ajax-success="changeState" class="d-inline">
                     <input type="hidden" name="id" value="@Model.Id" />
-                    <button type="submit" class="btn btn-outline-secondary" title="Mark email and phone as confirmed.">Confirm email/phone</button>
+                    <button type="submit" class="btn btn-subtle theme-secondary" title="Mark email and phone as confirmed.">Confirm email/phone</button>
                 </form>
             }
             @if (Model.LockoutEnabled)
             {
                 <form asp-controller="Users" asp-action="UnlockUser" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This action will allow the user to log in again. Are you sure you want to unlock this user?" data-ajax-success="changeState" class="d-inline">
                     <input type="hidden" name="id" value="@Model.Id" />
-                    <button type="submit" class="btn btn-outline-secondary" title="User is currently locked until @Model.LockoutEnd">Unlock user</button>
+                    <button type="submit" class="btn btn-subtle theme-secondary" title="User is currently locked until @Model.LockoutEnd">Unlock user</button>
                 </form>
             }
             else
             {
                 <form asp-controller="Users" asp-action="LockUser" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This action will prevent the user to log in again. Are you sure you want to lock this user?" data-ajax-success="changeState" class="d-inline">
                     <input type="hidden" name="id" value="@Model.Id" />
-                    <button type="submit" class="btn btn-outline-secondary" title="Prevent the user from logging in by locking their account.">Lock user</button>
+                    <button type="submit" class="btn btn-subtle theme-secondary" title="Prevent the user from logging in by locking their account.">Lock user</button>
                 </form>
             }
 
@@ -58,11 +58,11 @@
        {
            UpdateTargetId = "changeUserInfo",
            OnSuccess = "userEditFormLoaded"
-       }, new { @class = "btn btn-outline-secondary", title = "Re-send the onboarding invite email" })
+       }, new { @class = "btn btn-subtle theme-secondary", title = "Re-send the onboarding invite email" })
 
             <form asp-controller="Users" asp-action="RevokeAllSessions" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This will sign the user out everywhere and invalidate their password-reset links. Continue?" data-ajax-success="changeState" class="d-inline">
                 <input type="hidden" name="id" value="@Model.Id" />
-                <button type="submit" class="btn btn-outline-secondary" title="Revoke all sessions and rotate the security stamp.">Revoke sessions</button>
+                <button type="submit" class="btn btn-subtle theme-secondary" title="Revoke all sessions and rotate the security stamp.">Revoke sessions</button>
             </form>
             }
 
@@ -70,20 +70,20 @@
    {
        UpdateTargetId = "changeUserInfo",
        OnSuccess = "userEditFormLoaded"
-   }, new { @class = "btn btn-outline-secondary", title = "Reset password" })
+   }, new { @class = "btn btn-subtle theme-secondary", title = "Reset password" })
         </div>
     }
-    <div class="btn-group btn-group-sm me-2" role="group" aria-label="First group">
+    <div class="btn-group btn-group-sm me-3" role="group" aria-label="First group">
         @Html.AjaxActionLink($"Tenants ({Model.TenantsCount})", "Unassign", new { id = Model.Id }, new AjaxOptions
    {
        UpdateTargetId = "changeUserInfo",
        OnSuccess = "userEditFormLoaded"
-   }, new { @class = "btn btn-outline-secondary", title = "View all tenants" })
+   }, new { @class = "btn btn-subtle theme-secondary", title = "View all tenants" })
         @Html.AjaxActionLink("Add tenants", "Assign", new { id = Model.Id }, new AjaxOptions
    {
        UpdateTargetId = "changeUserInfo",
        OnSuccess = "userEditFormLoaded"
-   }, new { @class = "btn btn-outline-secondary", title = "Add tenants" })
+   }, new { @class = "btn btn-subtle theme-secondary", title = "Add tenants" })
     </div>
 </div>
 @section Scripts {

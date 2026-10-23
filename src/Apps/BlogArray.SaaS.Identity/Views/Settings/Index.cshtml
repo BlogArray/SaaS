@@ -38,15 +38,15 @@
         <p class="mb-0 form-text">You have full control to manage your own account setting.</p>
     </div>
     <div class="card-body">
-        <div class="d-flex gap-3 py-3">
+        <div class="d-flex gap-5 py-5">
             <div class="profile-container position-relative">
-                <img width="40" height="40" alt="profile icon" class="flex-shrink-0 me-2 rounded-circle" loading="lazy" id="profilePageImage" src="@profileIcon" />
+                <img width="40" height="40" alt="profile icon" class="flex-shrink-0 me-3 rounded-circle" loading="lazy" id="profilePageImage" src="@profileIcon" />
                 <div id="changeImage" title="Change image" class="change-icon d-flex align-items-center rounded-circle justify-content-center">
                     <i class="bi bi-camera"></i>
                 </div>
             </div>
 
-            <div class="d-flex gap-2 w-100 justify-content-between">
+            <div class="d-flex gap-3 w-100 justify-content-between">
                 <div>
                     <h6 class="mb-0">@givenName</h6>
                     <p class="mb-0 opacity-75">@email</p>
@@ -64,72 +64,68 @@
              OnFailure = "handleAjaxError"
          }))
         {
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            @* <div class="mb-3">
+            <div asp-validation-summary="ModelOnly" class="fg-danger"></div>
+            @* <div class="mb-5">
         <label class="form-label">Email</label>
         <input value="@email" disabled class="form-control" />
         <div class="form-text">You can change your email <a asp-action="account" asp-controller="settings" asp-fragment="email">here</a></div>
         </div> *@
             <div class="row">
-                <div class="col col-12 col-lg-6 mb-3">
+                <div class="col col-12 lg:col-6 mb-5">
                     <label asp-for="FirstName" class="form-label">First name</label>
                     <input asp-for="FirstName" class="form-control" placeholder="First name" />
-                    <span asp-validation-for="FirstName" class="text-danger"></span>
+                    <span asp-validation-for="FirstName" class="fg-danger"></span>
                 </div>
-                <div class="col col-12 col-lg-6 mb-3">
+                <div class="col col-12 lg:col-6 mb-5">
                     <label asp-for="LastName" class="form-label">Last name</label>
                     <input asp-for="LastName" class="form-control" placeholder="Last name" />
-                    <span asp-validation-for="LastName" class="text-danger"></span>
+                    <span asp-validation-for="LastName" class="fg-danger"></span>
                 </div>
-                <div class="col col-12 col-lg-6 mb-3">
+                <div class="col col-12 lg:col-6 mb-5">
                     <label asp-for="DisplayName" class="form-label">Display name</label>
                     <input asp-for="DisplayName" class="form-control" placeholder="Display name" />
-                    <span asp-validation-for="DisplayName" class="text-danger"></span>
+                    <span asp-validation-for="DisplayName" class="fg-danger"></span>
                 </div>
-                <div class="col col-12 col-lg-6 mb-3">
+                <div class="col col-12 lg:col-6 mb-5">
                     <label asp-for="Gender" class="form-label">Gender</label>
-                    <select class="form-select" asp-for="Gender" asp-items="genders">
+                    <select class="form-control" asp-for="Gender" asp-items="genders">
                     </select>
-                    <span asp-validation-for="Gender" class="text-danger"></span>
+                    <span asp-validation-for="Gender" class="fg-danger"></span>
                 </div>
-                <div class="col col-12 col-lg-6 mb-3">
+                <div class="col col-12 lg:col-6 mb-5">
                     <label asp-for="TimeZone" class="form-label"></label>
-                    <select class="form-select" asp-for="TimeZone" asp-items="timeZones">
+                    <select class="form-control" asp-for="TimeZone" asp-items="timeZones">
                     </select>
-                    <span asp-validation-for="TimeZone" class="text-danger"></span>
+                    <span asp-validation-for="TimeZone" class="fg-danger"></span>
                 </div>
-                <div class="col col-12 col-lg-6 mb-3">
+                <div class="col col-12 lg:col-6 mb-5">
                     <label asp-for="LocaleCode" class="form-label"></label>
-                    <select class="form-select" asp-for="LocaleCode" asp-items="languages">
+                    <select class="form-control" asp-for="LocaleCode" asp-items="languages">
                     </select>
-                    <span asp-validation-for="LocaleCode" class="text-danger"></span>
+                    <span asp-validation-for="LocaleCode" class="fg-danger"></span>
                 </div>
             </div>
-            <div class="mb-3">
-                <input type="submit" value="Update profile" class="btn btn-primary" />
+            <div class="mb-5">
+                <input type="submit" value="Update profile" class="btn btn-solid theme-primary" />
             </div>
         }
     </div>
 </div>
 
-<div class="modal" id="profileCroppieModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h1 class="modal-title fs-5">
-                    Change profile photo
-                </h1>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body" id="main-cropper">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <button type="button" class="btn btn-primary" id="uploadFile">Save changes</button>
-            </div>
-        </div>
+<dialog class="dialog dialog-lg" id="profileCroppieModal" tabindex="-1" aria-labelledby="exampleModalLabel">
+    <div class="dialog-header">
+        <h1 class="dialog-title fs-lg">
+            Change profile photo
+        </h1>
+        <button type="button" class="btn-close" data-bs-dismiss="dialog" aria-label="Close"></button>
     </div>
-</div>
+    <div class="dialog-body" id="main-cropper">
+    </div>
+    <div class="dialog-footer">
+        <button type="button" class="btn btn-solid theme-secondary" data-bs-dismiss="dialog">Close</button>
+        <button type="button" class="btn btn-solid theme-primary" id="uploadFile">Save changes</button>
+    </div>
+</dialog>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
@@ -143,7 +139,7 @@
     $(document).ready(function () {
         screenWidth = screen.width ?? window.outerWidth;
 
-        profileCroppieModal = new bootstrap.Modal('#profileCroppieModal');
+        profileCroppieModal = new bootstrap.Dialog('#profileCroppieModal');
 
         viewport = {
             width: 256,

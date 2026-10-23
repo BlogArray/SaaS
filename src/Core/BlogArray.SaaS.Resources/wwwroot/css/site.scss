@@ -1,345 +1,357 @@
-﻿/*@import "../../node_modules/bootstrap/scss/functions";
-@import "../../node_modules/bootstrap/scss/variables";
-*/
+// BlogArray design system on Bootstrap 6.
+//
+// Bootstrap is configured through `@use ... with ()`. Tokens inside the configuration maps
+// are written unprefixed; PostCSS adds the "bs-" prefix (see postcss.config.js), so the
+// custom CSS below reads them as `var(--bs-*)`.
+//
+// Theming follows the Bootstrap 6 theme model:
+// - The brand color is the `violet` palette hue. The `primary` theme is re-pointed at that
+//   palette with the same token roles Bootstrap uses for its built-in themes, so every
+//   derived token (fg, bg-subtle, bg-muted, border, focus-ring) follows the brand and
+//   adapts to light and dark mode through light-dark().
+// - Status themes (success, danger, warning, info) keep Bootstrap's tuned oklch defaults.
+// - Surfaces use the neutral layer scale: bg-body for content, bg-1 for the app canvas.
+@use "../../node_modules/bootstrap/scss/bootstrap" with (
+    $violet: #6A42C2,
+    $theme-colors: (
+        "primary": (
+            "base": var(--violet-500),
+            "fg": light-dark(var(--violet-600), var(--violet-300)),
+            "fg-emphasis": light-dark(var(--violet-800), var(--violet-200)),
+            "bg": var(--violet-500),
+            "bg-subtle": light-dark(var(--violet-050), var(--violet-950)),
+            "bg-muted": light-dark(var(--violet-100), var(--violet-900)),
+            "border": light-dark(var(--violet-200), var(--violet-700)),
+            "focus-ring": light-dark(color-mix(in oklch, var(--violet-500) 45%, var(--bg-body)), color-mix(in oklch, var(--violet-400) 70%, var(--bg-body))),
+            "contrast": var(--white)
+        )
+    ),
+    // Dark mode hairlines: Bootstrap's default (gray-700) reads as a bright line on the dark
+    // surfaces. A translucent white blends with whichever surface it sits on (bg-body,
+    // bg-1, cards), giving a subtle, consistent divider.
+    $root-tokens: (
+        --border-color: light-dark(var(--gray-200), color-mix(in oklch, var(--white) 10%, transparent)),
+    ),
+    // Form controls keep a stronger, opaque edge so input boundaries stay at >= 3:1
+    // non-text contrast (WCAG 1.4.11) in both modes.
+    $form-control-tokens: (
+        --control-border-color: light-dark(var(--gray-300), var(--gray-700)),
+    ),
+    $card-tokens: (
+        --card-cap-bg: var(--bg-body),
+        --card-box-shadow: var(--box-shadow-xs),
+    )
+);
+@use "choices";
 
-$prefix: bs- !default;
-$primary: #6A42C2 !default; //Blue1
-/*$primary: #ee312d !default; //Red*/
-/*$primary: #4124AE !default; //Blue2*/
-/*$primary: #5755d9 !default; //Blue3*/
-
-/*$secondary: #79758f !default;*/
-$success: #107c10 !default;
-$info: $primary !default;
-$warning: #faad14 !default;
-$danger: #d60000 !default;
-$light: #f5f4f8 !default;
-$dark: #18113C !default;
-$box-shadow-base: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
-$border-color: #e2e8f0;
-$border-radius: 0.5rem;
-$focus-ring-width: .15rem !default;
-$spinner-border-width: 2px !default;
-$spinner-animation-speed: 1s;
-$card-bg: var(--#{$prefix}body-bg);
-$card-cap-bg: $card-bg !default;
-$card-border-color: $border-color;
-/*$nav-tabs-link-active-color: $primary;
-$nav-underline-link-active-color: $primary;
-$navbar-light-active-color: $primary;*/
-
-@import "../../node_modules/bootstrap/scss/bootstrap";
-@import "choices.scss";
-
-html {
-    /*overflow-y: scroll;*/
-    font-size: 14px;
-    position: relative;
-    min-height: 100%;
-    /*--cdrn-primary-color: #f92828;
-    --cdrn-primary-color-alpha: rgba(249, 40, 40, .4);
-    --cdrn-primary-color-alpha2: rgba(249, 40, 40, .2);
-    --cdrn-primary-color-active: #e80606;*/
+// ---------------------------------------------------------------------------------------
+// App-level tokens
+// ---------------------------------------------------------------------------------------
+:root,
+:host {
+    --app-navbar-height: 4.1rem;
+    --app-sidenav-width: 16.5rem;
+    --app-sidenav-collapsed-width: 4.5rem;
+    --app-canvas-bg: var(--bs-bg-1);
+    --app-surface-bg: var(--bs-bg-body);
+    --app-hairline: var(--bs-border-color);
+    --app-transition: .2s cubic-bezier(.2, 0, 0, 1);
 }
 
-@media (min-width: 768px) {
-    html {
-        font-size: 16px;
-    }
+// ---------------------------------------------------------------------------------------
+// Base
+// ---------------------------------------------------------------------------------------
+html {
+    position: relative;
+    min-height: 100%;
+}
+
+body {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+    letter-spacing: -.011em;
+}
+
+.spinner-border {
+    --bs-spinner-border-width: 2px;
+}
+
+.required::after {
+    content: "*";
+    padding-inline-start: 2px;
+    font-weight: var(--bs-font-weight-bold);
+    color: var(--bs-danger-fg);
+}
+
+.field-validation-error {
+    font-size: .875em;
+}
+
+.white-space-pre-line {
+    white-space: pre-line;
+}
+
+.bi-mr.bi::before {
+    margin-inline-end: .5rem;
+}
+
+.bi-ml.bi::before {
+    margin-inline-start: .5rem;
 }
 
 .gradient {
-    background: hsla(253, 66%, 50%, 1);
-    background: linear-gradient(225deg, hsla(253, 66%, 50%, 1) 0%, hsla(0, 84%, 56%, 1) 100%, hsla(6, 81%, 54%, 1) 100%, hsla(203, 76%, 77%, 1) 100%);
+    background: linear-gradient(225deg, var(--bs-primary-base), var(--bs-danger-base));
     -webkit-background-clip: text !important;
     -webkit-text-fill-color: transparent !important;
 }
 
-.required:after {
-    content: "*";
-    font-weight: bold;
-    color: red;
-    padding-left: 2px;
-}
-
-.github-color {
-    color: #2c2d30 !important;
-}
-
-.linkedin-color {
-    color: #007bb6 !important;
-}
-
-.btn.github, .btn.github:hover, .btn.github:active, .btn.github.active {
-    background-color: #2c2d30 !important;
-    color: #fff;
-}
-
-.btn.linkedin, .btn.linkedin:hover, .btn.linkedin:active, .btn.linkedin.active {
-    background-color: #007bb6 !important;
-    color: #fff;
-}
-
-.btn.linkedin:hover, .btn.github:hover {
-    opacity: .9 !important;
-    text-decoration: none;
-}
-
-.login-shadow {
-    box-shadow: rgba(0, 0, 0, 0.1) 0px 0px 10px;
-}
-
-.icon-grad {
-    filter: grayscale(1)
-}
-
-.nav-underline .nav-link {
-    border: 2px transparent solid;
-    font-weight: 600 !important;
-}
-
-.loader-backdrop {
-    position: fixed;
-    opacity: .2;
-    top: 0;
-    left: 0;
-    z-index: 1040;
-    width: 100vw;
-    height: 100vh;
-    background-color: #000;
-}
-
-mbe-0 {
-    margin-block-end: 0
-}
-
-.loader-container {
-    position: fixed;
-    z-index: 10000;
-    opacity: 1;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-}
-
-.loader-container .middle {
-    z-index: 10001;
-    top: 50%;
-    left: 50%;
-    margin: 0;
-    position: absolute;
-    transform: translate(-50%,-50%);
-}
-
-.offcanvas.large {
-    min-width: 70% !important;
-}
-
-.offcanvas.medium {
-    min-width: 50% !important;
-}
-
-.list-group-inner-flush .list-group-item:not(:first-child) {
-    border-top-color: transparent;
-    border-bottom-color: transparent;
-}
-
-.list-group-inner-flush .list-group-item:last-child {
-    border-top-color: transparent;
-    border-bottom-color: var(--bs-list-group-border-color);
-}
-
-.dropdown-menu {
-    --bs-dropdown-zindex: 1999;
-    --bs-dropdown-item-border-radius: var(--bs-dropdown-border-radius);
-    --bs-dropdown-link-active-color: rgba(var(--bs-link-color-rgb), 1);
-    --bs-dropdown-link-active-bg: var(--bs-primary-bg-subtle)
-}
-
-@include color-mode(dark, true) {
-    .dropdown-menu {
-        --bs-dropdown-link-active-color: rgba(var(--bs-link-color-rgb), 1);
-        --bs-dropdown-link-active-bg: var(--bs-primary-bg-subtle)
-    }
-}
-
-.dropdown-menu li {
-    margin: 2px 4px;
-}
-
-@media (max-width: 991.98px) {
-    .offcanvas-collapse {
-        position: fixed;
-        top: 56px; /* Height of navbar */
-        bottom: 0;
-        left: 100%;
-        width: 100%;
-        padding-right: 1rem;
-        padding-left: 1rem;
-        overflow-y: auto;
-        visibility: hidden;
-        background-color: #343a40;
-        transition: transform .3s ease-in-out, visibility .3s ease-in-out;
-    }
-
-    .offcanvas-collapse.open {
-        visibility: visible;
-        transform: translateX(-100%);
-    }
-}
-
-.bi-mr.bi::before {
-    margin-right: 0.5rem;
-}
-
-.bi-ml.bi::before {
-    margin-left: 0.5rem;
-}
-
-.field-validation-error {
-    font-size: 0.875em;
-}
-
-.state-icon {
-    font-size: 6rem;
-}
-
-.dropdown-toggle.no-toggle::after {
-    display: none !important;
-}
-
+// ---------------------------------------------------------------------------------------
+// App shell: fixed navbar, collapsible side navigation, content canvas
+// ---------------------------------------------------------------------------------------
 .app-layout {
-    height: 100%;
+    min-height: 100dvh;
+    background-color: var(--app-canvas-bg);
 
     .app-navbar {
-        height: 56px;
+        min-height: var(--app-navbar-height);
+        // Translucent surface: content scrolls under a frosted bar.
+        --bs-navbar-bg: color-mix(in oklch, var(--app-surface-bg) 82%, transparent);
+        backdrop-filter: saturate(180%) blur(12px);
+        border-bottom: var(--bs-border-width) solid var(--app-hairline);
+    }
+
+    // Tenant-branded portals: a thin accent line in the tenant's own color under the shared
+    // navbar (set via the --app-brand-accent custom property on the element).
+    .app-navbar-accent {
+        box-shadow: inset 0 -2px 0 var(--app-brand-accent, transparent);
     }
 
     .app-main {
         width: 100%;
-        margin-top: 56px;
-
-        .app-sidenav {
-            height: 100%;
-            height: 0;
-            display: none;
-            position: fixed;
-            overflow: auto;
-            transition: all;
-            transition-duration: .25s;
-            padding-bottom: 5rem !important;
-        }
-
-        &.open {
-            .app-sidenav {
-                height: 100%;
-                width: 100%;
-                opacity: 100 !important;
-                display: block !important;
-            }
-        }
-
-        .app-container {
-            margin-left: 0;
-        }
+        padding-top: var(--app-navbar-height);
     }
-}
 
-.h-full {
-    height: 100%;
-}
-
-@media (min-width: 768px) {
     .app-sidenav {
-        width: 280px !important;
-        display: block !important;
-        height: 100% !important;
-        transition: width .25s ease;
+        position: fixed;
+        inset-block: var(--app-navbar-height) 0;
+        inset-inline-start: 0;
+        z-index: 1020;
+        display: none;
+        width: 100%;
+        overflow-y: auto;
+        background-color: var(--app-surface-bg);
+        border-inline-end: var(--bs-border-width) solid var(--app-hairline);
+        transition: width var(--app-transition);
+    }
+
+    .app-main.open .app-sidenav {
+        display: flex !important;
     }
 
     .app-container {
-        margin-left: 280px !important;
-        transition: margin-left .25s ease;
+        min-width: 0;
+        transition: margin-inline-start var(--app-transition);
     }
 
-    // Collapsed sidenav: icons only, content column slides with it. State is persisted in
-    // localStorage and toggled from the navbar (toggleSidenav()).
-    .app-main.sidenav-collapsed {
-        .app-sidenav {
-            width: 70px !important;
-            padding-left: .5rem !important;
-            padding-right: .5rem !important;
-
-            .nav-link {
-                text-align: center;
-                padding-left: .5rem;
-                padding-right: .5rem;
-
-                i {
-                    margin-right: 0 !important;
-                }
-
-                .sidenav-label {
-                    display: none;
-                }
-            }
-        }
-
-        .app-container {
-            margin-left: 70px !important;
-        }
+    .app-body {
+        width: 100%;
+        max-width: 90rem;
+        margin-inline: auto;
+        padding-block: 1.5rem;
     }
-}
-
-@media only screen and (max-width: 768px) {
-    .app-layout {
-        .app-sidenav {
-            display: none !important;
-            opacity: 0 !important;
-            width: 100%;
-        }
-    }
-}
-
-.trend-bar {
-    background-color: var(--bs-primary);
-    min-height: 4px;
-    opacity: .85;
-}
-
-.trend-bar:hover {
-    opacity: 1;
-}
-
-.height-50p {
-    height: 50px;
-}
-
-.flex-1 {
-    flex: 1 1 0%;
-}
-
-.pl-11 {
-    padding-left: 2.75rem;
-}
-
-.cursor-pointer {
-    cursor: pointer;
 }
 
 .h-main-app-body {
-    min-height: calc(100vh - 168px);
+    min-height: calc(100dvh - var(--app-navbar-height) - 5rem);
 }
 
-.hoverable-bg {
-    .nav-item .nav-link:hover {
-        --bs-bg-opacity: 0.75;
-        background-color: rgba(var(--bs-secondary-bg-rgb), var(--bs-bg-opacity)) !important;
+// Page title: the first heading of a page body acts as the page header.
+.app-body > h3:first-of-type,
+.app-body > .page-header {
+    margin-bottom: 1.25rem;
+    font-size: var(--bs-font-size-xl);
+    font-weight: var(--bs-font-weight-semibold);
+}
+
+@media (min-width: 768px) {
+    .app-layout {
+        .app-sidenav {
+            display: flex !important;
+            width: var(--app-sidenav-width);
+        }
+
+        .app-container {
+            margin-inline-start: var(--app-sidenav-width);
+        }
+
+        // Collapsed side navigation: an icon rail. Group headings and labels hide, item
+        // icons show. State is persisted in localStorage and toggled from the navbar
+        // (toggleSidenav()).
+        .app-main.sidenav-collapsed {
+            .app-sidenav {
+                width: var(--app-sidenav-collapsed-width);
+                padding-inline: .75rem !important;
+            }
+
+            .app-nav {
+                gap: .5rem;
+            }
+
+            .app-nav-heading,
+            .sidenav-label {
+                display: none;
+            }
+
+            .app-nav .nav {
+                margin-top: 0;
+            }
+
+            .app-nav .nav-link {
+                --bs-nav-link-padding-y: .5rem;
+                justify-content: center;
+                margin-inline-start: 0;
+
+                > .bi {
+                    display: inline-block;
+                    font-size: 1.125rem;
+                }
+            }
+
+            .app-container {
+                margin-inline-start: var(--app-sidenav-collapsed-width);
+            }
+        }
     }
 }
 
-$color_1: white;
+// Side navigation, modeled on the Bootstrap 6 docs sidebar: groups with a semibold
+// heading and a colored icon, followed by a plain vertical .nav. Item states (hover bg-1,
+// active bg-2 + fg-body) are Bootstrap's own .nav-link defaults; only spacing tokens are
+// tuned here. Item icons are reserved for the collapsed icon rail.
+.app-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+    font-size: var(--bs-font-size-sm);
+
+    .nav {
+        --bs-nav-gap: 2px;
+        --bs-nav-link-justify: flex-start;
+        --bs-nav-link-padding-x: .75rem;
+        --bs-nav-link-padding-y: .3125rem;
+        flex-wrap: nowrap;
+        margin-top: .375rem;
+    }
+
+    .nav-link {
+        margin-inline-start: .75rem;
+
+        > .bi {
+            display: none;
+        }
+    }
+}
+
+.app-nav-heading {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-weight: var(--bs-font-weight-semibold);
+    color: var(--bs-fg-body);
+
+    > .bi {
+        font-size: 1rem;
+        line-height: 1;
+        color: var(--app-nav-icon-color, var(--bs-fg-3));
+    }
+}
+
+// Heading icon colors, as in the docs sidebar: light-dark(500, 400) palette steps.
+@each $color in (violet, blue, cyan, teal, green, amber, orange, red, pink) {
+    .app-nav-heading[data-color="#{$color}"] {
+        --app-nav-icon-color: light-dark(var(--bs-#{$color}-500), var(--bs-#{$color}-400));
+    }
+}
+
+// ---------------------------------------------------------------------------------------
+// Components
+// ---------------------------------------------------------------------------------------
+.card {
+    border-color: var(--app-hairline);
+}
+
+.card-header {
+    font-weight: var(--bs-font-weight-semibold);
+}
+
+// List rows (users, tenants, roles…) get a hover affordance.
+.card .list-group-flush > .list-group-item {
+    transition: background-color var(--app-transition);
+
+    &:hover {
+        background-color: var(--bs-bg-1);
+    }
+}
+
+.menu {
+    --bs-menu-zindex: 1999;
+    min-width: 14rem;
+}
+
+.drawer.large {
+    min-width: 70% !important;
+}
+
+.drawer.medium {
+    min-width: 50% !important;
+}
+
+@media (max-width: 767.98px) {
+    .drawer.large,
+    .drawer.medium {
+        min-width: 100% !important;
+    }
+}
+
+// Empty and status states: a soft, theme-tinted icon tile.
+.state-icon {
+    display: inline-grid;
+    place-items: center;
+    width: 4.5rem;
+    height: 4.5rem;
+    margin-bottom: 1rem;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--bs-primary-fg);
+    background-color: var(--bs-primary-bg-subtle);
+    border-radius: var(--bs-radius-9);
+
+    + br {
+        display: none;
+    }
+}
+
+.state-img {
+    width: 100%;
+    max-width: 22rem;
+    height: auto;
+}
+
+.trend-bar {
+    min-height: 4px;
+    background-color: var(--bs-primary-base);
+    border-radius: var(--bs-radius-2) var(--bs-radius-2) 0 0;
+    opacity: .85;
+    transition: opacity var(--app-transition);
+
+    &:hover {
+        opacity: 1;
+    }
+}
 
 .profile-container {
     position: relative;
@@ -348,30 +360,90 @@ $color_1: white;
 
     .change-icon {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        color: $color_1;
+        inset: 0;
         font-size: 1.2rem;
-        opacity: 0;
-        transition: opacity 0.3s ease;
+        color: var(--bs-white);
         cursor: pointer;
+        background: color-mix(in oklch, var(--bs-black) 50%, transparent);
+        opacity: 0;
+        transition: opacity var(--app-transition);
     }
+
+    &:hover .change-icon {
+        opacity: 1;
+    }
+}
+
+// Global AJAX loader
+.loader-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1040;
+    background-color: color-mix(in oklch, var(--bs-bg-body) 55%, transparent);
+    backdrop-filter: blur(2px);
+}
+
+.loader-container {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+}
+
+.loader-container .middle {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 10001;
+    margin: 0;
+    transform: translate(-50%, -50%);
+}
+
+// ---------------------------------------------------------------------------------------
+// Sign-in pages
+// ---------------------------------------------------------------------------------------
+.login-body {
+    min-height: 100dvh;
+    background-color: var(--bs-bg-1);
+    background-image:
+        radial-gradient(60rem 40rem at 10% -10%, color-mix(in oklch, var(--bs-primary-base) 22%, transparent), transparent 70%),
+        radial-gradient(50rem 36rem at 110% 110%, color-mix(in oklch, var(--bs-info-base) 18%, transparent), transparent 70%);
+}
+
+.login-card {
+    background-color: var(--app-surface-bg);
+    border: var(--bs-border-width) solid var(--app-hairline);
+    border-radius: var(--bs-radius-9);
+    box-shadow: var(--bs-box-shadow-lg);
+}
+
+.login-shadow {
+    box-shadow: var(--bs-box-shadow-lg);
+}
+
+.icon-grad {
+    filter: grayscale(1);
+}
+
+// External identity provider buttons
+.btn.github {
+    --bs-btn-bg: #24292f;
+    --bs-btn-color: #fff;
+    color: #fff;
+    background-color: #24292f;
 
     &:hover {
-        .change-icon {
-            opacity: 1;
-        }
+        opacity: .9;
     }
 }
 
-.state-img {
-    max-width: 350px;
-    width: 100%;
-    height: auto;
+// ---------------------------------------------------------------------------------------
+// Color mode picker (see _ColorModeMenu.cshtml and ColorMode in site.js)
+// ---------------------------------------------------------------------------------------
+.color-mode-check {
+    margin-inline-start: auto;
+    visibility: hidden;
 }
-.white-space-pre-line {
-    white-space: pre-line;
+
+.menu-item.active .color-mode-check {
+    visibility: visible;
 }

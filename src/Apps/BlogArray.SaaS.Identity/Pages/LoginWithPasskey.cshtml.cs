@@ -27,11 +27,17 @@ public class LoginWithPasskeyModel(
     ILogger<LoginWithPasskeyModel> logger) : PageModel
 {
     /// <summary>
-    ///     Serialized assertion options for the browser's WebAuthn API (round-tripped through
-    /// TempData so the challenge the server issued is the challenge that gets verified).
+    ///     Serialized assertion options for the browser's WebAuthn API (output only: the
+    /// server keeps its own copy of the challenge, see <see cref="CeremonyId"/>).
     /// </summary>
-    [TempData]
     public string AssertionOptions { get; set; }
+
+    /// <summary>
+    ///     Identifies the server-held, single-use challenge issued with
+    /// <see cref="AssertionOptions"/>; posted back with the assertion.
+    /// </summary>
+    [BindProperty]
+    public string CeremonyId { get; set; }
 
     /// <summary>
     ///     Optional local URL the user is returned to after signing in.
@@ -41,14 +47,14 @@ public class LoginWithPasskeyModel(
 
     public async Task<IActionResult> OnGet()
     {
-        AssertionOptions = await passkeyService.CreatePasswordlessAssertionOptionsJsonAsync();
+        await StartCeremonyAsync();
 
         return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (string.IsNullOrEmpty(AssertionOptions))
+        if (string.IsNullOrEmpty(CeremonyId))
         {
             return RedirectToPage("./Login");
         }
@@ -57,32 +63,53 @@ public class LoginWithPasskeyModel(
 
         try
         {
-            user = await passkeyService.VerifyPasswordlessAssertionAsync(Input?.Response, AssertionOptions);
+            user = await passkeyService.VerifyPasswordlessAssertionAsync(Input?.Response, CeremonyId);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "The passkey could not be verified.");
             ModelState.AddModelError(string.Empty, "The passkey could not be verified. Please try again or use your password to sign in.");
+            await StartCeremonyAsync();
             return Page();
         }
 
-        List<System.Security.Claims.Claim> customClaims =
-        [
-            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.GivenName, user.DisplayName),
-            new System.Security.Claims.Claim("Icon", user.ProfileImage ?? string.Empty),
-            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Gender, user.Gender ?? string.Empty),
-            new System.Security.Claims.Claim("Timezone", user.TimeZone ?? string.Empty),
-            new System.Security.Claims.Claim("Locale", user.LocaleCode ?? string.Empty),
-            new System.Security.Claims.Claim("amr", "webauthn"),
-        ];
+        // The assertion proves possession of the credential, not that the account may sign in:
+        // administrator locks, lockouts and unconfirmed emails apply as on every other path.
+        if (!await signInManager.CanUserSignInAsync(user))
+        {
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(Next), SignInEventTypes.ConditionalAccessBlocked, SignInAuthMethod.Passkey, SignInResultType.Failure, "account locked, disabled or unconfirmed"));
+
+            if (await signInManager.UserManager.IsLockedOutAsync(user))
+            {
+                return RedirectToPage("./Lockout");
+            }
+
+            ModelState.AddModelError(string.Empty, "The passkey could not be verified. Please try again or use your password to sign in.");
+            await StartCeremonyAsync();
+            return Page();
+        }
+
+        List<System.Security.Claims.Claim> customClaims = SignInManagerExtension<ApplicationUser>.BuildProfileClaims(user);
+        customClaims.Add(new System.Security.Claims.Claim("amr", "webauthn"));
 
         // Creates the normal authenticated session (roles/claims via the principal factory).
-        // No two-factor or lockout logic applies: the verified assertion IS the authentication.
+        // No two-factor logic applies: the verified assertion IS the authentication.
         await signInManager.SignInAsync(user, isPersistent: true, customClaims, authenticationMethod: "webauthn");
 
         await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(Next), SignInEventTypes.LoginSucceeded, SignInAuthMethod.Passkey, SignInResultType.Success, "passkey"));
 
         return LocalRedirect(Url.IsLocalUrl(Next) ? Next : Url.Content("~/"));
+    }
+
+    /// <summary>
+    /// Issues a fresh challenge (the previous one, if any, was consumed by verification).
+    /// </summary>
+    private async Task StartCeremonyAsync()
+    {
+        (CeremonyId, AssertionOptions) = await passkeyService.CreatePasswordlessAssertionOptionsJsonAsync();
+
+        // A re-rendered form must carry the new id, not the posted (consumed) one.
+        ModelState.Remove(nameof(CeremonyId));
     }
 
     /// <summary>

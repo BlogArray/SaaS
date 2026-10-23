@@ -115,7 +115,7 @@ public class TenantsController(OpenIdDbContext context,
 
         await manager.CreateAsync(entity, openIdApplication.ClientSecret);
 
-        await AddToCache(entity);
+        await InvalidateTenantCacheAsync(entity);
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantCreated, ClientId: entity.ClientId, Reason: entity.DisplayName));
 
@@ -242,7 +242,7 @@ public class TenantsController(OpenIdDbContext context,
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "basic information updated", OldValueJson: infoOldValueJson, NewValueJson: infoNewValueJson));
 
-        await AddToCache(entity);
+        await InvalidateTenantCacheAsync(entity);
 
         return JsonSuccess("Tenant information updated successfuly");
     }
@@ -311,7 +311,7 @@ public class TenantsController(OpenIdDbContext context,
 
         await manager.UpdateAsync(entity);
 
-        await AddToCache(entity);
+        await InvalidateTenantCacheAsync(entity);
 
         var themeAfter = new { entity.Theme.NavbarColor, entity.Theme.NavbarTextAndIconColor, entity.Theme.PrimaryColor };
         (string? themeOldValueJson, string? themeNewValueJson) = AuditDiff.Changed(themeBefore, themeAfter);
@@ -409,7 +409,7 @@ public class TenantsController(OpenIdDbContext context,
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "security settings updated", OldValueJson: securityOldValueJson, NewValueJson: securityNewValueJson));
 
-        await AddToCache(entity);
+        await InvalidateTenantCacheAsync(entity);
 
         return JsonSuccess("Tenant security information updated successfuly");
     }
@@ -459,7 +459,7 @@ public class TenantsController(OpenIdDbContext context,
 
         await manager.UpdateAsync(openIdApplication);
 
-        await AddToCache(openIdApplication);
+        await InvalidateTenantCacheAsync(openIdApplication);
 
         return result.Status ? JsonSuccess(result.Result) : JsonError("An error occurred while saving your information.");
     }
@@ -547,7 +547,7 @@ public class TenantsController(OpenIdDbContext context,
             }
         }
 
-        await AddToCache(openIdApplication);
+        await InvalidateTenantCacheAsync(openIdApplication);
 
         return PartialView("_RotateKeys", rotateKeys);
     }
@@ -905,28 +905,22 @@ public class TenantsController(OpenIdDbContext context,
 
     #region Cache
 
-    public async Task AddToCache(OpenIdApplication openIdApplication)
+    /// <summary>
+    /// Drops the tenant's cached store entries after a change. The tenant apps' store
+    /// (OpenIdApplicationTenantStore) reloads them from the database on the next request, so
+    /// the cache never has to be written - or hold secrets - from here.
+    /// </summary>
+    private async Task InvalidateTenantCacheAsync(OpenIdApplication openIdApplication)
     {
-        string key = $"__tenant__id__{openIdApplication.Id}";
-        string identifierKey = $"__tenant__identifier__{openIdApplication.ClientId}";
-
-        AppTenantInfo tenentInfo = new()
+        if (!string.IsNullOrEmpty(openIdApplication.Id))
         {
-            Id = openIdApplication.Id,
-            Identifier = openIdApplication.ClientId,
-            Name = openIdApplication.DisplayName,
-            Legalname = openIdApplication.Legalname,
-            ConnectionString = openIdApplication.GetConnectionString(protector),
-            Website = openIdApplication.Website,
-            Favicon = openIdApplication.Theme.Favicon,
-            Logo = openIdApplication.Theme.Logo,
-            PrimaryColor = openIdApplication.Theme.PrimaryColor,
-            APIKey = openIdApplication.APIKeyProtected is null ? null : protector.Unprotect(openIdApplication.APIKeyProtected),
-            ClientSecretProtected = openIdApplication.ClientSecretProtected
-        };
+            await cacheService.RemoveAsync(CacheKeyHelper.GetTenantIdKey(openIdApplication.Id));
+        }
 
-        await cacheService.SetAsync(key, tenentInfo);
-        await cacheService.SetAsync(identifierKey, tenentInfo);
+        if (!string.IsNullOrEmpty(openIdApplication.ClientId))
+        {
+            await cacheService.RemoveAsync(CacheKeyHelper.GetTenantIdentifierKey(openIdApplication.ClientId));
+        }
     }
 
     #endregion Cache

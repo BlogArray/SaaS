@@ -27,7 +27,7 @@
             <li>
                 <p>Use authenticator app to scan the QR Code</p>
                 <div id="qrCode" style="height:150px;"></div>
-                <p class="mt-3">Unable to scan? enter this setup key <kbd>@Model.SharedKey</kbd> into your two factor authenticator app.</p>
+                <p class="mt-5">Unable to scan? enter this setup key <kbd>@Model.SharedKey</kbd> into your two factor authenticator app.</p>
             </li>
             <li>
                 <p>
@@ -35,16 +35,16 @@
                     with a unique code. Enter the code in the confirmation box below.
                 </p>
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="md:col-6">
                         <form id="send-code" method="post">
                             <input type="hidden" asp-for="ReturnUrl" />
-                            <div class="mb-3">
+                            <div class="mb-5">
                                 <label asp-for="Input.Code" class="form-label"></label>
                                 <input asp-for="Input.Code" class="form-control" autocomplete="off" placeholder="Enter the code" />
-                                <span asp-validation-for="Input.Code" class="text-danger"></span>
+                                <span asp-validation-for="Input.Code" class="fg-danger"></span>
                             </div>
-                            <button type="submit" class="btn btn-primary">Verify</button>
-                            <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+                            <button type="submit" class="btn btn-solid theme-primary">Verify</button>
+                            <div asp-validation-summary="ModelOnly" class="fg-danger" role="alert"></div>
                         </form>
                     </div>
                 </div>

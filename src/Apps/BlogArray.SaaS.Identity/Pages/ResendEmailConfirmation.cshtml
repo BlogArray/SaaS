@@ -5,28 +5,28 @@
     Layout = "/Views/Shared/_LoginLayout.cshtml";
 }
 
-<h6 class="text-center mb-3">
+<h6 class="text-center mb-5">
     Resend email confirmation
 </h6>
 <form method="post">
-    <div class="mb-3">
+    <div class="mb-5">
         <label asp-for="Input.Email" class="form-label"></label>
         <input asp-for="Input.Email" class="form-control" aria-required="true" placeholder="Enter your email" />
-        <span asp-validation-for="Input.Email" class="text-danger"></span>
+        <span asp-validation-for="Input.Email" class="fg-danger"></span>
     </div>
     @if (Model.CaptchaEnabled)
     {
-        <div class="cf-turnstile mb-3"
+        <div class="cf-turnstile mb-5"
              data-sitekey="@Model.CaptchaSiteKey"
              data-response-field-name="Input.CaptchaToken"
              data-theme="light">
         </div>
-        <span asp-validation-for="Input.CaptchaToken" class="text-danger"></span>
+        <span asp-validation-for="Input.CaptchaToken" class="fg-danger"></span>
     }
-    <button type="submit" class="w-100 btn btn-primary">Resend</button>
+    <button type="submit" class="w-100 btn btn-solid theme-primary">Resend</button>
 </form>
 
-<div class="text-center mt-3">
+<div class="text-center mt-5">
     <p>
         <a asp-page="./Login">Go back to login</a>
     </p>

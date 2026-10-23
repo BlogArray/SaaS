@@ -35,58 +35,58 @@
      OnFailure = "handleAjaxError"
  }, new { id = "saveUserForm" }))
 {
-    <div class="offcanvas offcanvas-end medium" tabindex="-1" id="userEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
-        <div class="offcanvas-header border-bottom">
+    <dialog class="drawer drawer-end medium" tabindex="-1" id="userEditOffcanvas" aria-labelledby="offcanvasRightLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="drawer-header border-bottom">
             <h5 id="offcanvasRightLabel">
                 Change basic info
             </h5>
-            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close fg-reset" data-bs-dismiss="drawer" aria-label="Close"></button>
         </div>
-        <div class="offcanvas-body">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+        <div class="drawer-body">
+            <div asp-validation-summary="ModelOnly" class="fg-danger"></div>
             <input asp-for="Id" type="hidden" />
             <input asp-for="Email" type="hidden" />
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="FirstName" class="form-label">First name</label>
                 <input asp-for="FirstName" class="form-control" placeholder="First name" />
-                <span asp-validation-for="FirstName" class="text-danger"></span>
+                <span asp-validation-for="FirstName" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="LastName" class="form-label">Last name</label>
                 <input asp-for="LastName" class="form-control" placeholder="Last name" />
-                <span asp-validation-for="LastName" class="text-danger"></span>
+                <span asp-validation-for="LastName" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="DisplayName" class="form-label">Display name</label>
                 <input asp-for="DisplayName" class="form-control" placeholder="Display name" />
-                <span asp-validation-for="DisplayName" class="text-danger"></span>
+                <span asp-validation-for="DisplayName" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="Gender" class="form-label">Gender</label>
-                <select class="form-select" asp-for="Gender" asp-items="genders">
+                <select class="form-control" asp-for="Gender" asp-items="genders">
                 </select>
-                <span asp-validation-for="Gender" class="text-danger"></span>
+                <span asp-validation-for="Gender" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="TimeZone" class="form-label"></label>
-                <select class="form-select" asp-for="TimeZone" asp-items="timeZones">
+                <select class="form-control" asp-for="TimeZone" asp-items="timeZones">
                 </select>
-                <span asp-validation-for="TimeZone" class="text-danger"></span>
+                <span asp-validation-for="TimeZone" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="LocaleCode" class="form-label"></label>
-                <select class="form-select" asp-for="LocaleCode" asp-items="languages">
+                <select class="form-control" asp-for="LocaleCode" asp-items="languages">
                 </select>
-                <span asp-validation-for="LocaleCode" class="text-danger"></span>
+                <span asp-validation-for="LocaleCode" class="fg-danger"></span>
             </div>
         </div>
-        <div class="offcanvas-header border-top">
+        <div class="drawer-footer border-top">
             <div>
-                <input type="submit" value="Update user" class="btn btn-primary" />
-                <input type="button" value="Cancel" class="btn btn-secondary" data-bs-dismiss="offcanvas" aria-label="Close" />
+                <input type="submit" value="Update user" class="btn btn-solid theme-primary" />
+                <input type="button" value="Cancel" class="btn btn-solid theme-secondary" data-bs-dismiss="drawer" aria-label="Close" />
             </div>
         </div>
-    </div>
+    </dialog>
 }
 
 @section Scripts {

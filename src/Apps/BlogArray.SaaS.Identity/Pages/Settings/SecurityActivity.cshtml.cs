@@ -58,7 +58,7 @@ public class SecurityActivityModel(OpenIdDbContext context, UserManager<Applicat
 
     public string ResultBadge(SignInEvent signInEvent)
     {
-        return signInEvent.Result == "Failure" ? "text-bg-danger" : "text-bg-success";
+        return signInEvent.Result == "Failure" ? "theme-danger" : "theme-success";
     }
 
     public string ResultText(SignInEvent signInEvent)

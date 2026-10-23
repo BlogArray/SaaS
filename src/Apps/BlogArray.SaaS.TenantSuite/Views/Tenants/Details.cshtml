@@ -25,9 +25,9 @@
     <div class="card-body">
         @Html.DynamicContentLoader("toolbar", Url.Action("Toolbar", "Tenants", new { @id = Model.Id }))
         @Html.DynamicContentLoader("basicInfo", Url.Action("BasicInfo", "Tenants", new { @id = Model.Id }))
-        <hr class="my-3">
+        <hr class="my-5">
         @Html.DynamicContentLoader("securityInfo", Url.Action("Security", "Tenants", new { @id = Model.Id }))
-        <hr class="my-3">
+        <hr class="my-5">
         @Html.DynamicContentLoader("themeInfo", Url.Action("Theme", "Tenants", new { @id = Model.Id }))
     </div>
 </div>
@@ -41,7 +41,7 @@
     var tenantEditCanvas, newKeysModal;
 
     function tenantEditFormLoaded() {
-        tenantEditCanvas = new bootstrap.Offcanvas(document.getElementById('tenantEditOffcanvas'));
+        tenantEditCanvas = new bootstrap.Drawer(document.getElementById('tenantEditOffcanvas'));
         tenantEditCanvas.show();
     }
 
@@ -71,12 +71,12 @@
     }
 
     function onKeysGenerateSuccess() {
-        newKeysModal = new bootstrap.Modal(document.getElementById('keysModal'));
+        newKeysModal = new bootstrap.Dialog(document.getElementById('keysModal'));
         newKeysModal.show();
     }
 
     function rotatePromptLoaded() {
-        let rotatePromptModal = new bootstrap.Modal(document.getElementById('rotatePromptModal'));
+        let rotatePromptModal = new bootstrap.Dialog(document.getElementById('rotatePromptModal'));
         rotatePromptModal.show();
     }
 

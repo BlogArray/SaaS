@@ -5,18 +5,19 @@
 }
 
 <div class="app-layout">
-    <nav class="navbar navbar-expand-lg fixed-top bg-body app-navbar border-bottom">
+    <nav class="navbar lg:navbar-expand fixed-top app-navbar">
         <div class="container-fluid">
-            <button class="navbar-toggler border-0" type="button" aria-label="Toggle navigation"
+            <button class="navbar-toggler btn-icon border-0" type="button" aria-label="Toggle navigation"
                     onclick="toggleMobileMenu()">
                 <i class="bi bi-list"></i>
             </button>
             <a class="navbar-brand" style="font-size:1.5rem" asp-area="" asp-controller="Settings" asp-action="Index">
                 <img src="~/_content/BlogArray.SaaS.Resources/resources/images/blogarray-full-logo.png" alt="Logo" height="30"
                      class="d-inline-block align-text-top">
-                <span class="mx-1 d-none d-md-inline fw-normal">Identity</span>
+                <span class="mx-1 d-none md:d-inline fw-normal">Identity</span>
             </a>
-            <div class="text-end d-flex align-items-center">
+            <div class="ms-auto text-end d-flex align-items-center gap-1">
+                <partial name="_ColorModeMenu" />
                 @if (User.Identity.IsAuthenticated)
                 {
                     <partial name="_LoginPartial" />

@@ -7,7 +7,7 @@
    {
        UpdateTargetId = "changeUserInfo",
        OnSuccess = "userEditFormLoaded"
-   }, new { @class = "bi-mr bi bi-pencil btn btn-primary btn-sm" })
+   }, new { @class = "bi-mr bi bi-pencil btn btn-solid theme-primary btn-sm" })
     </div>
 </div>
 <p>
@@ -16,49 +16,49 @@
 
 <h6 class="fw-bolder">Personal Details</h6>
 <dl class="row">
-    <dt class="col-md-3 fw-medium">First name</dt>
-    <dd class="col-md-9">@Model.FirstName</dd>
-    <dt class="col-md-3 fw-medium">Last name</dt>
-    <dd class="col-md-9">@Model.LastName</dd>
-    <dt class="col-md-3 fw-medium">Display name</dt>
-    <dd class="col-md-9">@Model.DisplayName</dd>
-    <dt class="col-md-3 fw-medium">Gender</dt>
-    <dd class="col-md-9">@Model.Gender</dd>
-    <dt class="col-md-3 fw-medium">Time zone</dt>
-    <dd class="col-md-9">@Model.TimeZone</dd>
-    <dt class="col-md-3 fw-medium">Language</dt>
-    <dd class="col-md-9">@Model.LocaleCode</dd>
+    <dt class="md:col-3 fw-medium">First name</dt>
+    <dd class="md:col-9">@Model.FirstName</dd>
+    <dt class="md:col-3 fw-medium">Last name</dt>
+    <dd class="md:col-9">@Model.LastName</dd>
+    <dt class="md:col-3 fw-medium">Display name</dt>
+    <dd class="md:col-9">@Model.DisplayName</dd>
+    <dt class="md:col-3 fw-medium">Gender</dt>
+    <dd class="md:col-9">@Model.Gender</dd>
+    <dt class="md:col-3 fw-medium">Time zone</dt>
+    <dd class="md:col-9">@Model.TimeZone</dd>
+    <dt class="md:col-3 fw-medium">Language</dt>
+    <dd class="md:col-9">@Model.LocaleCode</dd>
 </dl>
 
 <h6 class="fw-bolder">Contact Information</h6>
 <dl class="row">
-    <dt class="col-md-3 fw-medium">Email</dt>
-    <dd class="col-md-9">@Model.Email</dd>
-    <dt class="col-md-3 fw-medium">Email confirmed</dt>
-    <dd class="col-md-9">@Html.DisplayFor(m => m.EmailConfirmed, "YesNo")</dd>
-    <dt class="col-md-3 fw-medium">Phone number</dt>
-    <dd class="col-md-9">@Model.PhoneNumber</dd>
-    <dt class="col-md-3 fw-medium">Phone number confirmed</dt>
-    <dd class="col-md-9">@Html.DisplayFor(m => m.PhoneNumberConfirmed, "YesNo")</dd>
+    <dt class="md:col-3 fw-medium">Email</dt>
+    <dd class="md:col-9">@Model.Email</dd>
+    <dt class="md:col-3 fw-medium">Email confirmed</dt>
+    <dd class="md:col-9">@Html.DisplayFor(m => m.EmailConfirmed, "YesNo")</dd>
+    <dt class="md:col-3 fw-medium">Phone number</dt>
+    <dd class="md:col-9">@Model.PhoneNumber</dd>
+    <dt class="md:col-3 fw-medium">Phone number confirmed</dt>
+    <dd class="md:col-9">@Html.DisplayFor(m => m.PhoneNumberConfirmed, "YesNo")</dd>
 </dl>
 
 <h6 class="fw-bolder">Account Details</h6>
 <dl class="row">
-    <dt class="col-md-3 fw-medium">Account status</dt>
-    <dd class="col-md-9">
+    <dt class="md:col-3 fw-medium">Account status</dt>
+    <dd class="md:col-9">
         @Html.DisplayFor(m => m.IsActive, "BooleanBadge")
     </dd>
-    <dt class="col-md-3 fw-medium">Username</dt>
-    <dd class="col-md-9">@Model.UserName</dd>
-    <dt class="col-md-3 fw-medium">MFA enabled</dt>
-    <dd class="col-md-9">@Html.DisplayFor(m => m.TwoFactorEnabled, "YesNo")</dd>
-    <dt class="col-md-3 fw-medium">Access failed count</dt>
-    <dd class="col-md-9">@Model.AccessFailedCount</dd>
-    <dt class="col-md-3 fw-medium">Lockout enabled</dt>
-    <dd class="col-md-9">@Html.DisplayFor(m => m.LockoutEnabled, "YesNo")</dd>
+    <dt class="md:col-3 fw-medium">Username</dt>
+    <dd class="md:col-9">@Model.UserName</dd>
+    <dt class="md:col-3 fw-medium">MFA enabled</dt>
+    <dd class="md:col-9">@Html.DisplayFor(m => m.TwoFactorEnabled, "YesNo")</dd>
+    <dt class="md:col-3 fw-medium">Access failed count</dt>
+    <dd class="md:col-9">@Model.AccessFailedCount</dd>
+    <dt class="md:col-3 fw-medium">Lockout enabled</dt>
+    <dd class="md:col-9">@Html.DisplayFor(m => m.LockoutEnabled, "YesNo")</dd>
     @if (Model.LockoutEnabled)
     {
-        <dt class="col-md-3 fw-medium">Lockout end</dt>
-        <dd class="col-md-9">@Model.LockoutEnd</dd>
+        <dt class="md:col-3 fw-medium">Lockout end</dt>
+        <dd class="md:col-9">@Model.LockoutEnd</dd>
     }
 </dl>

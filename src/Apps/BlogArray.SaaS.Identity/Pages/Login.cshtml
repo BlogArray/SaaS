@@ -8,29 +8,29 @@
 
 <section>
     <form id="account" method="post">
-        <h6 class="text-center mb-3">
+        <h6 class="text-center mb-5">
             Enter your email to continue
         </h6>
-        <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-        <div class="mb-3">
+        <div asp-validation-summary="ModelOnly" class="fg-danger" role="alert"></div>
+        <div class="mb-5">
             <label asp-for="Input.Email" class="form-label">Email</label>
             <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="Enter your email" />
-            <span asp-validation-for="Input.Email" class="text-danger"></span>
+            <span asp-validation-for="Input.Email" class="fg-danger"></span>
         </div>
 
-        <p class="small text-secondary">
+        <p class="small fg-secondary">
             By clicking "Next", you agree to BlogArray <a href="https://help.blogarray.com/docs/site-policy/terms-of-use/" target="_blank">Terms of use</a> and <a href="https://help.blogarray.com/docs/site-policy/privacy-policy/" target="_blank">Privacy Policy</a>.
         </p>
-        <button id="login-submit" type="submit" class="w-100 btn btn-primary">Next</button>
+        <button id="login-submit" type="submit" class="w-100 btn btn-solid theme-primary">Next</button>
 
-        <div class="d-flex align-items-center my-3">
+        <div class="d-flex align-items-center my-5">
             <hr class="flex-grow-1">
-            <span class="small text-secondary px-2">or</span>
+            <span class="small fg-secondary px-3">or</span>
             <hr class="flex-grow-1">
         </div>
 
         <a id="passkey-signin" asp-page="./LoginWithPasskey" asp-route-next="@Model.Next"
-           class="w-100 btn btn-outline-primary" style="display:none;">
+           class="w-100 btn btn-outline theme-primary" style="display:none;">
             <i class="bi bi-fingerprint me-1"></i> Sign in with a passkey
         </a>
     </form>

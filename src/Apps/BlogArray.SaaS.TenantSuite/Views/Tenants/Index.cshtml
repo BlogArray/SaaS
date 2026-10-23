@@ -7,25 +7,25 @@
 <h3>Tenants</h3>
 <div class="card">
     <div class="card-header">
-        <div class="row gx-3">
+        <div class="row gx-5">
             <div class="col">
                 <form asp-action="Index" method="get">
                     <div class="input-group">
                         <input type="text" name="term" id="term" value="@searchTerm" class="form-control" placeholder="Search..." aria-label="Search..." aria-describedby="search-addon">
-                        <button class="btn btn-outline-secondary" type="submit" id="search-addon">
+                        <button class="btn btn-subtle theme-secondary" type="submit" id="search-addon">
                             <div class="d-flex">
-                                <i class="bi bi-search d-md-none"></i>
-                                <span class="d-none d-md-block">Search</span>
+                                <i class="bi bi-search md:d-none"></i>
+                                <span class="d-none md:d-block">Search</span>
                             </div>
                         </button>
                     </div>
                 </form>
             </div>
             <div class="col-auto">
-                <a asp-action="Create" class="btn btn-primary">
+                <a asp-action="Create" class="btn btn-solid theme-primary">
                     <div class="d-flex">
                         <i class="bi bi-building-add"></i>
-                        <span class="d-none d-md-block ms-2">Create new</span>
+                        <span class="d-none md:d-block ms-3">Create new</span>
                     </div>
                 </a>
             </div>
@@ -35,15 +35,15 @@
         <div class="list-group list-group-flush">
             @if (Model.Count() == 0)
             {
-                <div class="p-5 text-center">
+                <div class="p-12 text-center">
                     @if (searchTerm?.Length > 0)
                     {
                         <i class="state-icon bi bi-search"></i>
                         <br />
-                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                        <p class="fg-body fs-xl fw-semibold mb-0">
                             No matching results.
                         </p>
-                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                        <p class="lg:col-8 mx-auto fs-md fg-secondary">
                             Try adjusting your search or create new one.
                         </p>
                     }
@@ -51,15 +51,15 @@
                     {
                         <i class="state-icon bi bi-inbox"></i>
                         <br />
-                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                        <p class="fg-body fs-xl fw-semibold mb-0">
                             It looks a bit empty here!
                         </p>
-                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                        <p class="lg:col-8 mx-auto fs-md fg-secondary">
                             Start by adding new data or explore other areas.
                         </p>
                     }
-                    <div class="d-inline-flex gap-2 mb-5">
-                        <a asp-action="Create" class="d-inline-flex align-items-center btn btn-primary px-4 rounded-pill bi bi-plus-lg bi-mr" type="button">
+                    <div class="d-inline-flex gap-3 mb-12">
+                        <a asp-action="Create" class="d-inline-flex align-items-center btn btn-solid theme-primary px-7 rounded-pill bi bi-plus-lg bi-mr" type="button">
                             Create new tenant
                         </a>
                     </div>
@@ -68,11 +68,11 @@
             @foreach (var item in Model)
             {
                 <div class="list-group-item d-flex justify-content-between align-items-center p-0" aria-current="true">
-                    <div class="d-flex gap-3 py-3">
+                    <div class="d-flex gap-5 py-5">
                         <a asp-action="Details" asp-route-id="@item.Id">
                             <img id="headerProfileViewImage" src="@item.Icon" alt="profile image" width="48" height="48" class="flex-shrink-0">
                         </a>
-                        <div class="d-flex gap-2 w-100 justify-content-between">
+                        <div class="d-flex gap-3 w-100 justify-content-between">
                             <div>
                                 <h6 class="mb-0">
                                     <a asp-action="Details" asp-route-id="@item.Id">
@@ -90,7 +90,7 @@
 </div>
 @if (Model.Count() > 0)
 {
-    <div class="mt-2">
+    <div class="mt-3">
         @Html.Pager((IPager)Model, page => Url.Action("Index", "Tenants", new { page, take = ViewBag.Take, term = ViewBag.SearchTerm }), PrePagerOptions.MinimalWithEntriesText)
     </div>
 }
@@ -99,51 +99,47 @@
 {
     string? emailFailed = TempData["EmailFailed"] as string;
 
-    <div class="modal fade" id="createdTenantModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="createdTenantModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h1 class="modal-title fs-5" id="createdTenantModalLabel">Tenant @TempData["CreatedTenantName"] created</h1>
-                </div>
-                <div class="modal-body">
-                    @if (emailFailed != null)
-                    {
-                        <div class="alert alert-warning py-2">@emailFailed</div>
-                    }
-                    else
-                    {
-                        <div class="alert alert-success py-2">The credentials have been emailed to the tenant administrators.</div>
-                    }
-                    <div class="mb-3">
-                        <label for="createdClientSecret" class="form-label">Client Secret</label>
-                        <div class="input-group">
-                            <input type="text" id="createdClientSecret" class="form-control" value="@TempData["CreatedClientSecret"]" readonly>
-                            <button class="btn btn-outline-secondary" type="button" onclick="copyCreated('createdClientSecret', 'The client secret has been copied to your clipboard!')">
-                                <i class="bi bi-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="createdApiKey" class="form-label">API Key</label>
-                        <div class="input-group">
-                            <input type="text" id="createdApiKey" class="form-control" value="@createdApiKey" readonly>
-                            <button class="btn btn-outline-secondary" type="button" onclick="copyCreated('createdApiKey', 'The api key has been copied to your clipboard!')">
-                                <i class="bi bi-copy"></i>
-                            </button>
-                        </div>
-                    </div>
-                    <small class="form-text text-muted">Please save these securely. They won’t be shown or emailed again.</small>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">I understand and copied the credentials</button>
+    <dialog class="dialog dialog-scrollable" id="createdTenantModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="createdTenantModalLabel">
+        <div class="dialog-header">
+            <h1 class="dialog-title fs-lg" id="createdTenantModalLabel">Tenant @TempData["CreatedTenantName"] created</h1>
+        </div>
+        <div class="dialog-body">
+            @if (emailFailed != null)
+            {
+                <div class="alert theme-warning py-3">@emailFailed</div>
+            }
+            else
+            {
+                <div class="alert theme-success py-3">The credentials have been emailed to the tenant administrators.</div>
+            }
+            <div class="mb-5">
+                <label for="createdClientSecret" class="form-label">Client Secret</label>
+                <div class="input-group">
+                    <input type="text" id="createdClientSecret" class="form-control" value="@TempData["CreatedClientSecret"]" readonly>
+                    <button class="btn btn-subtle theme-secondary" type="button" onclick="copyCreated('createdClientSecret', 'The client secret has been copied to your clipboard!')">
+                        <i class="bi bi-copy"></i>
+                    </button>
                 </div>
             </div>
+            <div class="mb-5">
+                <label for="createdApiKey" class="form-label">API Key</label>
+                <div class="input-group">
+                    <input type="text" id="createdApiKey" class="form-control" value="@createdApiKey" readonly>
+                    <button class="btn btn-subtle theme-secondary" type="button" onclick="copyCreated('createdApiKey', 'The api key has been copied to your clipboard!')">
+                        <i class="bi bi-copy"></i>
+                    </button>
+                </div>
+            </div>
+            <small class="form-text fg-secondary">Please save these securely. They won’t be shown or emailed again.</small>
         </div>
-    </div>
+        <div class="dialog-footer">
+            <button type="button" class="btn btn-solid theme-primary" data-bs-dismiss="dialog">I understand and copied the credentials</button>
+        </div>
+    </dialog>
 
     <script>
         $(document).ready(function () {
-            new bootstrap.Modal(document.getElementById('createdTenantModal')).show();
+            new bootstrap.Dialog(document.getElementById('createdTenantModal')).show();
         });
 
         function copyCreated(elementId, message) {

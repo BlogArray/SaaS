@@ -7,29 +7,29 @@
    {
        UpdateTargetId = "changeTenantInfo",
        OnSuccess = "tenantEditFormLoaded"
-   }, new { @class = "bi-mr bi bi-pencil btn btn-primary btn-sm" })
+   }, new { @class = "bi-mr bi bi-pencil btn btn-solid theme-primary btn-sm" })
     </div>
 </div>
 <p>
     Configure security options for the tenant
 </p>
 <dl class="row">
-    <dt class="col-md-3 fw-medium">Social login @* Users can able to login using social accounts like microsoft, google, etc. *@</dt>
-    <dd class="col-md-9">@Html.DisplayFor(m => m.IsSocialAuthEnabled, "YesNo")</dd>
-    <dt class="col-md-3 fw-medium">Enforce MFA @* Enforce MFA for users for enhanced security *@</dt>
-    <dd class="col-md-9">@Html.DisplayFor(m => m.IsMfaEnforced, "YesNo")</dd>
-    <dt class="col-md-3 fw-medium">Enable SSO using SAML</dt>
-    <dd class="col-md-9">@Html.DisplayFor(m => m.IsSsoEnabled, "YesNo")</dd>
+    <dt class="md:col-3 fw-medium">Social login @* Users can able to login using social accounts like microsoft, google, etc. *@</dt>
+    <dd class="md:col-9">@Html.DisplayFor(m => m.IsSocialAuthEnabled, "YesNo")</dd>
+    <dt class="md:col-3 fw-medium">Enforce MFA @* Enforce MFA for users for enhanced security *@</dt>
+    <dd class="md:col-9">@Html.DisplayFor(m => m.IsMfaEnforced, "YesNo")</dd>
+    <dt class="md:col-3 fw-medium">Enable SSO using SAML</dt>
+    <dd class="md:col-9">@Html.DisplayFor(m => m.IsSsoEnabled, "YesNo")</dd>
     @if (Model.IsSsoEnabled)
     {
-        <dt class="col-md-3 fw-medium">Sign-in URL</dt>
-        <dd class="col-md-9">@Model.SsoSignInUrl</dd>
-        <dt class="col-md-3 fw-medium">Sign-out URL</dt>
-        <dd class="col-md-9">@Model.SsoSignOutUrl</dd>
-        <dt class="col-md-3 fw-medium">Entity Id</dt>
-        <dd class="col-md-9">@Model.SsoEntityId</dd>
-        <dt class="col-md-3 fw-medium">X.509 Certificate</dt>
-        <dd class="col-md-9">
+        <dt class="md:col-3 fw-medium">Sign-in URL</dt>
+        <dd class="md:col-9">@Model.SsoSignInUrl</dd>
+        <dt class="md:col-3 fw-medium">Sign-out URL</dt>
+        <dd class="md:col-9">@Model.SsoSignOutUrl</dd>
+        <dt class="md:col-3 fw-medium">Entity Id</dt>
+        <dd class="md:col-9">@Model.SsoEntityId</dd>
+        <dt class="md:col-3 fw-medium">X.509 Certificate</dt>
+        <dd class="md:col-9">
             @if (Model.SsoX509Certificate?.Length > 0)
             {
                 <span>Configured</span>

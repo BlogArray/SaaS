@@ -86,32 +86,66 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
     }
 
     /// <summary>
-    /// True when the user arrived from the sign-in flow with a temporary password: the email
-    /// query parameter is only passed by that flow, so an explanatory message is shown.
-    /// Bound through a hidden field so the distinction survives the POST.
+    /// True when the user signed in with a temporary password and holds the restricted
+    /// password-change cookie. Derived server-side from that cookie on every request (never
+    /// from posted data); an explanatory message is shown and the email is fixed.
     /// </summary>
-    [BindProperty]
     public bool IsTemporaryPasswordSignIn { get; set; }
 
-    public IActionResult OnGet(string code = null, string email = null)
+    /// <summary>
+    /// The user holding the restricted password-change cookie, or null outside that flow.
+    /// </summary>
+    private async Task<ApplicationUser> GetPasswordChangeUserAsync()
     {
+        AuthenticateResult restricted = await HttpContext.AuthenticateAsync(MfaEnrollmentDefaults.Scheme);
+
+        if (!restricted.Succeeded || !restricted.Principal.HasClaim(c => c.Type == MfaEnrollmentDefaults.PasswordChangeRequiredClaimType))
+        {
+            return null;
+        }
+
+        string userId = restricted.Principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        return string.IsNullOrEmpty(userId) ? null : await userManager.FindByIdAsync(userId);
+    }
+
+    public async Task<IActionResult> OnGetAsync(string code = null)
+    {
+        ApplicationUser passwordChangeUser = await GetPasswordChangeUserAsync();
+
+        if (passwordChangeUser is not null)
+        {
+            // Temporary-password flow: the password was just verified at sign-in, so the reset
+            // token is issued here rather than emailed.
+            IsTemporaryPasswordSignIn = true;
+
+            Input = new InputModel
+            {
+                Code = await userManager.GeneratePasswordResetTokenAsync(passwordChangeUser),
+                Email = passwordChangeUser.Email
+            };
+
+            return Page();
+        }
+
         if (code == null)
         {
             return BadRequest("A code must be supplied for password reset.");
         }
 
-        IsTemporaryPasswordSignIn = !string.IsNullOrEmpty(email);
-
         Input = new InputModel
         {
-            Code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code)),
-            Email = email
+            Code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code))
         };
         return Page();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
+        ApplicationUser passwordChangeUser = await GetPasswordChangeUserAsync();
+
+        IsTemporaryPasswordSignIn = passwordChangeUser is not null;
+
         if (!ModelState.IsValid)
         {
             return Page();
@@ -125,7 +159,9 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
             return Page();
         }
 
-        ApplicationUser user = await userManager.FindByEmailAsync(Input.Email);
+        // In the temporary-password flow the account is the one that just signed in, never the
+        // posted email.
+        ApplicationUser user = passwordChangeUser ?? await userManager.FindByEmailAsync(Input.Email);
         if (user == null)
         {
             // Don't reveal that the user does not exist
@@ -157,6 +193,12 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
             if (updated)
             {
                 await userManager.UpdateAsync(user);
+            }
+
+            // The restricted state is consumed: the user signs in again with the new password.
+            if (IsTemporaryPasswordSignIn)
+            {
+                await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
             }
 
             await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.PasswordReset));

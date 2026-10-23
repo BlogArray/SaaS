@@ -56,6 +56,42 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         return await UserManager.CheckPasswordAsync(user, password);
     }
 
+    /// <summary>
+    /// Adds the account's active flag to the framework checks (confirmed email/account). This
+    /// runs inside PreSignInCheck, so every sign-in path built on it (password, external,
+    /// two-factor) refuses disabled accounts with <see cref="SignInResult.NotAllowed"/>.
+    /// </summary>
+    public override async Task<bool> CanSignInAsync(ApplicationUser user)
+    {
+        return user.IsActive && await base.CanSignInAsync(user);
+    }
+
+    /// <summary>
+    /// True when the user may hold a session or receive tokens right now: active, confirmed
+    /// and not locked out. Used by paths that bypass PreSignInCheck (passkeys, SAML, the
+    /// authorize and token endpoints).
+    /// </summary>
+    public virtual async Task<bool> CanUserSignInAsync(ApplicationUser user)
+    {
+        return await CanSignInAsync(user) && !await IsLockedOut(user);
+    }
+
+    /// <summary>
+    /// The profile claims every sign-in adds to the principal. Profile fields are optional
+    /// (invited users have none), and a claim value can never be null.
+    /// </summary>
+    public static List<Claim> BuildProfileClaims(ApplicationUser user)
+    {
+        return
+        [
+            new Claim(ClaimTypes.GivenName, user.DisplayName ?? user.Email ?? string.Empty),
+            new Claim("Icon", user.ProfileImage ?? string.Empty),
+            new Claim(ClaimTypes.Gender, user.Gender ?? string.Empty),
+            new Claim("Timezone", user.TimeZone ?? string.Empty),
+            new Claim("Locale", user.LocaleCode ?? string.Empty),
+        ];
+    }
+
     public virtual async Task<SignInResult> PasswordSignInAsync(ApplicationUser user, string password, bool isPersistent, bool lockoutOnFailure, List<Claim> customClaims)
     {
         ArgumentNullException.ThrowIfNull(user);
@@ -99,15 +135,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
             return error;
         }
 
-        List<Claim> customClaims =
-        [
-            new Claim(ClaimTypes.GivenName, user.DisplayName),
-            new Claim("Icon", user.ProfileImage),
-            new Claim(ClaimTypes.Gender, user.Gender),
-            new Claim("Timezone", user.TimeZone),
-            new Claim("Locale", user.LocaleCode),
-        ];
-        return await SignInOrTwoFactorAsync(user, isPersistent, customClaims, loginProvider, bypassTwoFactor);
+        return await SignInOrTwoFactorAsync(user, isPersistent, BuildProfileClaims(user), loginProvider, bypassTwoFactor);
     }
 
     /// <summary>
@@ -120,14 +148,7 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     {
         AuthenticateResult? auth = await Context.AuthenticateAsync(AuthenticationScheme);
 
-        List<Claim> claims =
-        [
-            new Claim(ClaimTypes.GivenName, user.DisplayName),
-            new Claim("Icon", user.ProfileImage),
-            new Claim(ClaimTypes.Gender, user.Gender),
-            new Claim("Timezone", user.TimeZone),
-            new Claim("Locale", user.LocaleCode),
-        ];
+        List<Claim> claims = BuildProfileClaims(user);
 
         Claim? authenticationMethod = auth?.Principal?.FindFirst(ClaimTypes.AuthenticationMethod);
         Claim? amr = auth?.Principal?.FindFirst("amr");

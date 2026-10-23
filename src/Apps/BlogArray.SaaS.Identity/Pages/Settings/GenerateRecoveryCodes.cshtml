@@ -12,7 +12,7 @@
         <h3 class="mb-0">Generate 2FA recovery codes</h3>
     </div>
     <div class="card-body">
-        <div class="alert alert-warning" role="alert">
+        <div class="alert theme-warning" role="alert">
             <p>
                 <i class="bi bi-exclamation-triangle"></i>
                 <strong>Put these codes in a safe place.</strong>
@@ -31,13 +31,13 @@
         </div>
         <div>
             <form method="post">
-                <div class="mb-3">
+                <div class="mb-5">
                     <label class="form-label" for="Input_Password">Confirm with your password</label>
                     <input asp-for="Input.Password" class="form-control" autocomplete="current-password" />
-                    <span asp-validation-for="Input.Password" class="text-danger"></span>
+                    <span asp-validation-for="Input.Password" class="fg-danger"></span>
                     <div class="form-text">Re-enter your password to confirm this security change.</div>
                 </div>
-                <button class="btn btn-primary" type="submit">Generate Recovery Codes</button>
+                <button class="btn btn-solid theme-primary" type="submit">Generate Recovery Codes</button>
             </form>
         </div>
 

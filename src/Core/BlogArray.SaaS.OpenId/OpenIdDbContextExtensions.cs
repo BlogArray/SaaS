@@ -158,6 +158,13 @@ public static class OpenIdDbContextExtensions
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<UsedSamlAssertion>(entity =>
+        {
+            entity.Property(assertion => assertion.Id).HasMaxLength(64);
+            // Expired rows are purged by expiry on each accepted assertion.
+            entity.HasIndex(assertion => assertion.ExpiresOn);
+        });
+
     }
 
     public static void AddOpenIdModifications(this ModelBuilder builder)

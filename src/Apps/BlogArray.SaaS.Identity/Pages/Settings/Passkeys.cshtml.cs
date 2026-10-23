@@ -50,14 +50,14 @@ public class PasskeysModel(
             return NotFound();
         }
 
-        string optionsJson = await passkeyService.CreateRegistrationOptionsJsonAsync(user);
+        (string ceremonyId, string optionsJson) = await passkeyService.CreateRegistrationOptionsJsonAsync(user);
 
-        // The client echoes both the options and the authenticator's response back; the
-        // challenge embedded in the options is what makes the ceremony verifiable.
-        return new JsonResult(new { options = optionsJson });
+        // The server keeps the issued options (and challenge); the client posts back only the
+        // ceremony id with the authenticator's response.
+        return new JsonResult(new { options = optionsJson, ceremonyId });
     }
 
-    public async Task<IActionResult> OnPostRegisterAsync(string response, string options)
+    public async Task<IActionResult> OnPostRegisterAsync(string response, string ceremonyId)
     {
         ApplicationUser user = await userManager.GetUserAsync(User);
         if (user == null)
@@ -67,7 +67,7 @@ public class PasskeysModel(
 
         try
         {
-            WebAuthnCredential credential = await passkeyService.VerifyRegistrationAsync(user, response, options);
+            WebAuthnCredential credential = await passkeyService.VerifyRegistrationAsync(user, response, ceremonyId);
 
             // Passkeys are a standalone passwordless authentication method and are
             // intentionally independent of the TwoFactorEnabled flag: registering one does

@@ -8,25 +8,25 @@
 
 <div class="card">
     <div class="card-header">
-        <div class="row gx-3">
+        <div class="row gx-5">
             <div class="col">
                 <form asp-action="Index" method="get">
                     <div class="input-group">
                         <input type="text" name="term" id="term" value="@searchTerm" class="form-control" placeholder="Search..." aria-label="Search..." aria-describedby="search-addon">
-                        <button class="btn btn-outline-secondary" type="submit" id="search-addon">
+                        <button class="btn btn-subtle theme-secondary" type="submit" id="search-addon">
                             <div class="d-flex">
-                                <i class="bi bi-search d-md-none"></i>
-                                <span class="d-none d-md-block">Search</span>
+                                <i class="bi bi-search md:d-none"></i>
+                                <span class="d-none md:d-block">Search</span>
                             </div>
                         </button>
                     </div>
                 </form>
             </div>
             <div class="col-auto">
-                <a asp-action="Create" class="btn btn-primary">
+                <a asp-action="Create" class="btn btn-solid theme-primary">
                     <div class="d-flex">
                         <i class="bi bi-plus-lg"></i>
-                        <span class="d-none d-md-block ms-2">Create new</span>
+                        <span class="d-none md:d-block ms-3">Create new</span>
                     </div>
                 </a>
             </div>
@@ -36,15 +36,15 @@
         <div class="list-group list-group-flush">
             @if (Model.Count() == 0)
             {
-                <div class="p-5 text-center">
+                <div class="p-12 text-center">
                     @if (searchTerm?.Length > 0)
                     {
                         <i class="state-icon bi bi-search"></i>
                         <br />
-                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                        <p class="fg-body fs-xl fw-semibold mb-0">
                             No matching results.
                         </p>
-                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                        <p class="lg:col-8 mx-auto fs-md fg-secondary">
                             Try adjusting your search or create new one.
                         </p>
                     }
@@ -52,15 +52,15 @@
                     {
                         <i class="state-icon bi bi-inbox"></i>
                         <br />
-                        <p class="text-body-emphasis fs-4 fw-semibold mb-0">
+                        <p class="fg-body fs-xl fw-semibold mb-0">
                             It looks a bit empty here!
                         </p>
-                        <p class="col-lg-8 mx-auto fs-6 text-muted">
+                        <p class="lg:col-8 mx-auto fs-md fg-secondary">
                             Start by adding new data or explore other areas.
                         </p>
                     }
-                    <div class="d-inline-flex gap-2 mb-5">
-                        <a asp-action="Create" class="d-inline-flex align-items-center btn btn-primary px-4 rounded-pill bi bi-plus-lg bi-mr" type="button">
+                    <div class="d-inline-flex gap-3 mb-12">
+                        <a asp-action="Create" class="d-inline-flex align-items-center btn btn-solid theme-primary px-7 rounded-pill bi bi-plus-lg bi-mr" type="button">
                             Create new scope
                         </a>
                     </div>
@@ -69,8 +69,8 @@
             @foreach (var item in Model)
             {
                 <div class="list-group-item d-flex justify-content-between align-items-center p-0" aria-current="true">
-                    <div class="d-flex gap-3 py-3">
-                        <div class="d-flex gap-2 w-100 justify-content-between">
+                    <div class="d-flex gap-5 py-5">
+                        <div class="d-flex gap-3 w-100 justify-content-between">
                             <div>
                                 <h6 class="mb-0">
                                     <a asp-action="Edit" asp-route-id="@item.Id">
@@ -82,10 +82,10 @@
                         </div>
                     </div>
                     <div>
-                        <a asp-action="Edit" class="btn btn-sm btn-light" asp-route-id="@item.Id" data-bs-toggle="tooltip" data-bs-title="Edit">
+                        <a asp-action="Edit" class="btn btn-sm btn-subtle theme-secondary" asp-route-id="@item.Id" data-bs-toggle="tooltip" data-bs-title="Edit">
                             <i class="bi bi-pencil"></i>
                         </a>
-                        <a asp-action="Delete" class="btn btn-sm btn-danger" asp-route-id="@item.Id" data-bs-toggle="tooltip" data-bs-title="Delete">
+                        <a asp-action="Delete" class="btn btn-sm btn-solid theme-danger" asp-route-id="@item.Id" data-bs-toggle="tooltip" data-bs-title="Delete">
                             <i class="bi bi-trash3"></i>
                         </a>
                     </div>
@@ -96,7 +96,7 @@
 </div>
 @if (Model.Count() > 0)
 {
-    <div class="mt-2">
+    <div class="mt-3">
         @Html.Pager((IPager)Model, page => Url.Action("Index", "Scopes", new { page, take = ViewBag.Take, term = ViewBag.SearchTerm }), PrePagerOptions.MinimalWithEntriesText)
     </div>
 }

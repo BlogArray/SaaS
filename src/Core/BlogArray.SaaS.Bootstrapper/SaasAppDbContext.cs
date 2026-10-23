@@ -10,11 +10,12 @@
 using BlogArray.SaaS.Domain.DTOs;
 using BlogArray.SaaS.Domain.Entities;
 using Finbuckle.MultiTenant.Abstractions;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 
 namespace BlogArray.SaaS.Bootstrapper;
 
-public class SaasAppDbContext(IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor) : DbContext
+public class SaasAppDbContext(IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor, IDataProtector protector) : DbContext
 {
     private AppTenantInfo TenantInfo { get; set; } = multiTenantContextAccessor.MultiTenantContext.TenantInfo;
 
@@ -22,7 +23,11 @@ public class SaasAppDbContext(IMultiTenantContextAccessor<AppTenantInfo> multiTe
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        // use the connection string to connect to the per-tenant database
-        optionsBuilder.UseSqlServer(TenantInfo.ConnectionString ?? throw new InvalidOperationException());
+        // Connect to the per-tenant database. The tenant store carries the connection string
+        // protected; it is unprotected only here, in memory.
+        string protectedConnectionString = TenantInfo.ConnectionStringProtected
+            ?? throw new InvalidOperationException("The tenant has no database connection string configured.");
+
+        optionsBuilder.UseSqlServer(protector.Unprotect(protectedConnectionString));
     }
 }

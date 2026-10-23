@@ -3,22 +3,24 @@
 @{
     ViewData["Title"] = "Create new personnel";
 }
-<h3 class="mb-3">Create new personnel</h3>
+<h3 class="mb-5">Create new personnel</h3>
 <div class="row">
-    <div class="col-md-4">
+    <div class="md:col-4">
         <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="mb-3">
+            <div asp-validation-summary="ModelOnly" class="fg-danger"></div>
+            <div class="mb-5">
                 <label asp-for="Email" class="form-label"></label>
                 <input asp-for="Email" class="form-control" placeholder="Email" />
-                <span asp-validation-for="Email" class="text-danger"></span>
+                <span asp-validation-for="Email" class="fg-danger"></span>
             </div>
-            <div class="mb-3 form-check form-switch">
-                <input class="form-check-input" asp-for="IsActive" type="checkbox" role="switch">
-                <label class="form-check-label" hide-indicator="true" asp-for="IsActive">Active</label>
+            <div class="mb-5 form-field">
+                <div class="switch">
+                    <input asp-for="IsActive" type="checkbox" role="switch" switch>
+                </div>
+                <label hide-indicator="true" asp-for="IsActive">Active</label>
             </div>
-            <div class="mb-3">
-                <input type="submit" value="Create personnel" class="btn btn-primary" />
+            <div class="mb-5">
+                <input type="submit" value="Create personnel" class="btn btn-solid theme-primary" />
             </div>
         </form>
     </div>

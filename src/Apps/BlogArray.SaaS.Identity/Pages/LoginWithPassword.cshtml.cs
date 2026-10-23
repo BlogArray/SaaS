@@ -168,14 +168,7 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
                 return Page();
             }
 
-            List<Claim> customClaims =
-            [
-                new Claim(ClaimTypes.GivenName, user.DisplayName),
-                new Claim("Icon", user.ProfileImage??""),
-                new Claim(ClaimTypes.Gender, user.Gender??""),
-                new Claim("Timezone", user.TimeZone??""),
-                new Claim("Locale", user.LocaleCode??""),
-            ];
+            List<Claim> customClaims = SignInManagerExtension<ApplicationUser>.BuildProfileClaims(user);
 
             // STRICT MFA ENROLLMENT: the password check does not issue the application
             // cookie. When any of the user's tenants enforces MFA and the user has not
@@ -197,15 +190,20 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
                 return Page();
             }
 
+            // A temporary password (assigned by an administrator or bootstrap) never yields a
+            // session: only a restricted cookie that reaches the reset-password page. This runs
+            // before the two-factor and enrollment steps so no path skips it; the user signs in
+            // again with the new password, which then runs those steps.
+            if (user.MustChangePassword)
+            {
+                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreatePasswordChangePrincipal(user.Id));
+
+                return RedirectToPage("./ResetPassword");
+            }
+
             if (await mfaEnrollmentService.IsRequiredAsync(user))
             {
-                ClaimsPrincipal enrollmentPrincipal = new(new ClaimsIdentity(
-                [
-                    new Claim(ClaimTypes.NameIdentifier, user.Id),
-                    new Claim(MfaEnrollmentDefaults.EnrollmentRequiredClaimType, MfaEnrollmentDefaults.EnrollmentRequiredClaimValue),
-                ], MfaEnrollmentDefaults.Scheme));
-
-                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, enrollmentPrincipal);
+                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, next));
 
                 return RedirectToPage("/MfaEnrollment");
             }
@@ -222,16 +220,6 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
             logger.LogInformation("User logged in.");
             await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Password, SignInResultType.Success, "password"));
-
-            // A temporary password (assigned by an administrator or bootstrap) only grants
-            // access to the reset-password flow: redirect there with a valid token.
-            if (user.MustChangePassword)
-            {
-                string token = await userManager.GeneratePasswordResetTokenAsync(user);
-                string code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-
-                return RedirectToPage("./ResetPassword", new { code, email = user.Email });
-            }
 
             return LocalRedirect(next);
         }

@@ -176,24 +176,24 @@ public class LoginWith2faModel(
 
         string code = Input.TwoFactorCode.Replace(" ", string.Empty).Replace("-", string.Empty);
 
-        List<Claim> customClaims =
-        [
-            new Claim(ClaimTypes.GivenName, user.DisplayName),
-            new Claim("Icon", user.ProfileImage),
-            new Claim(ClaimTypes.Gender, user.Gender),
-            new Claim("Timezone", user.TimeZone),
-            new Claim("Locale", user.LocaleCode),
-        ];
+        List<Claim> customClaims = SignInManagerExtension<ApplicationUser>.BuildProfileClaims(user);
 
         // Preserve flow-specific claims from the pending two-factor cookie (e.g. amr and
         // saml_tenant from a SAML step-up), so the completed sign-in keeps the attributes
-        // the original authentication established.
+        // the original authentication established. The pending cookie's own bookkeeping
+        // claims (user id as Name, login provider) are not identity claims: the principal
+        // factory and the two-factor sign-in set those.
         IReadOnlyList<Claim>? pendingClaims = await signInManager.GetTwoFactorPendingClaimsAsync();
 
         if (pendingClaims is not null)
         {
             foreach (Claim pendingClaim in pendingClaims)
             {
+                if (pendingClaim.Type is ClaimTypes.Name or ClaimTypes.AuthenticationMethod)
+                {
+                    continue;
+                }
+
                 if (!customClaims.Any(c => c.Type == pendingClaim.Type))
                 {
                     customClaims.Add(pendingClaim);

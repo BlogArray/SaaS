@@ -12,7 +12,7 @@
         <h3 class="mb-0">Recovery codes</h3>
     </div>
     <div class="card-body">
-        <div class="alert alert-warning" role="alert">
+        <div class="alert theme-warning" role="alert">
             <p>
                 <i class="bi bi-exclamation-triangle"></i>
                 <strong>Put these codes in a safe place.</strong>
@@ -26,7 +26,7 @@
             </p>
         </div>
         <div class="row">
-            <div class="col-md-12">
+            <div class="md:col-12">
                 @for (var row = 0; row < Model.RecoveryCodes.Length; row++)
                 {
                     <code class="recovery-code">@Model.RecoveryCodes[row]</code>
@@ -35,14 +35,14 @@
             </div>
         </div>
 
-        <div class="text-center mt-3">
+        <div class="text-center mt-5">
             <p>
-                <button type="button" class="btn btn-primary" id="downloadRecoveryCodes">
+                <button type="button" class="btn btn-solid theme-primary" id="downloadRecoveryCodes">
                     Download Recovery Codes
                 </button>
                 @if (Url.IsLocalUrl(Model.ReturnUrl))
                 {
-                    <a href="@Model.ReturnUrl" class="btn btn-primary ms-3">Continue</a>
+                    <a href="@Model.ReturnUrl" class="btn btn-solid theme-primary ms-5">Continue</a>
                 }
             </p>
         </div>

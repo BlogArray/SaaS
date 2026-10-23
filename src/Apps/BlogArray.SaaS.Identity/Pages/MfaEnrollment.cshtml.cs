@@ -61,18 +61,36 @@ public class MfaEnrollmentModel(
         public string Code { get; set; }
     }
 
+    /// <summary>
+    /// The pending enrollment principal (null when absent or not an enrollment state).
+    /// </summary>
+    private ClaimsPrincipal _enrollmentPrincipal;
+
     private async Task<ApplicationUser> ResolveUserAsync()
     {
         AuthenticateResult enrollment = await HttpContext.AuthenticateAsync(MfaEnrollmentDefaults.Scheme);
 
-        if (!enrollment.Succeeded)
+        if (!enrollment.Succeeded
+            || !enrollment.Principal.HasClaim(MfaEnrollmentDefaults.EnrollmentRequiredClaimType, MfaEnrollmentDefaults.EnrollmentRequiredClaimValue))
         {
             return null;
         }
 
+        _enrollmentPrincipal = enrollment.Principal;
+
         string userId = enrollment.Principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 
         return string.IsNullOrEmpty(userId) ? null : await userManager.FindByIdAsync(userId);
+    }
+
+    /// <summary>
+    /// The local URL the sign-in started from (e.g. the OIDC authorize request), or null.
+    /// </summary>
+    private string GetReturnUrl()
+    {
+        string returnUrl = _enrollmentPrincipal?.FindFirst(MfaEnrollmentDefaults.ReturnUrlClaimType)?.Value;
+
+        return Url.IsLocalUrl(returnUrl) ? returnUrl : null;
     }
 
     public async Task<IActionResult> OnGetAsync()
@@ -84,12 +102,16 @@ public class MfaEnrollmentModel(
             return RedirectToPage("/Login");
         }
 
-        // Self-heal: a user that completed enrollment elsewhere (another window) no longer
-        // needs the blocking state - finish the sign-in and move on.
+        // Enrollment completed elsewhere (another window): the enrollment cookie only proves
+        // the first factor, so it can never be upgraded to a session here. The user signs in
+        // again and passes the now-enrolled second factor.
         if (user.TwoFactorEnabled)
         {
-            await CompleteSignInAsync(user);
-            return LocalRedirect("~/");
+            string returnUrl = GetReturnUrl();
+
+            await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
+
+            return RedirectToPage("/Login", new { next = returnUrl });
         }
 
         await LoadSharedKeyAndQrCodeUriAsync(user);
@@ -125,6 +147,8 @@ public class MfaEnrollmentModel(
             return Page();
         }
 
+        string returnUrl = GetReturnUrl();
+
         await userManager.SetTwoFactorEnabledAsync(user, true);
 
         await auditLogger.LogAsync(new AuditEventRecord(
@@ -138,7 +162,8 @@ public class MfaEnrollmentModel(
 
         RecoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10)).ToArray();
 
-        return RedirectToPage("/Settings/ShowRecoveryCodes");
+        // The recovery-codes page offers "Continue" back to where the sign-in started.
+        return RedirectToPage("/Settings/ShowRecoveryCodes", new { returnUrl });
     }
 
     /// <summary>
@@ -154,14 +179,16 @@ public class MfaEnrollmentModel(
 
     private async Task CompleteSignInAsync(ApplicationUser user)
     {
-        List<Claim> customClaims =
-        [
-            new Claim(ClaimTypes.GivenName, user.DisplayName??user.Email),
-            new Claim("Icon", user.ProfileImage ?? ""),
-            new Claim(ClaimTypes.Gender, user.Gender ?? ""),
-            new Claim("Timezone", user.TimeZone ?? ""),
-            new Claim("Locale", user.LocaleCode ?? ""),
-        ];
+        List<Claim> customClaims = SignInManagerExtension<ApplicationUser>.BuildProfileClaims(user);
+
+        // Carry the claims the original authentication established (e.g. saml_* for SAML
+        // single sign-out), plus the second factor just proven.
+        if (_enrollmentPrincipal is not null)
+        {
+            customClaims.AddRange(MfaEnrollmentDefaults.GetFlowClaims(_enrollmentPrincipal));
+        }
+
+        customClaims.Add(new Claim("amr", "mfa"));
 
         await signInManager.SignInAsync(user, isPersistent: false, customClaims, IdentityConstants.ApplicationScheme);
 

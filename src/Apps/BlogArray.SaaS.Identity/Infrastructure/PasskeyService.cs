@@ -13,6 +13,7 @@ using BlogArray.SaaS.Web.Helpers;
 using Fido2NetLib;
 using Fido2NetLib.Objects;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace BlogArray.SaaS.Identity.Infrastructure;
 
@@ -25,8 +26,57 @@ namespace BlogArray.SaaS.Identity.Infrastructure;
 /// registered as discoverable with user verification required, so completing the ceremony
 /// (biometric/PIN) both identifies the user and proves presence - no password involved.
 /// </summary>
-public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
+public class PasskeyService(OpenIdDbContext context, IFido2 fido2, IDistributedCache cache)
 {
+    /// <summary>
+    /// How long an issued challenge stays usable.
+    /// </summary>
+    private static readonly TimeSpan CeremonyLifetime = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// Stores the options (and so the challenge) issued for a ceremony server-side and returns
+    /// the random id the browser carries instead. Verification consumes the entry, so every
+    /// challenge is single-use and the client can never supply its own options. The scope
+    /// binds registration ceremonies to the user they were issued for.
+    /// </summary>
+    private async Task<string> SaveCeremonyAsync(string scope, string optionsJson)
+    {
+        string ceremonyId = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+
+        await cache.SetStringAsync(CeremonyKey(scope, ceremonyId), optionsJson, new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = CeremonyLifetime
+        });
+
+        return ceremonyId;
+    }
+
+    /// <summary>
+    /// Returns and removes the options issued for a ceremony; throws when the ceremony is
+    /// unknown, expired, already used or issued for another scope.
+    /// </summary>
+    private async Task<string> ConsumeCeremonyAsync(string scope, string? ceremonyId)
+    {
+        if (string.IsNullOrEmpty(ceremonyId))
+        {
+            throw new InvalidOperationException("The passkey ceremony is missing.");
+        }
+
+        string key = CeremonyKey(scope, ceremonyId);
+        string? optionsJson = await cache.GetStringAsync(key);
+
+        if (string.IsNullOrEmpty(optionsJson))
+        {
+            throw new InvalidOperationException("The passkey ceremony has expired or was already used.");
+        }
+
+        await cache.RemoveAsync(key);
+
+        return optionsJson;
+    }
+
+    private static string CeremonyKey(string scope, string ceremonyId) => $"passkey:ceremony:{scope}:{ceremonyId}";
+
     public async Task<List<WebAuthnCredential>> GetCredentialsAsync(string userId)
     {
         return await context.WebAuthnCredentials
@@ -40,7 +90,11 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
         return await context.WebAuthnCredentials.AnyAsync(credential => credential.UserId == userId);
     }
 
-    public async Task<string> CreateRegistrationOptionsJsonAsync(ApplicationUser user)
+    /// <summary>
+    /// Starts a registration ceremony for the user: returns the options for the browser's
+    /// WebAuthn API and the ceremony id to post back with the authenticator's response.
+    /// </summary>
+    public async Task<(string CeremonyId, string OptionsJson)> CreateRegistrationOptionsJsonAsync(ApplicationUser user)
     {
         var existingKeys = (await GetCredentialsAsync(user.Id))
             .Select(credential => new PublicKeyCredentialDescriptor(Convert.FromBase64String(credential.CredentialId)))
@@ -73,14 +127,17 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
             }
         });
 
-        return options.ToJson();
+        string optionsJson = options.ToJson();
+
+        return (await SaveCeremonyAsync($"register:{user.Id}", optionsJson), optionsJson);
     }
 
-    public async Task<WebAuthnCredential> VerifyRegistrationAsync(ApplicationUser user, string responseJson, string originalOptionsJson)
+    public async Task<WebAuthnCredential> VerifyRegistrationAsync(ApplicationUser user, string responseJson, string ceremonyId)
     {
         AuthenticatorAttestationRawResponse? response = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(responseJson);
 
-        var options = CredentialCreateOptions.FromJson(originalOptionsJson);
+        // The options (and challenge) are the ones issued to this user, never the client's.
+        var options = CredentialCreateOptions.FromJson(await ConsumeCeremonyAsync($"register:{user.Id}", ceremonyId));
 
         RegisteredPublicKeyCredential result = await fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
         {
@@ -118,7 +175,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
     /// without an allow-list, so the browser/OS offers every discoverable passkey saved for
     /// this site and the user picks one.
     /// </summary>
-    public Task<string> CreatePasswordlessAssertionOptionsJsonAsync()
+    public async Task<(string CeremonyId, string OptionsJson)> CreatePasswordlessAssertionOptionsJsonAsync()
     {
         AssertionOptions options = fido2.GetAssertionOptions(new GetAssertionOptionsParams
         {
@@ -131,18 +188,21 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2)
             UserVerification = UserVerificationRequirement.Preferred
         });
 
-        return Task.FromResult(options.ToJson());
+        string optionsJson = options.ToJson();
+
+        return (await SaveCeremonyAsync("login", optionsJson), optionsJson);
     }
 
     /// <summary>
     /// Verifies a passwordless login assertion and resolves the authenticated user from the
     /// credential (the assertion's user handle is bound to the stored credential's owner).
     /// </summary>
-    public async Task<ApplicationUser> VerifyPasswordlessAssertionAsync(string responseJson, string originalOptionsJson)
+    public async Task<ApplicationUser> VerifyPasswordlessAssertionAsync(string responseJson, string ceremonyId)
     {
         AuthenticatorAssertionRawResponse? response = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(responseJson);
 
-        var options = AssertionOptions.FromJson(originalOptionsJson);
+        // Single-use, server-held challenge: a captured assertion cannot be replayed.
+        var options = AssertionOptions.FromJson(await ConsumeCeremonyAsync("login", ceremonyId));
 
         // The raw response's Id is base64url-encoded (the raw model types use strings for
         // identifiers while stored credentials use base64).

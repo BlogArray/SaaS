@@ -1,0 +1,19 @@
+@* Light / dark / system color mode picker. Behavior lives in ColorMode (site.js). *@
+<div class="me-1">
+    <button class="btn btn-text theme-secondary btn-icon" type="button" data-bs-toggle="menu" data-bs-placement="bottom-end"
+            aria-expanded="false" aria-label="Color mode" title="Color mode">
+        <i class="bi bi-circle-half" data-color-mode-icon></i>
+    </button>
+    <div class="menu shadow">
+        <h6 class="menu-header">Appearance</h6>
+        <button type="button" class="menu-item gap-3" data-color-mode-value="light">
+            <i class="bi bi-sun"></i> Light <i class="bi bi-check2 color-mode-check"></i>
+        </button>
+        <button type="button" class="menu-item gap-3" data-color-mode-value="dark">
+            <i class="bi bi-moon-stars"></i> Dark <i class="bi bi-check2 color-mode-check"></i>
+        </button>
+        <button type="button" class="menu-item gap-3" data-color-mode-value="auto">
+            <i class="bi bi-circle-half"></i> System <i class="bi bi-check2 color-mode-check"></i>
+        </button>
+    </div>
+</div>

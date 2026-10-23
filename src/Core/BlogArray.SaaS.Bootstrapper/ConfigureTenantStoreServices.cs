@@ -176,7 +176,7 @@ public static class ConfigureTenantStoreServices
         builder.Services.AddMultiTenant<AppTenantInfo>()
             .WithHostStrategy(builder.Configuration["MultiTenant:HostTemplate"] ?? throw new InvalidOperationException("MultiTenant:HostTemplate not present in config"))
             .WithRemoteAuthenticationCallbackStrategy()
-            .WithDistributedCacheStore(TimeSpan.FromMinutes(5))
+            .WithStore<OpenIdApplicationTenantStore>(ServiceLifetime.Scoped)
             .WithPerTenantAuthentication();
 
         // The tenant's OIDC client secret is stored DataProtection-protected; this per-tenant

@@ -11,7 +11,6 @@ using System.Web;
 using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Distributed;
 using OpenIddict.Core;
 using Saml;
 
@@ -21,7 +20,7 @@ namespace BlogArray.SaaS.Identity.Controllers;
 public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appManager,
     SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager,
     ISignInEventLogger signInEventLogger, IAuditEventLogger auditLogger, IConfiguration configuration,
-    IMfaEnrollmentService mfaEnrollmentService, OpenIdDbContext openIdDbContext, IDistributedCache distributedCache,
+    IMfaEnrollmentService mfaEnrollmentService, OpenIdDbContext openIdDbContext,
     Microsoft.Extensions.Options.IOptionsMonitor<OpenIddict.Server.OpenIddictServerOptions> openIddictServerOptions) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
@@ -169,19 +168,12 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         // One-time use (saml-profiles 4.1.4.5): remember every accepted assertion ID until the
         // assertion would expire anyway, so a captured response cannot be posted again within
-        // its validity window. Stored in the shared distributed cache so the check holds across
-        // instances.
-        string replayKey = $"saml:assertion:{tenant}:{assertionInfo.AssertionId}";
-
-        if (await distributedCache.GetAsync(replayKey) != null)
+        // its validity window. The insert is the check: the primary key lets exactly one of
+        // any number of concurrent posts of the same assertion succeed, on any instance.
+        if (!await TryConsumeAssertionAsync(tenant, assertionInfo))
         {
             return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
         }
-
-        await distributedCache.SetAsync(replayKey, [1], new DistributedCacheEntryOptions
-        {
-            AbsoluteExpiration = new DateTimeOffset(assertionInfo.AcceptableUntilUtc, TimeSpan.Zero)
-        });
 
         string email = samlResponse.GetEmail();
 
@@ -206,27 +198,13 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             return RedirectToAction("Index", "Error", new { message = "The account is not configured for Single Sign-On with this tenant. Please contact your system administrator." });
         }
 
-        if (!user.IsActive)
+        // Disabled, locked (including administrator locks) and unconfirmed accounts are refused:
+        // the tenant IdP vouches for the identity, not for the account's standing here.
+        if (!await signInManager.CanUserSignInAsync(user))
         {
-            return RedirectToAction("Index", "Error", new { message = "The user account is inactive. Please contact your administrator to reactivate the account." });
-        }
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, client.ClientId, SignInEventTypes.ConditionalAccessBlocked, SignInAuthMethod.Saml, SignInResultType.Failure, "account locked, disabled or unconfirmed"));
 
-        // STRICT MFA ENROLLMENT: the SAML assertion proves identity via the tenant IdP, but
-        // when the tenant enforces MFA and the user has not enrolled, a restricted enrollment
-        // cookie is issued and the user is blocked on the enrollment page until it completes.
-        if (await mfaEnrollmentService.IsRequiredAsync(user))
-        {
-            System.Security.Claims.ClaimsPrincipal enrollmentPrincipal = new(new System.Security.Claims.ClaimsIdentity(
-            [
-                new Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id),
-                new Claim(MfaEnrollmentDefaults.EnrollmentRequiredClaimType, MfaEnrollmentDefaults.EnrollmentRequiredClaimValue),
-            ], MfaEnrollmentDefaults.Scheme));
-
-            await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, enrollmentPrincipal);
-
-            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, "mfa enrollment required"));
-
-            return RedirectToPage("/MfaEnrollment");
+            return RedirectToAction("Index", "Error", new { message = "The user account is inactive or locked. Please contact your administrator." });
         }
 
         // Capture the SAML session identifiers from the assertion: the SLO round trip needs
@@ -248,13 +226,10 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         string returnUrl = string.IsNullOrEmpty(relayStateParams["next"]) ? Url.Content("~/") : relayStateParams["next"];
 
-        List<Claim> customClaims =
+        List<Claim> customClaims = SignInManagerExtension<ApplicationUser>.BuildProfileClaims(user);
+
+        customClaims.AddRange(
         [
-            new Claim(ClaimTypes.GivenName, user.DisplayName??user.Email),
-            new Claim("Icon", user.ProfileImage ?? ""),
-            new Claim(ClaimTypes.Gender, user.Gender ?? ""),
-            new Claim("Timezone", user.TimeZone ?? ""),
-            new Claim("Locale", user.LocaleCode ?? ""),
             new Claim("amr", "x509"),
             // Marks the session as SAML-federated for this tenant: the connect/logout flow
             // reads this to route the user through the SAML single sign-out (SLO) round trip.
@@ -262,7 +237,20 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             new Claim("saml_session_index", sessionIndex ?? string.Empty),
             new Claim("saml_nameid", nameId ?? string.Empty),
             new Claim("saml_nameid_format", nameIdFormat ?? string.Empty),
-        ];
+        ]);
+
+        // STRICT MFA ENROLLMENT: the SAML assertion proves identity via the tenant IdP, but
+        // when the tenant enforces MFA and the user has not enrolled, a restricted enrollment
+        // cookie is issued and the user is blocked on the enrollment page until it completes.
+        // The return URL and the saml_* claims travel in it so the final session keeps them.
+        if (await mfaEnrollmentService.IsRequiredAsync(user))
+        {
+            await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, returnUrl, customClaims));
+
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, "mfa enrollment required"));
+
+            return RedirectToPage("/MfaEnrollment");
+        }
 
         // EXTENDED FACTOR: the SAML assertion proves identity via the tenant IdP; applications
         // additionally require the BlogArray-issued MFA as a second layer, so a compromised
@@ -402,6 +390,39 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         document.LoadXml(xml);
 
         return document.DocumentElement?.GetAttribute("ID");
+    }
+
+    /// <summary>
+    /// Records the assertion as used. Returns false when it was already used (the insert hits
+    /// the primary key). Expired records are purged first, which keeps the table small.
+    /// </summary>
+    private async Task<bool> TryConsumeAssertionAsync(string tenant, SamlAssertionInfo assertionInfo)
+    {
+        DateTime now = DateTime.UtcNow;
+
+        await openIdDbContext.UsedSamlAssertions
+            .Where(used => used.ExpiresOn < now)
+            .ExecuteDeleteAsync();
+
+        string id = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes($"{tenant}:{assertionInfo.AssertionId}")));
+
+        UsedSamlAssertion used = new() { Id = id, ExpiresOn = assertionInfo.AcceptableUntilUtc };
+
+        openIdDbContext.UsedSamlAssertions.Add(used);
+
+        try
+        {
+            await openIdDbContext.SaveChangesAsync();
+            return true;
+        }
+        catch (DbUpdateException)
+        {
+            // Duplicate key: the assertion was already accepted (or is being accepted
+            // concurrently). Detach so later saves in this request do not retry the insert.
+            openIdDbContext.Entry(used).State = EntityState.Detached;
+            return false;
+        }
     }
 
     private static string SamlLogoutCookieName(string tenant)

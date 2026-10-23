@@ -5,24 +5,25 @@
 }
 
 <div class="app-layout">
-    <nav class="navbar navbar-expand-lg fixed-top bg-body bg-dark app-navbar border-bottom" data-bs-theme="dark">
+    <nav class="navbar lg:navbar-expand fixed-top app-navbar">
         <div class="container-fluid">
-            <button class="navbar-toggler border-0" type="button" aria-label="Toggle navigation"
+            <button class="navbar-toggler btn-icon border-0" type="button" aria-label="Toggle navigation"
                     onclick="toggleMobileMenu()">
                 <i class="bi bi-list"></i>
             </button>
             <div class="text-start d-flex align-items-center">
-                <button class="btn btn-outline-secondary border-0 text-white d-none d-md-inline-flex align-items-center me-1"
+                <button class="btn btn-text theme-secondary btn-icon d-none md:d-inline-flex align-items-center me-1"
                         type="button" aria-label="Toggle sidebar" onclick="toggleSidenav()">
                     <i class="bi bi-layout-sidebar" id="sidenavToggleIcon"></i>
                 </button>
                 <a class="navbar-brand" style="font-size:1.5rem" asp-controller="Dashboard" asp-action="Index">
                     <img src="~/_content/BlogArray.SaaS.Resources/resources/images/blogarray-tenant-full-icon.png" alt="Logo" height="30"
                          class="d-inline-block align-text-top">
-                    <span class="mx-1 d-none d-md-inline fw-normal">Suite</span>
+                    <span class="mx-1 d-none md:d-inline fw-normal">Suite</span>
                 </a>
             </div>
-            <div class="text-end d-flex align-items-center">
+            <div class="ms-auto text-end d-flex align-items-center gap-1">
+                <partial name="_ColorModeMenu" />
                 @if (User.Identity.IsAuthenticated)
                 {
                     <partial name="_LoginPartial" />
@@ -31,63 +32,79 @@
         </div>
     </nav>
     <main class="app-main" id="app-main">
-        <aside class="d-flex flex-column flex-shrink-0 p-3 bg-body app-sidenav border-end z-3" data-bs-theme="dark">
-            <ul class="nav nav-pills flex-column mb-auto hoverable-bg">
-                <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Dashboard" title="Dashboard" class="nav-link text-body-emphasis">
-                        <i class="bi bi-speedometer2 me-2"></i>
-                        <span class="sidenav-label">Dashboard</span>
-                    </a>
-                </li>
-                <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Tenants" title="Tenants" class="nav-link text-body-emphasis">
-                        <i class="bi bi-buildings me-2"></i>
-                        <span class="sidenav-label">Tenants</span>
-                    </a>
-                </li>
-                <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Users" title="Users" class="nav-link text-body-emphasis">
-                        <i class="bi bi-people me-2"></i>
-                        <span class="sidenav-label">Users</span>
-                    </a>
-                </li>
-                <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="SignInLogs" asp-controller="SecurityLogs" title="Sign-in logs" class="nav-link text-body-emphasis">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>
-                        <span class="sidenav-label">Sign-in logs</span>
-                    </a>
-                </li>
-                <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="AuditLogs" asp-controller="SecurityLogs" title="Audit logs" class="nav-link text-body-emphasis">
-                        <i class="bi bi-journal-text me-2"></i>
-                        <span class="sidenav-label">Audit logs</span>
-                    </a>
-                </li>
-                <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Roles" title="Roles" class="nav-link text-body-emphasis">
-                        <i class="bi bi-lock me-2"></i>
-                        <span class="sidenav-label">Roles</span>
-                    </a>
-                </li>
-                <li class="nav-item pt-1">
-                    <a active-class="bg-body-secondary" active-route asp-area="" asp-action="Index" asp-controller="Scopes" title="Scopes" class="nav-link text-body-emphasis">
-                        <i class="bi bi-key me-2"></i>
-                        <span class="sidenav-label">Scopes</span>
-                    </a>
-                </li>
-            </ul>
+        <aside class="flex-column flex-shrink-0 p-5 app-sidenav">
+            <nav class="app-nav" aria-label="Primary">
+                <div class="app-nav-group">
+                    <strong class="app-nav-heading" data-color="violet"><i class="bi bi-grid-1x2-fill" aria-hidden="true"></i>Overview</strong>
+                    <ul class="nav flex-column">
+                        <li>
+                            <a active-route asp-area="" asp-action="Index" asp-controller="Dashboard" class="nav-link" title="Dashboard">
+                                <i class="bi bi-speedometer2" aria-hidden="true"></i>
+                                <span class="sidenav-label">Dashboard</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="app-nav-group">
+                    <strong class="app-nav-heading" data-color="blue"><i class="bi bi-people-fill" aria-hidden="true"></i>Directory</strong>
+                    <ul class="nav flex-column">
+                        <li>
+                            <a active-route asp-area="" asp-action="Index" asp-controller="Tenants" class="nav-link" title="Tenants">
+                                <i class="bi bi-buildings" aria-hidden="true"></i>
+                                <span class="sidenav-label">Tenants</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a active-route asp-area="" asp-action="Index" asp-controller="Users" class="nav-link" title="Users">
+                                <i class="bi bi-people" aria-hidden="true"></i>
+                                <span class="sidenav-label">Users</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="app-nav-group">
+                    <strong class="app-nav-heading" data-color="green"><i class="bi bi-shield-lock-fill" aria-hidden="true"></i>Access</strong>
+                    <ul class="nav flex-column">
+                        <li>
+                            <a active-route asp-area="" asp-action="Index" asp-controller="Roles" class="nav-link" title="Roles">
+                                <i class="bi bi-lock" aria-hidden="true"></i>
+                                <span class="sidenav-label">Roles</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a active-route asp-area="" asp-action="Index" asp-controller="Scopes" class="nav-link" title="Scopes">
+                                <i class="bi bi-key" aria-hidden="true"></i>
+                                <span class="sidenav-label">Scopes</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="app-nav-group">
+                    <strong class="app-nav-heading" data-color="orange"><i class="bi bi-activity" aria-hidden="true"></i>Activity</strong>
+                    <ul class="nav flex-column">
+                        <li>
+                            <a active-route asp-area="" asp-action="SignInLogs" asp-controller="SecurityLogs" class="nav-link" title="Sign-in logs">
+                                <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+                                <span class="sidenav-label">Sign-in logs</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a active-route asp-area="" asp-action="AuditLogs" asp-controller="SecurityLogs" class="nav-link" title="Audit logs">
+                                <i class="bi bi-journal-text" aria-hidden="true"></i>
+                                <span class="sidenav-label">Audit logs</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
         </aside>
         <div class="d-flex flex-column app-container">
-            <div class="app-body container-fluid mt-2 h-main-app-body">
+            <div class="app-body container-fluid h-main-app-body">
                 <partial name="_AlertPartial" />
                 @RenderBody()
             </div>
-            <footer class="p-2 mt-5">
-                <div class="mx-auto text-center">
-                    <p>
-                        © @DateTime.Now.Year - <a href="https://blogarray.net/" target="_blank">BlogArray</a>, Crafted by Team BlogArray.
-                    </p>
-                </div>
+            <footer class="py-5 px-5 text-center small fg-3">
+                © @DateTime.Now.Year <a href="https://blogarray.net/" target="_blank" class="fg-2">BlogArray</a> · Crafted by Team BlogArray
             </footer>
         </div>
     </main>

@@ -36,6 +36,11 @@ public class OpenIdDbContext(DbContextOptions<OpenIdDbContext> options) :
     public DbSet<UserSession> UserSessions { get; set; }
 
     /// <summary>
+    /// Accepted SAML assertion IDs, for one-time use enforcement across instances.
+    /// </summary>
+    public DbSet<UsedSamlAssertion> UsedSamlAssertions { get; set; }
+
+    /// <summary>
     /// Persisted DataProtection key ring (shared by Identity, TenantSuite and App): Local
     /// mode stores keys in the master database so the ring is backed up with it and survives
     /// machine loss, instead of living in a fragile per-machine folder.

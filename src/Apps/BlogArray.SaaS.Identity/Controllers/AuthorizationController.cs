@@ -95,6 +95,17 @@ public class AuthorizationController(
         ApplicationUser user = await userManager.GetUserAsync(result.Principal) ??
             throw new InvalidOperationException("The user details cannot be retrieved.");
 
+        // A live session cookie is not enough: an account disabled or locked after it signed
+        // in must not obtain new codes or tokens. Its local session is ended as well.
+        if (!await signInManager.CanUserSignInAsync(user))
+        {
+            await signInManager.SignOutAsync();
+
+            return await userManager.IsLockedOutAsync(user)
+                ? RedirectToPage("/Lockout")
+                : RedirectToAction("accessdenied", "error");
+        }
+
         // Retrieve the application details from the database.
         OpenIdApplication application = await applicationManager.FindByClientIdAsync(request.ClientId) ??
             throw new InvalidOperationException("Details concerning the calling client application cannot be found.");
@@ -400,8 +411,9 @@ public class AuthorizationController(
                     }));
             }
 
-            // Ensure the user is still allowed to sign in.
-            if (!await signInManager.CanSignInAsync(user))
+            // Ensure the user is still allowed to sign in (active, confirmed, not locked out):
+            // refresh tokens must stop working once an account is disabled or locked.
+            if (!await signInManager.CanUserSignInAsync(user))
             {
                 return Forbid(
                     authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,

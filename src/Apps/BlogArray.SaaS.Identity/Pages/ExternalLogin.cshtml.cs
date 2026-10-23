@@ -115,6 +115,41 @@ public class ExternalLoginModel : PageModel
             return RedirectToPage("./Login", new { next });
         }
 
+        // The account is the one linked to this provider login - never resolved by the
+        // provider's email, which can name a different account or none.
+        ApplicationUser linkedUser = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);
+
+        if (linkedUser is not null)
+        {
+            // Disabled, locked and unconfirmed accounts are refused before anything is issued.
+            if (!await _signInManager.CanUserSignInAsync(linkedUser))
+            {
+                await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+                if (await _userManager.IsLockedOutAsync(linkedUser))
+                {
+                    return RedirectToPage("./Lockout");
+                }
+
+                ErrorMessage = "Invalid login attempt.";
+                return RedirectToPage("./Login", new { next });
+            }
+
+            // STRICT MFA ENROLLMENT: federated identity proves the account, but when any of
+            // the user's tenants enforces MFA without a completed enrollment, only a restricted
+            // enrollment cookie is issued. This must run before the sign-in below: the gate
+            // middleware lets any holder of the application cookie through.
+            if (await _mfaEnrollmentService.IsRequiredAsync(linkedUser))
+            {
+                await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(linkedUser.Id, next));
+
+                await _auditLogger.LogAsync(new SignInEventRecord(linkedUser.Id, null, SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, $"{info.LoginProvider}; mfa enrollment required"));
+
+                return RedirectToPage("/MfaEnrollment");
+            }
+        }
+
         // Sign in the user with this external login provider if the user already has a login.
         // Two factor authentication is NOT bypassed: users with 2FA enabled are routed through
         // the authenticator/recovery code flow even when signing in with an external provider.
@@ -125,29 +160,7 @@ public class ExternalLoginModel : PageModel
             // correlate with the request log.
             _logger.LogInformation("User logged in with {LoginProvider} provider.", info.LoginProvider);
 
-            string? email = info.Principal.FindFirstValue(System.Security.Claims.ClaimTypes.Email);
-            ApplicationUser? auditUser = email is null ? null : await _userManager.FindByEmailAsync(email);
-
-            if (auditUser is not null)
-            {
-                await _auditLogger.LogAsync(new SignInEventRecord(auditUser.Id, null, SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, info.LoginProvider));
-            }
-
-            // STRICT MFA ENROLLMENT: federated identity proves the account, but when any of
-            // the user's tenants enforces MFA without a completed enrollment, a restricted
-            // enrollment cookie is issued and the user is blocked on the enrollment page.
-            if (auditUser is not null && await _mfaEnrollmentService.IsRequiredAsync(auditUser))
-            {
-                System.Security.Claims.ClaimsPrincipal enrollmentPrincipal = new(new System.Security.Claims.ClaimsIdentity(
-                [
-                    new Claim(System.Security.Claims.ClaimTypes.NameIdentifier, auditUser.Id),
-                    new Claim(MfaEnrollmentDefaults.EnrollmentRequiredClaimType, MfaEnrollmentDefaults.EnrollmentRequiredClaimValue),
-                ], MfaEnrollmentDefaults.Scheme));
-
-                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, enrollmentPrincipal);
-
-                return RedirectToPage("/MfaEnrollment");
-            }
+            await _auditLogger.LogAsync(new SignInEventRecord(linkedUser.Id, null, SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, info.LoginProvider));
 
             return LocalRedirect(next);
         }
@@ -157,7 +170,12 @@ public class ExternalLoginModel : PageModel
         }
         if (result.RequiresTwoFactor)
         {
-            return RedirectToPage("./LoginWith2fa", new { ReturnUrl = next, RememberMe = false });
+            return RedirectToPage("./LoginWith2fa", new { next });
+        }
+        if (result.IsNotAllowed)
+        {
+            ErrorMessage = "Invalid login attempt.";
+            return RedirectToPage("./Login", new { next });
         }
         else
         {
@@ -186,12 +204,26 @@ public class ExternalLoginModel : PageModel
             return RedirectToPage("./Login", new { next });
         }
 
+        // When the provider supplies an email it is the one used: the form field is only for
+        // providers that return none. Either way the address is confirmed by email below.
+        string providerEmail = info.Principal.FindFirstValue(ClaimTypes.Email);
+
+        if (!string.IsNullOrEmpty(providerEmail))
+        {
+            Input.Email = providerEmail;
+            ModelState.Remove("Input.Email");
+        }
+
         if (ModelState.IsValid)
         {
             ApplicationUser user = CreateUser();
 
-            // The username mirrors the (provider-verified) email address, matching the rest of
-            // the application where email and username are one and the same.
+            // DisplayName is required: take the provider's name, falling back to the email.
+            string providerName = info.Principal.FindFirstValue(ClaimTypes.Name);
+            user.DisplayName = string.IsNullOrWhiteSpace(providerName) ? Input.Email : providerName;
+
+            // The username mirrors the email address, matching the rest of the application
+            // where email and username are one and the same.
             string username = Input.Email;
 
             await _userStore.SetUserNameAsync(user, username, CancellationToken.None);

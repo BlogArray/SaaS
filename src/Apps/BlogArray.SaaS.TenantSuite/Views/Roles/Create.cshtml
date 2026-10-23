@@ -20,19 +20,19 @@
     </div>
     <div class="card-body">
         <form asp-action="Create">
-            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-            <div class="mb-3">
+            <div asp-validation-summary="ModelOnly" class="fg-danger"></div>
+            <div class="mb-5">
                 <label asp-for="Name" class="form-label"></label>
                 <input asp-for="Name" class="form-control" />
-                <span asp-validation-for="Name" class="text-danger"></span>
+                <span asp-validation-for="Name" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
+            <div class="mb-5">
                 <label asp-for="Description" class="form-label"></label>
                 <textarea asp-for="Description" class="form-control"></textarea>
-                <span asp-validation-for="Description" class="text-danger"></span>
+                <span asp-validation-for="Description" class="fg-danger"></span>
             </div>
-            <div class="mb-3">
-                <input type="submit" value="Create role" class="btn btn-primary" />
+            <div class="mb-5">
+                <input type="submit" value="Create role" class="btn btn-solid theme-primary" />
             </div>
         </form>
     </div>

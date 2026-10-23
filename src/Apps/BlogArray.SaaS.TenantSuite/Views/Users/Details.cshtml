@@ -25,11 +25,11 @@
     <div class="card-body">
         @Html.DynamicContentLoader("toolbar", Url.Action("Toolbar", "Users", new { @id = Model.Id }))
         @Html.DynamicContentLoader("basicInfo", Url.Action("BasicInfo", "Users", new { @id = Model.Id }))
-        <hr class="my-3">
+        <hr class="my-5">
         @Html.DynamicContentLoader("userRoles", Url.Action("Roles", "Users", new { @id = Model.Id }))
-        <hr class="my-3">
+        <hr class="my-5">
         @Html.DynamicContentLoader("security", Url.Action("Security", "Users", new { @id = Model.Id }))
-        <hr class="my-3">
+        <hr class="my-5">
         @Html.DynamicContentLoader("sessions", Url.Action("Sessions", "Users", new { @id = Model.Id }))
     </div>
 </div>
@@ -45,12 +45,12 @@
     var logDetailsCanvas;
 
     function userEditFormLoaded() {
-        userEditCanvas = new bootstrap.Offcanvas(document.getElementById('userEditOffcanvas'));
+        userEditCanvas = new bootstrap.Drawer(document.getElementById('userEditOffcanvas'));
         userEditCanvas.show();
     }
 
     function logDetailsLoaded() {
-        logDetailsCanvas = new bootstrap.Offcanvas(document.getElementById('logDetailsOffcanvas'));
+        logDetailsCanvas = new bootstrap.Drawer(document.getElementById('logDetailsOffcanvas'));
         logDetailsCanvas.show();
     }
 

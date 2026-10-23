@@ -4,13 +4,13 @@
     ViewData["Title"] = "Are you sure you want to Logout?";
 }
 
-<div class="container my-5">
-    <div class="position-relative p-5 text-center">
-        <i class="state-icon text-primary bi bi-box-arrow-right"></i>
-        <h3 class="mt-5 mb-3">@ViewData["Title"]</h3><br />
+<div class="container my-12">
+    <div class="position-relative p-12 text-center">
+        <i class="state-icon fg-primary bi bi-box-arrow-right"></i>
+        <h3 class="mt-12 mb-5">@ViewData["Title"]</h3><br />
         <form class="form-inline" method="post" action="/connect/logout">
             @Html.AntiForgeryToken()
-            <button type="submit" class="btn btn-primary">Yes, Logout</button>
+            <button type="submit" class="btn btn-solid theme-primary">Yes, Logout</button>
         </form>
     </div>
 </div>

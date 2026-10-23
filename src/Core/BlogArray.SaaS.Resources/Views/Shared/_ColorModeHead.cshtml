@@ -1,0 +1,13 @@
+@* Applies the stored color mode before first paint so a dark-mode user never sees a light
+   flash. "auto" (the default) leaves data-bs-theme unset: Bootstrap 6's
+   `color-scheme: light dark` then follows the operating system preference. *@
+<script>
+    (function () {
+        try {
+            var mode = localStorage.getItem('bs-color-mode');
+            if (mode === 'light' || mode === 'dark') {
+                document.documentElement.setAttribute('data-bs-theme', mode);
+            }
+        } catch (e) { }
+    })();
+</script>

@@ -2,62 +2,62 @@
     Layout = "~/Views/Shared/_Layout.cshtml";
 }
 <main class="app-main" id="app-main">
-    <aside class="d-flex flex-column flex-shrink-0 p-3 bg-body app-sidenav border-end z-1">
-        <ul class="nav nav-pills flex-column mb-auto hoverable-bg">
-            <li class="nav-item pt-1">
-                <a active-class="bg-body-secondary" active-route asp-controller="Settings" asp-action="Index" class="nav-link text-body-emphasis">
-                    <i class="bi bi-person me-2"></i>
-                    <span class="ml-3">Profile</span>
-                </a>
-            </li>
-            <li class="nav-item pt-1">
-                <a asp-page="/settings/linkedaccounts" class="nav-link text-body-emphasis @ManageNavPages.ExternalLoginsNavClass(ViewContext, "bg-body-secondary")">
-                    <i class="bi bi-link-45deg me-2"></i>
-                    <span class="ml-3">Linked Accounts</span>
-                </a>
-            </li>
-            @* <li class="nav-item pt-1">
-                <a active-class="bg-body-secondary" active-route asp-controller="Settings" asp-action="Email" class="nav-link text-body-emphasis">
-                    <i class="bi bi-envelope me-2"></i>
-                    <span class="ml-3">Email</span>
-                </a>
-            </li> *@
-            <li class="nav-item pt-1">
-                <a active-class="bg-body-secondary" active-route asp-controller="Settings" asp-action="Security" class="nav-link text-body-emphasis @ManageNavPages.TwoFactorAuthenticationNavClass(ViewContext, "bg-body-secondary")">
-                    <i class="bi bi-shield-check me-2"></i>
-                    <span class="ml-3">Security</span>
-                </a>
-            </li>
-            <li class="nav-item pt-1">
-                <a asp-page="/settings/securityactivity" class="nav-link text-body-emphasis @ManageNavPages.SecurityActivityNavClass(ViewContext, "bg-body-secondary")">
-                    <i class="bi bi-clock-history me-2"></i>
-                    <span class="ml-3">Security activity</span>
-                </a>
-            </li>
-            <li class="nav-item pt-1">
-                <a asp-page="/settings/usersessions" class="nav-link text-body-emphasis @ManageNavPages.UserSessionsNavClass(ViewContext, "bg-body-secondary")">
-                    <i class="bi bi-display me-2"></i>
-                    <span class="ml-3">Where you're signed in</span>
-                </a>
-            </li>
-            <li class="nav-item pt-1">
-                <a asp-page="/settings/passkeys" class="nav-link text-body-emphasis @ManageNavPages.PasskeysNavClass(ViewContext, "bg-body-secondary")">
-                    <i class="bi bi-key me-2"></i>
-                    <span class="ml-3">Passkeys</span>
-                </a>
-            </li>
-        </ul>
+    <aside class="flex-column flex-shrink-0 p-5 app-sidenav">
+        <nav class="app-nav" aria-label="Primary">
+            <div class="app-nav-group">
+                <strong class="app-nav-heading" data-color="violet"><i class="bi bi-person-circle" aria-hidden="true"></i>Account</strong>
+                <ul class="nav flex-column">
+                    <li>
+                        <a active-route asp-controller="Settings" asp-action="Index" class="nav-link" title="Profile">
+                            <i class="bi bi-person" aria-hidden="true"></i>
+                            <span class="sidenav-label">Profile</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a asp-page="/settings/linkedaccounts" class="nav-link @ManageNavPages.ExternalLoginsNavClass(ViewContext)" title="Linked accounts">
+                            <i class="bi bi-link-45deg" aria-hidden="true"></i>
+                            <span class="sidenav-label">Linked accounts</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <div class="app-nav-group">
+                <strong class="app-nav-heading" data-color="green"><i class="bi bi-shield-fill-check" aria-hidden="true"></i>Security</strong>
+                <ul class="nav flex-column">
+                    <li>
+                        <a active-route asp-controller="Settings" asp-action="Security" class="nav-link @ManageNavPages.TwoFactorAuthenticationNavClass(ViewContext)" title="Two-factor authentication">
+                            <i class="bi bi-shield-check" aria-hidden="true"></i>
+                            <span class="sidenav-label">Two-factor authentication</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a asp-page="/settings/passkeys" class="nav-link @ManageNavPages.PasskeysNavClass(ViewContext)" title="Passkeys">
+                            <i class="bi bi-key" aria-hidden="true"></i>
+                            <span class="sidenav-label">Passkeys</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a asp-page="/settings/usersessions" class="nav-link @ManageNavPages.UserSessionsNavClass(ViewContext)" title="Where you're signed in">
+                            <i class="bi bi-display" aria-hidden="true"></i>
+                            <span class="sidenav-label">Where you're signed in</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a asp-page="/settings/securityactivity" class="nav-link @ManageNavPages.SecurityActivityNavClass(ViewContext)" title="Security activity">
+                            <i class="bi bi-clock-history" aria-hidden="true"></i>
+                            <span class="sidenav-label">Security activity</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
     </aside>
     <div class="d-flex flex-column app-container">
-        <div class="app-body container-fluid mt-2 h-main-app-body">
+        <div class="app-body container-fluid h-main-app-body">
             @RenderBody()
         </div>
-        <footer class="p-2 mt-5">
-            <div class="mx-auto text-center">
-                <p>
-                    © @DateTime.Now.Year - <a href="https://blogarray.net/" target="_blank">BlogArray</a>, Crafted by Team BlogArray.
-                </p>
-            </div>
+        <footer class="py-5 px-5 text-center small fg-3">
+            © @DateTime.Now.Year <a href="https://blogarray.net/" target="_blank" class="fg-2">BlogArray</a> · Crafted by Team BlogArray
         </footer>
     </div>
 </main>
