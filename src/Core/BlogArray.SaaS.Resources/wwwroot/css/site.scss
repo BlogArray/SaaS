@@ -297,6 +297,25 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     }
 }
 
+// Compact breadcrumb under a page title: smaller links, and the first link's padding is
+// pulled back so the trail's text lines up with the title while keeping the v6 hover pill.
+.breadcrumb-flush {
+    --bs-breadcrumb-font-size: var(--bs-font-size-sm);
+    --bs-breadcrumb-link-padding-x: .5rem;
+    --bs-breadcrumb-link-padding-y: .125rem;
+    margin-inline-start: calc(-1 * var(--bs-breadcrumb-link-padding-x));
+
+    .breadcrumb-link {
+        min-height: 1.75rem;
+    }
+
+    // The current page is plain text, not a link: no hover affordance.
+    span.breadcrumb-link:hover {
+        background-color: transparent;
+        color: var(--bs-breadcrumb-link-active-color);
+    }
+}
+
 .menu {
     --bs-menu-zindex: 1999;
     min-width: 14rem;

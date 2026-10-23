@@ -19052,6 +19052,20 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
   background-color: var(--bs-bg-1);
 }
 
+.breadcrumb-flush {
+  --bs-breadcrumb-font-size: var(--bs-font-size-sm);
+  --bs-breadcrumb-link-padding-x: .5rem;
+  --bs-breadcrumb-link-padding-y: .125rem;
+  margin-inline-start: calc(-1 * var(--bs-breadcrumb-link-padding-x));
+}
+.breadcrumb-flush .breadcrumb-link {
+  min-height: 1.75rem;
+}
+.breadcrumb-flush span.breadcrumb-link:hover {
+  background-color: transparent;
+  color: var(--bs-breadcrumb-link-active-color);
+}
+
 .menu {
   --bs-menu-zindex: 1999;
   min-width: 14rem;

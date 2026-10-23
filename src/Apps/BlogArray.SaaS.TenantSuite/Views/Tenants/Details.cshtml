@@ -11,14 +11,15 @@
             <img height="34" alt="profile icon" class="flex-shrink-0 me-1 rounded" loading="lazy" id="faviconImage" src="@Model.Icon" />
             @title
         </h3>
-        <nav aria-label="breadcrumb mb-0 mbe-0 form-text">
-            <ol class="breadcrumb mb-0">
+        <nav aria-label="Breadcrumb">
+            <ol class="breadcrumb breadcrumb-flush">
                 <li class="breadcrumb-item">
-                    <a asp-action="Index">
+                    <a asp-action="Index" class="breadcrumb-link">
                         All tenants
                     </a>
                 </li>
-                <li class="breadcrumb-item active" aria-current="page">@title</li>
+                <li class="breadcrumb-divider" aria-hidden="true"></li>
+                <li class="breadcrumb-item"><span class="breadcrumb-link active" aria-current="page">@title</span></li>
             </ol>
         </nav>
     </div>
