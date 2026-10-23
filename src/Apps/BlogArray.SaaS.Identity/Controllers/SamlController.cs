@@ -10,6 +10,8 @@
 using System.Web;
 using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Identity.Infrastructure;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using OpenIddict.Core;
 using Saml;
 
@@ -19,7 +21,7 @@ namespace BlogArray.SaaS.Identity.Controllers;
 public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appManager,
     SignInManagerExtension<ApplicationUser> signInManager, UserManager<ApplicationUser> userManager,
     ISignInEventLogger signInEventLogger, IAuditEventLogger auditLogger, IConfiguration configuration,
-    IMfaEnrollmentService mfaEnrollmentService,
+    IMfaEnrollmentService mfaEnrollmentService, OpenIdDbContext openIdDbContext, IDistributedCache distributedCache,
     Microsoft.Extensions.Options.IOptionsMonitor<OpenIddict.Server.OpenIddictServerOptions> openIddictServerOptions) : Controller
 {
     [HttpGet("{tenant}/login"), HttpPost("{tenant}/login"), IgnoreAntiforgeryToken]
@@ -58,11 +60,10 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         // URLs are honored).
         string returnUrl = Url.IsLocalUrl(next) ? next : Url.Content("~/");
 
-        // RelayState round-trips through the IdP with the response (the SAML 2.0 bindings
-        // require an exact echo) and is the primary way to correlate the response with this
-        // request: unlike a cookie it survives the cross-site Acs POST regardless of browser
-        // cookie policy. The same request id is also mirrored in a SameSite=None cookie as a
-        // fallback for IdPs that drop RelayState.
+        // The request id is bound to this browser by an HttpOnly SameSite=None cookie (sent on
+        // the top-level cross-site Acs POST); Acs requires it. RelayState round-trips through
+        // the IdP and carries the post-login return URL; its copy of the request id is only
+        // cross-checked against the cookie, never trusted on its own.
         string relayState = $"inResponseTo={Uri.EscapeDataString(requestId ?? string.Empty)}&next={Uri.EscapeDataString(returnUrl)}";
 
         Response.Cookies.Append(SamlRequestCookieName(tenant), requestId, new CookieOptions
@@ -95,23 +96,28 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         if (!string.IsNullOrEmpty(getResponse))
         {
-            return await ProcessLogoutResponse(getResponse, isPostBinding: false, tenant: tenant, client: client, relay: null, expectedInResponseTo: null);
+            return await ProcessLogoutResponse(getResponse, isPostBinding: false, tenant: tenant, client: client, relay: null);
         }
 
         string? requestCookie = Request.Cookies[SamlRequestCookieName(tenant)];
 
         Response.Cookies.Delete(SamlRequestCookieName(tenant), new CookieOptions { Path = "/saml" });
 
-        // RelayState is the primary correlation channel (it was sent with the AuthnRequest and
-        // echoed back by the IdP); the cookie is only a fallback. Both carry the request id
-        // and, in RelayState, the post-login return URL.
+        // The HttpOnly request cookie is the only trusted correlation channel: it binds the
+        // response to the browser that started the flow. RelayState is a plain form field the
+        // poster controls, so it must never supply the expected request id (that would let a
+        // captured response be replayed, or an attacker's response be forced into a victim's
+        // browser). When RelayState carries a request id it must agree with the cookie.
         System.Collections.Specialized.NameValueCollection relay = HttpUtility.ParseQueryString(Request.Form["RelayState"]);
 
-        string? expectedInResponseTo = relay["inResponseTo"];
+        string? expectedInResponseTo = requestCookie;
 
-        if (string.IsNullOrEmpty(expectedInResponseTo))
+        string? relayInResponseTo = relay["inResponseTo"];
+
+        if (!string.IsNullOrEmpty(relayInResponseTo)
+            && !string.Equals(relayInResponseTo, requestCookie, StringComparison.Ordinal))
         {
-            expectedInResponseTo = requestCookie;
+            expectedInResponseTo = null;
         }
 
         // An IdP single sign-out can arrive at this same endpoint via the POST binding with
@@ -131,8 +137,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
                     isPostBinding: true,
                     tenant: tenant,
                     client: client,
-                    relay: relay,
-                    expectedInResponseTo: expectedInResponseTo);
+                    relay: relay);
             }
         }
 
@@ -147,9 +152,11 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         // Defense in depth beyond the library's signature check: audience, recipient,
         // InResponseTo, validity window and single-assertion structure are enforced
         // (see SamlAssertionValidator). Fails closed when no outstanding request exists.
+        SamlAssertionInfo assertionInfo;
+
         try
         {
-            SamlAssertionValidator.Validate(
+            assertionInfo = SamlAssertionValidator.Validate(
                 Request.Form["SAMLResponse"].ToString(),
                 client.Security.SsoEntityId,
                 $"{Request.Scheme}://{Request.Host}/saml/{tenant}/acs",
@@ -160,13 +167,43 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
         }
 
+        // One-time use (saml-profiles 4.1.4.5): remember every accepted assertion ID until the
+        // assertion would expire anyway, so a captured response cannot be posted again within
+        // its validity window. Stored in the shared distributed cache so the check holds across
+        // instances.
+        string replayKey = $"saml:assertion:{tenant}:{assertionInfo.AssertionId}";
+
+        if (await distributedCache.GetAsync(replayKey) != null)
+        {
+            return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
+        }
+
+        await distributedCache.SetAsync(replayKey, [1], new DistributedCacheEntryOptions
+        {
+            AbsoluteExpiration = new DateTimeOffset(assertionInfo.AcceptableUntilUtc, TimeSpan.Zero)
+        });
+
         string email = samlResponse.GetEmail();
 
         ApplicationUser? user = await userManager.FindByEmailAsync(email);
 
-        if (user == null)
+        // Tenant boundary: a tenant IdP may only vouch for users who are members of that
+        // tenant (hold a valid authorization for it). Without this, any tenant's IdP could
+        // assert an arbitrary email and sign in as a user of another tenant (or a platform
+        // administrator). Unknown users and non-members get the same response.
+        bool isTenantMember = user != null && await openIdDbContext.Authorizations.AnyAsync(a =>
+            a.Subject == user.Id
+            && a.Application!.Id == client.Id
+            && a.Status == OpenIddict.Abstractions.OpenIddictConstants.Statuses.Valid);
+
+        if (user is null || !isTenantMember)
         {
-            return RedirectToAction("Index", "Error", new { message = $"No user account is associated with the email '{email}'. Please ensure the user is registered and configured for SSO." });
+            if (user != null)
+            {
+                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, client.ClientId, SignInEventTypes.ConditionalAccessBlocked, SignInAuthMethod.Saml, SignInResultType.Failure, "saml assertion for a user who is not a member of this tenant"));
+            }
+
+            return RedirectToAction("Index", "Error", new { message = "The account is not configured for Single Sign-On with this tenant. Please contact your system administrator." });
         }
 
         if (!user.IsActive)
@@ -263,14 +300,13 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         bool isPostBinding,
         string tenant,
         OpenIdApplication client,
-        System.Collections.Specialized.NameValueCollection? relay,
-        string? expectedInResponseTo)
+        System.Collections.Specialized.NameValueCollection? relay)
     {
-        string? logoutCookie = Request.Cookies[SamlLogoutCookieName(tenant)];
+        // As for authentication responses, only the HttpOnly cookie set when the logout
+        // request was issued may supply the expected request id - never RelayState.
+        string? expectedInResponseTo = Request.Cookies[SamlLogoutCookieName(tenant)];
 
         Response.Cookies.Delete(SamlLogoutCookieName(tenant), new CookieOptions { Path = "/saml" });
-
-        expectedInResponseTo ??= logoutCookie;
 
         string returnUrl;
 

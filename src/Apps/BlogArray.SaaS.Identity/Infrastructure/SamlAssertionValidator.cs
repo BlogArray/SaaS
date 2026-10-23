@@ -17,6 +17,12 @@ namespace BlogArray.SaaS.Identity.Infrastructure;
 public class SamlValidationException(string message) : Exception(message);
 
 /// <summary>
+/// Identifies a validated assertion for one-time-use enforcement: its ID and the instant
+/// (expiry plus clock skew) after which validation would reject it anyway.
+/// </summary>
+public readonly record struct SamlAssertionInfo(string AssertionId, DateTime AcceptableUntilUtc);
+
+/// <summary>
 /// Defense-in-depth validation of received SAML 2.0 responses, complementing the signature
 /// check performed by the SAML library. Enforces the assertion checks required by the SAML
 /// 2.0 core specification (OASIS saml-core-2.0-os) that lightweight libraries commonly omit:
@@ -122,7 +128,7 @@ public static class SamlAssertionValidator
         return document.DocumentElement?.LocalName == "LogoutResponse";
     }
 
-    public static void Validate(string base64Response, string expectedEntityId, string expectedAcsUrl, string? expectedInResponseTo)
+    public static SamlAssertionInfo Validate(string base64Response, string expectedEntityId, string expectedAcsUrl, string? expectedInResponseTo)
     {
         byte[] raw;
 
@@ -206,6 +212,14 @@ public static class SamlAssertionValidator
 
         XmlElement assertion = (assertions[0] as XmlElement)!;
 
+        // The assertion ID is required (saml-core 2.7.3) and is the one-time-use key.
+        string assertionId = assertion.GetAttribute("ID");
+
+        if (string.IsNullOrEmpty(assertionId))
+        {
+            throw new SamlValidationException("The SAML assertion carries no ID.");
+        }
+
         // Assertion validity window (with clock skew).
         DateTime now = DateTime.UtcNow;
 
@@ -265,5 +279,7 @@ public static class SamlAssertionValidator
                 throw new SamlValidationException("The subject confirmation has expired or carries no expiry.");
             }
         }
+
+        return new SamlAssertionInfo(assertionId, notOnOrAfterUtc.Add(ClockSkew));
     }
 }
