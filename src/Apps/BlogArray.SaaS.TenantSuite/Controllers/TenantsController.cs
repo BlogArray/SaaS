@@ -36,6 +36,7 @@ public class TenantsController(OpenIdDbContext context,
     IConfiguration configuration,
     IEmailTemplate emailTemplate,
     IAuditEventLogger auditLogger,
+    ITenantAccessNotifier tenantAccessNotifier,
     ILogger<TenantsController> logger) : BaseController
 {
     private readonly int _apiKeyPrefixLength = configuration.GetValue("ApiKey:PrefixLength", 8);
@@ -539,6 +540,8 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("An error occurred while uploading the file.");
         }
 
+        string? previousImage = type == "logo" ? openIdApplication.Theme.Logo : openIdApplication.Theme.Favicon;
+
         if (type == "logo")
         {
             openIdApplication.Theme.Logo = result.Result;
@@ -551,6 +554,13 @@ public class TenantsController(OpenIdDbContext context,
         await manager.UpdateAsync(openIdApplication);
 
         await InvalidateTenantCacheAsync(openIdApplication);
+
+        // Audited like every other tenant setting change.
+        (string? imageOldValueJson, string? imageNewValueJson) = type == "logo"
+            ? AuditDiff.Changed(new { Logo = previousImage }, new { Logo = result.Result })
+            : AuditDiff.Changed(new { Favicon = previousImage }, new { Favicon = result.Result });
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: openIdApplication.ClientId, Reason: $"{type} updated", OldValueJson: imageOldValueJson, NewValueJson: imageNewValueJson));
 
         return result.Status ? JsonSuccess(result.Result) : JsonError("An error occurred while saving your information.");
     }
@@ -719,9 +729,30 @@ public class TenantsController(OpenIdDbContext context,
             await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserAddedToTenant, TargetUserId: userId, ClientId: openIdApplication.ClientId, Reason: "user assigned by administrator"));
         }
 
-        return assigned.Count > 0
-            ? JsonSuccess($"{assigned.Count} user(s) have been successfully assigned to the tenant.")
-            : JsonSuccess("The selected user(s) already have access to this tenant.");
+        if (assigned.Count == 0)
+        {
+            return JsonSuccess("The selected user(s) already have access to this tenant.");
+        }
+
+        // Same email as the Membership API's invite; a mail failure never undoes the access.
+        int notFailed = 0;
+
+        if (assignViewModel.Notify)
+        {
+            foreach (string userId in assigned)
+            {
+                if (!await tenantAccessNotifier.NotifyAssignedAsync(userId, openIdApplication, LoggedInUserEmail))
+                {
+                    notFailed++;
+                }
+            }
+        }
+
+        string notice = !assignViewModel.Notify
+            ? string.Empty
+            : notFailed == 0 ? " The users have been notified by email." : $" {notFailed} notification email(s) could not be sent.";
+
+        return JsonSuccess($"{assigned.Count} user(s) have been successfully assigned to the tenant.{notice}");
     }
 
     [HttpGet]

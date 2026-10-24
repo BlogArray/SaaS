@@ -32,6 +32,7 @@ public class UsersController(OpenIdDbContext context,
     IUserManagementService userManagementService,
     IAuditEventLogger auditLogger,
     IOpenIddictTokenManager tokenManager,
+    ITenantAccessNotifier tenantAccessNotifier,
     ILogger<UsersController> logger) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
@@ -60,19 +61,33 @@ public class UsersController(OpenIdDbContext context,
             return NotifyOutcome.NotRequested;
         }
 
+        return await TrySendAsync(user, email => emailTemplate.SecurityActionByAdminNotice(email, user.DisplayName, action, advice));
+    }
+
+    /// <summary>
+    /// Sends an email to the user without ever failing the request: the change it reports has
+    /// already been saved. Failures are logged and returned so the response can say so.
+    /// </summary>
+    private async Task<NotifyOutcome> TrySendAsync(ApplicationUser user, Func<string, Task> send)
+    {
         if (string.IsNullOrEmpty(user.Email))
         {
             return NotifyOutcome.Failed;
         }
 
+        return await TrySendToAsync(user.Email, user.Id, send);
+    }
+
+    private async Task<NotifyOutcome> TrySendToAsync(string toEmail, string userId, Func<string, Task> send)
+    {
         try
         {
-            await emailTemplate.SecurityActionByAdminNotice(user.Email, user.DisplayName, action, advice);
+            await send(toEmail);
             return NotifyOutcome.Sent;
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Could not send the account action notice to user {UserId}.", user.Id);
+            logger.LogWarning(ex, "Could not send an email about user {UserId}.", userId);
             return NotifyOutcome.Failed;
         }
     }
@@ -170,17 +185,28 @@ public class UsersController(OpenIdDbContext context,
 
         // "Email me the password setup link": the administrator receives the link to hand it
         // over; otherwise it goes straight to the new user.
-        if (createUserViewModel.SendLinkToMe && !string.IsNullOrEmpty(LoggedInUserEmail))
-        {
-            emailTemplate.ForgotPassword(LoggedInUserEmail, user.DisplayName, callbackUrl);
+        // The user exists at this point: a mail failure is reported, never thrown.
+        bool toAdmin = createUserViewModel.SendLinkToMe && !string.IsNullOrEmpty(LoggedInUserEmail);
+        string recipient = toAdmin ? LoggedInUserEmail! : createUserViewModel.Email;
 
+        NotifyOutcome sent = await TrySendToAsync(recipient, user.Id, email =>
+        {
+            emailTemplate.ForgotPassword(email, user.DisplayName, callbackUrl);
+            return Task.CompletedTask;
+        });
+
+        if (sent != NotifyOutcome.Sent)
+        {
+            AddSuccessMessage($"User with email {createUserViewModel.Email} is successfully created, but the password setup link could not be emailed. " +
+                "Use Reset password on the user's page to send it again.");
+        }
+        else if (toAdmin)
+        {
             AddSuccessMessage($"User with email {createUserViewModel.Email} is successfully created. " +
                 $"The password setup link has been sent to you ({LoggedInUserEmail}). Please pass it on to the user.");
         }
         else
         {
-            emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl);
-
             AddSuccessMessage($"User with email {createUserViewModel.Email} is successfully created. " +
                 $"The password setup link has been sent to {createUserViewModel.Email}. Please ask them to check their email.");
         }
@@ -502,7 +528,7 @@ public class UsersController(OpenIdDbContext context,
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DisableMfa(string id)
+    public async Task<IActionResult> DisableMfa(string id, bool notify = true)
     {
         ApplicationUser? user = await userManager.FindByIdAsync(id);
 
@@ -518,11 +544,13 @@ public class UsersController(OpenIdDbContext context,
             return IdentityErrorResult(result.Errors);
         }
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.MfaDisabled, TargetUserId: user.Id, Reason: "two-factor authentication disabled by administrator"));
+        NotifyOutcome notified = await NotifyUserAsync(user, notify,
+            "Two-factor authentication has been turned off on your account by an administrator. You can turn it on again from your account settings.",
+            "If you were not expecting this, please reset your password and contact our support team.");
 
-        await emailTemplate.SecurityActionByAdminNotice(user.Email, user.DisplayName, "Two-factor authentication has been disabled on your account by an administrator.");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.MfaDisabled, TargetUserId: user.Id, Reason: $"two-factor authentication disabled by administrator; {DescribeForAudit(notified)}"));
 
-        return JsonSuccess("Multi-factor authentication has been disabled for this user.");
+        return JsonSuccess($"Multi-factor authentication has been disabled for this user.{DescribeForAdmin(notified)}");
     }
 
     /// <summary>
@@ -531,7 +559,7 @@ public class UsersController(OpenIdDbContext context,
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ResetMfa(string id)
+    public async Task<IActionResult> ResetMfa(string id, bool notify = true)
     {
         ApplicationUser? user = await userManager.FindByIdAsync(id);
 
@@ -543,16 +571,18 @@ public class UsersController(OpenIdDbContext context,
         await userManager.SetTwoFactorEnabledAsync(user, false);
         await userManager.ResetAuthenticatorKeyAsync(user);
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.MfaDisabled, TargetUserId: user.Id, Reason: "multi-factor authentication reset by administrator (re-enrollment required)"));
+        NotifyOutcome notified = notify
+            ? await TrySendAsync(user, email => emailTemplate.MfaResetByAdminNotice(email, user.DisplayName))
+            : NotifyOutcome.NotRequested;
 
-        await emailTemplate.MfaResetByAdminNotice(user.Email, user.DisplayName);
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.MfaDisabled, TargetUserId: user.Id, Reason: $"multi-factor authentication reset by administrator (re-enrollment required); {DescribeForAudit(notified)}"));
 
-        return JsonSuccess("Multi-factor authentication has been reset. The user must re-enroll their authenticator at next sign-in.");
+        return JsonSuccess($"Multi-factor authentication has been reset. The user must re-enroll their authenticator at next sign-in.{DescribeForAdmin(notified)}");
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemovePasskey(string id, string credentialId)
+    public async Task<IActionResult> RemovePasskey(string id, string credentialId, bool notify = true)
     {
         WebAuthnCredential? credential = await context.WebAuthnCredentials
             .SingleOrDefaultAsync(c => c.Id == credentialId && c.UserId == id);
@@ -567,14 +597,15 @@ public class UsersController(OpenIdDbContext context,
         context.WebAuthnCredentials.Remove(credential);
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PasskeyRemoved, TargetUserId: credential.UserId, Reason: $"passkey '{credential.Name}' removed by administrator"));
+        NotifyOutcome notified = owner is null
+            ? NotifyOutcome.NotRequested
+            : await NotifyUserAsync(owner, notify,
+                $"Your passkey '{credential.Name}' has been removed from your account by an administrator. You can no longer sign in with it.",
+                "If you were not expecting this, please contact your administrator or our support team.");
 
-        if (owner is not null)
-        {
-            await emailTemplate.SecurityActionByAdminNotice(owner.Email, owner.DisplayName, $"Your passkey '{credential.Name}' has been removed from your account by an administrator.");
-        }
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PasskeyRemoved, TargetUserId: credential.UserId, Reason: $"passkey '{credential.Name}' removed by administrator; {DescribeForAudit(notified)}"));
 
-        return JsonSuccess($"Passkey '{credential.Name}' has been removed.");
+        return JsonSuccess($"Passkey '{credential.Name}' has been removed.{DescribeForAdmin(notified)}");
     }
 
     #endregion Security
@@ -594,7 +625,7 @@ public class UsersController(OpenIdDbContext context,
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RevokeSession(string id, string sessionId)
+    public async Task<IActionResult> RevokeSession(string id, string sessionId, bool notify = true)
     {
         UserSession? session = await context.UserSessions
             .SingleOrDefaultAsync(s => s.SessionId == sessionId && s.UserId == id);
@@ -607,18 +638,17 @@ public class UsersController(OpenIdDbContext context,
         session.Revoked = true;
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionRevoked, TargetUserId: session.UserId, Reason: $"session on '{session.DeviceName}' revoked by administrator"));
-
         ApplicationUser? owner = await userManager.FindByIdAsync(session.UserId);
 
-        if (owner?.Email is not null)
-        {
-            await emailTemplate.SecurityActionByAdminNotice(
-                owner.Email, owner.DisplayName,
-                $"Your session on '{session.DeviceName}' ({session.IpAddress}) has been signed out by an administrator.");
-        }
+        NotifyOutcome notified = owner is null
+            ? NotifyOutcome.NotRequested
+            : await NotifyUserAsync(owner, notify,
+                $"Your session on '{session.DeviceName}' ({session.IpAddress}) has been signed out by an administrator. You can sign in again on that device.",
+                "If you don't recognise this device, please reset your password and contact our support team.");
 
-        return JsonSuccess($"Session on '{session.DeviceName}' has been revoked.");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionRevoked, TargetUserId: session.UserId, Reason: $"session on '{session.DeviceName}' revoked by administrator; {DescribeForAudit(notified)}"));
+
+        return JsonSuccess($"Session on '{session.DeviceName}' has been revoked.{DescribeForAdmin(notified)}");
     }
 
     #endregion Sessions
@@ -807,9 +837,17 @@ public class UsersController(OpenIdDbContext context,
 
             string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
-            emailTemplate.ForgotPassword(entity.Email, entity.DisplayName, callbackUrl);
+            // Sending the link is the whole action: report a mail failure as an error (nothing
+            // else was changed), never as a server error.
+            NotifyOutcome sent = await TrySendAsync(entity, email =>
+            {
+                emailTemplate.ForgotPassword(email, entity.DisplayName, callbackUrl);
+                return Task.CompletedTask;
+            });
 
-            return JsonSuccess($"The password setup link has been sent to {entity.Email}. Please ask them to check their email.");
+            return sent == NotifyOutcome.Sent
+                ? JsonSuccess($"The password setup link has been sent to {entity.Email}. Please ask them to check their email.")
+                : JsonError("The password setup link could not be emailed. Please try again later.");
         }
     }
 
@@ -912,7 +950,17 @@ public class UsersController(OpenIdDbContext context,
 
         string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code, tenant = application.ClientId });
 
-        emailTemplate.InviteWithPasswordLink(entity.Email, entity.DisplayName, callbackUrl, application.Legalname, application.TenantUrl, LoggedInUserEmail);
+        NotifyOutcome sent = await TrySendAsync(entity, email =>
+        {
+            emailTemplate.InviteWithPasswordLink(email, entity.DisplayName, callbackUrl, application.Legalname, application.TenantUrl ?? string.Empty, LoggedInUserEmail ?? "an administrator");
+            return Task.CompletedTask;
+        });
+
+        // Not recorded as a resend when it failed, so the retry is not throttled.
+        if (sent != NotifyOutcome.Sent)
+        {
+            return JsonError("The invite could not be emailed. Please try again later.");
+        }
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ResendInvite, TargetUserId: entity.Id, ClientId: application.ClientId));
 
@@ -921,7 +969,7 @@ public class UsersController(OpenIdDbContext context,
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ConfirmEmailPhone(string id)
+    public async Task<IActionResult> ConfirmEmailPhone(string id, bool notify = true)
     {
         if (id == null)
         {
@@ -947,12 +995,15 @@ public class UsersController(OpenIdDbContext context,
 
         string confirmed = hasPhoneNumber ? "email address and phone number" : "email address";
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id, Reason: $"{confirmed} confirmed by administrator"));
-        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, hasPhoneNumber
-            ? "Your email address and phone number have been confirmed by an administrator."
-            : "Your email address has been confirmed by an administrator.");
+        NotifyOutcome notified = await NotifyUserAsync(entity, notify,
+            hasPhoneNumber
+                ? "Your email address and phone number have been confirmed by an administrator."
+                : "Your email address has been confirmed by an administrator.",
+            "If you were not expecting this, please contact our support team.");
 
-        return JsonSuccess("User information has been successfully saved.");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id, Reason: $"{confirmed} confirmed by administrator; {DescribeForAudit(notified)}"));
+
+        return JsonSuccess($"The user's {confirmed} has been confirmed.{DescribeForAdmin(notified)}");
     }
 
     [HttpPost]
@@ -1065,11 +1116,7 @@ public class UsersController(OpenIdDbContext context,
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    /// <param name="notify">
-    /// Set by the toolbar's revoke dialog ("Notify the user by email"). Defaults to false so the
-    /// Sessions panel's "Revoke all sessions" button, which posts no choice, sends no email.
-    /// </param>
-    public async Task<IActionResult> RevokeAllSessions(string id, bool notify = false)
+    public async Task<IActionResult> RevokeAllSessions(string id, bool notify = true)
     {
         ApplicationUser? entity = await userManager.FindByIdAsync(id);
 
@@ -1166,9 +1213,30 @@ public class UsersController(OpenIdDbContext context,
             await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserAddedToTenant, TargetUserId: user.Id, ClientId: application.ClientId, Reason: "tenant assigned by administrator"));
         }
 
-        return assigned.Count > 0
-            ? JsonSuccess($"{assigned.Count} tenant(s) have been successfully assigned to the user.")
-            : JsonSuccess("The user already has access to the selected tenant(s).");
+        if (assigned.Count == 0)
+        {
+            return JsonSuccess("The user already has access to the selected tenant(s).");
+        }
+
+        // Same email as the Membership API's invite; a mail failure never undoes the access.
+        int notFailed = 0;
+
+        if (assignViewModel.Notify)
+        {
+            foreach (OpenIdApplication application in assigned)
+            {
+                if (!await tenantAccessNotifier.NotifyAssignedAsync(user.Id, application, LoggedInUserEmail))
+                {
+                    notFailed++;
+                }
+            }
+        }
+
+        string notice = !assignViewModel.Notify
+            ? string.Empty
+            : notFailed == 0 ? " The user has been notified by email." : $" {notFailed} notification email(s) could not be sent.";
+
+        return JsonSuccess($"{assigned.Count} tenant(s) have been successfully assigned to the user.{notice}");
     }
 
     [HttpGet]

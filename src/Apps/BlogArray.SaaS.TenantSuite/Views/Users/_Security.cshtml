@@ -1,4 +1,14 @@
 @model UserSecurityViewModel
+@{
+    // Security actions confirm in the same dialog as the toolbar's account actions, with the
+    // choice to notify the user by email.
+    UserActionDialogViewModel disableMfaDialog = new(Model.Id, "DisableMfa", "Disable 2FA",
+        "Two-factor authentication will be turned off. The authenticator stays enrolled, so the user can turn it on again without re-scanning.", Destructive: true,
+        "Untick this when responding to a suspected account compromise.");
+    UserActionDialogViewModel resetMfaDialog = new(Model.Id, "ResetMfa", "Reset MFA",
+        "Two-factor authentication will be turned off and the authenticator enrollment cleared. The user must enroll a new authenticator at their next sign-in.", Destructive: true,
+        "Untick this when responding to a suspected account compromise.");
+}
 
 <div class="d-flex justify-content-between align-items-start mb-3">
     <div>
@@ -19,14 +29,10 @@
     <div class="text-nowrap">
         @if (Model.TwoFactorEnabled)
         {
-            <form asp-controller="Users" asp-action="DisableMfa" method="post" data-ajax="true" data-ajax-method="post" data-ajax-success="securityChanged" class="d-inline ms-1" title="Turns 2FA off but keeps the authenticator enrollment">
-                <input type="hidden" name="id" value="@Model.Id" />
-                <button type="submit" class="btn btn-sm btn-subtle theme-secondary">Disable 2FA</button>
-            </form>
-            <form asp-controller="Users" asp-action="ResetMfa" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This clears the authenticator enrollment entirely. The user must re-enroll at next sign-in. Continue?" data-ajax-success="securityChanged" class="d-inline ms-1">
-                <input type="hidden" name="id" value="@Model.Id" />
-                <button type="submit" class="btn btn-sm btn-subtle theme-danger">Reset MFA</button>
-            </form>
+            <button type="button" data-bs-toggle="dialog" data-bs-target="#@disableMfaDialog.DialogId" class="btn btn-sm btn-subtle theme-secondary ms-1" title="Turns 2FA off but keeps the authenticator enrollment">Disable 2FA</button>
+            <button type="button" data-bs-toggle="dialog" data-bs-target="#@resetMfaDialog.DialogId" class="btn btn-sm btn-subtle theme-danger ms-1">Reset MFA</button>
+            <partial name="_UserActionDialog" model="disableMfaDialog" />
+            <partial name="_UserActionDialog" model="resetMfaDialog" />
         }
     </div>
 </div>
@@ -56,11 +62,13 @@ else
                         <td class="fg-secondary small">@passkey.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</td>
                         <td class="fg-secondary small">@(passkey.LastUsedOn?.ToLocalTime().ToString("dd-MM-yyyy HH:mm") ?? "never")</td>
                         <td class="text-end">
-                            <form asp-controller="Users" asp-action="RemovePasskey" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Remove passkey '@passkey.Name'? The user will no longer be able to sign in with it." data-ajax-success="securityChanged" class="d-inline">
-                                <input type="hidden" name="id" value="@Model.Id" />
-                                <input type="hidden" name="credentialId" value="@passkey.Id" />
-                                <button type="submit" class="btn btn-sm btn-subtle theme-danger">Remove</button>
-                            </form>
+                            @{
+                                UserActionDialogViewModel removePasskeyDialog = new(Model.Id, "RemovePasskey", "Remove passkey",
+                                    $"The passkey '{passkey.Name}' will be removed. The user can no longer sign in with it.", Destructive: true,
+                                    Key: passkey.Id, Fields: new Dictionary<string, string> { ["credentialId"] = passkey.Id });
+                            }
+                            <button type="button" data-bs-toggle="dialog" data-bs-target="#@removePasskeyDialog.DialogId" class="btn btn-sm btn-subtle theme-danger">Remove</button>
+                            <partial name="_UserActionDialog" model="removePasskeyDialog" />
                         </td>
                     </tr>
                 }

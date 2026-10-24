@@ -12,6 +12,13 @@
         </div>
         <div class="dialog-body">
             <input type="hidden" name="id" value="@Model.UserId" />
+            @if (Model.Fields is not null)
+            {
+                foreach (KeyValuePair<string, string> field in Model.Fields)
+                {
+                    <input type="hidden" name="@field.Key" value="@field.Value" />
+                }
+            }
             <p>@Model.Message</p>
             @if (Model.AskLockoutEnd)
             {

@@ -176,8 +176,8 @@ public class UserToolbar
 }
 
 /// <summary>
-/// A confirmation dialog for a toolbar account action (enable, disable, lock, unlock) that
-/// lets the administrator choose whether the user is notified by email.
+/// A confirmation dialog for an administrator action on a user (account, security and session
+/// actions) that lets the administrator choose whether the user is notified by email.
 /// </summary>
 /// <param name="UserId">The user the action applies to.</param>
 /// <param name="Action">The UsersController action that performs it, e.g. "LockUser".</param>
@@ -186,9 +186,13 @@ public class UserToolbar
 /// <param name="Destructive">Styles the confirm button as dangerous.</param>
 /// <param name="NotifyHint">Optional guidance shown under the notify checkbox.</param>
 /// <param name="AskLockoutEnd">Lets the administrator choose how long the lock lasts (lock only).</param>
-public record UserActionDialogViewModel(string UserId, string Action, string Title, string Message, bool Destructive, string? NotifyHint = null, bool AskLockoutEnd = false)
+/// <param name="Key">Distinguishes several dialogs for the same action on one page (one per passkey or session).</param>
+/// <param name="Fields">Extra values posted with the action (e.g. the passkey or session id).</param>
+public record UserActionDialogViewModel(string UserId, string Action, string Title, string Message, bool Destructive, string? NotifyHint = null, bool AskLockoutEnd = false, string? Key = null, IReadOnlyDictionary<string, string>? Fields = null)
 {
-    public string DialogId => $"user-{Action.ToLowerInvariant()}-dialog-{UserId}";
+    public string DialogId => Key is null
+        ? $"user-{Action.ToLowerInvariant()}-dialog-{UserId}"
+        : $"user-{Action.ToLowerInvariant()}-dialog-{UserId}-{Key}";
 }
 
 /// <summary>
@@ -320,6 +324,11 @@ public class AssignTenantRequestViewModel
     public string UserId { get; set; } = default!;
 
     public List<string>? Tenants { get; set; } = default!;
+
+    /// <summary>
+    /// Email the user about each tenant they were given access to.
+    /// </summary>
+    public bool Notify { get; set; } = true;
 }
 
 public class UnAssignTenantViewModel : AssignTenantViewModel

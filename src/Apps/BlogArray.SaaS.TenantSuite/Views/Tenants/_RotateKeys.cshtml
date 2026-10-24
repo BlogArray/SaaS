@@ -1,8 +1,12 @@
 ﻿@model RotateKeysViewModel
+@{
+    // One credential is rotated at a time: word the dialog for it.
+    string credential = Model.Type == "secret" ? "client secret" : "API key";
+}
 
 <dialog class="dialog dialog-scrollable" id="keysModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="keysModalLabel">
     <div class="dialog-header">
-        <h1 class="dialog-title fs-lg" id="keysModalLabel">Keys for @Model.Name</h1>
+        <h1 class="dialog-title fs-lg" id="keysModalLabel">New @credential for @Model.Name</h1>
     </div>
     <div class="dialog-body">
         @if (!string.IsNullOrEmpty(Model.EmailError))
@@ -37,7 +41,7 @@
         }
     </div>
     <div class="dialog-footer">
-        <button type="button" class="btn btn-solid theme-primary" data-bs-dismiss="dialog">I understand and copied the keys</button>
+        <button type="button" class="btn btn-solid theme-primary" data-bs-dismiss="dialog">I have saved the @credential</button>
     </div>
 </dialog>
 

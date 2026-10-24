@@ -418,6 +418,7 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddScoped<IDbConnectionFactory, SqlDbConnectionFactory>();
         builder.Services.AddScoped<ITenantManagementService, TenantManagementService>();
         builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+        builder.Services.AddScoped<ITenantAccessNotifier, TenantAccessNotifier>();
         builder.Services.AddScoped<ApiKeyAuthorizationFilter>();
 
         // CORS is restricted to the origins listed in the optional "Cors:AllowedOrigins"

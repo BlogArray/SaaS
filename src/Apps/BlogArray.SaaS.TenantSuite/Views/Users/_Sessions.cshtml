@@ -1,13 +1,18 @@
 @model List<UserSession>
+@{
+    string? userId = Model.FirstOrDefault()?.UserId;
+}
 
 <div class="d-flex justify-content-between align-items-start mb-3">
     <h6 class="mb-0">Active sessions (@Model.Count(s => !s.Revoked))</h6>
-    @if (Model.Count(s => !s.Revoked) > 0)
+    @if (userId is not null && Model.Count(s => !s.Revoked) > 0)
     {
-        <form asp-controller="Users" asp-action="RevokeAllSessions" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This signs the user out of every device, including this admin console session of theirs, and invalidates password-reset links. Continue?" data-ajax-success="sessionsChanged" class="d-inline">
-            <input type="hidden" name="id" value="@(Model.FirstOrDefault()?.UserId)" />
-            <button type="submit" class="btn btn-sm btn-subtle theme-danger">Revoke all sessions</button>
-        </form>
+        @* Same dialog as the toolbar's Revoke sessions (its own key: both can be on the page). *@
+        UserActionDialogViewModel revokeAllDialog = new(userId, "RevokeAllSessions", "Revoke all sessions",
+            "The user will be signed out of every device and app, and any password-reset links they hold stop working. They can sign in again straight away.", Destructive: true,
+            "Untick this when responding to a suspected account compromise.", Key: "panel");
+        <button type="button" data-bs-toggle="dialog" data-bs-target="#@revokeAllDialog.DialogId" class="btn btn-sm btn-subtle theme-danger">Revoke all sessions</button>
+        <partial name="_UserActionDialog" model="revokeAllDialog" />
     }
 </div>
 
@@ -50,11 +55,12 @@ else
                         <td class="text-end">
                             @if (!session.Revoked)
                             {
-                                <form asp-controller="Users" asp-action="RevokeSession" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Sign out this session?" data-ajax-success="sessionsChanged" class="d-inline">
-                                    <input type="hidden" name="id" value="@session.UserId" />
-                                    <input type="hidden" name="sessionId" value="@session.SessionId" />
-                                    <button type="submit" class="btn btn-sm btn-subtle theme-danger">Revoke</button>
-                                </form>
+                                UserActionDialogViewModel revokeSessionDialog = new(session.UserId, "RevokeSession", "Revoke session",
+                                    $"The session on '{session.DeviceName}' ({session.IpAddress}) will be signed out. The user can sign in again on that device.", Destructive: true,
+                                    "Untick this when responding to a suspected account compromise.",
+                                    Key: session.Id, Fields: new Dictionary<string, string> { ["sessionId"] = session.SessionId });
+                                <button type="button" data-bs-toggle="dialog" data-bs-target="#@revokeSessionDialog.DialogId" class="btn btn-sm btn-subtle theme-danger">Revoke</button>
+                                <partial name="_UserActionDialog" model="revokeSessionDialog" />
                             }
                         </td>
                     </tr>

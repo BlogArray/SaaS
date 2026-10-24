@@ -408,6 +408,45 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     z-index: 10000;
 }
 
+// Dialogs and drawers are often rendered next to their trigger - inside button groups, table
+// cells (.text-end) or .text-nowrap containers - and, although shown in the top layer, still
+// inherit those text styles: text would not wrap and long lines would run out of the dialog.
+// Reset the inherited text layout, and let long unbroken values (emails, device names, keys)
+// wrap instead of overflowing.
+.dialog,
+.drawer {
+    white-space: normal;
+    text-align: start;
+    overflow-wrap: break-word;
+}
+
+// The toast container and the loader are raised into the top layer as manual popovers so
+// they show above open dialogs and drawers (TopLayer in site.js). Undo the browser's default
+// popover box (centred, bordered, opaque) so they keep their normal placement and look.
+#toastContainer[popover],
+.global-loader[popover] {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    overflow: visible;
+    max-width: none;
+    max-height: none;
+}
+
+#toastContainer[popover] {
+    inset: 0 0 auto auto;
+    width: auto;
+    height: auto;
+}
+
+.global-loader[popover] {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
 .loader-container .middle {
     position: absolute;
     top: 50%;

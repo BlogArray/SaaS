@@ -18,6 +18,8 @@
     UserActionDialogViewModel lockDialog = new(Model.Id, "LockUser", "Lock user",
         "The user will be signed out of every device and can't sign in while the account is locked. Choose how long the lock lasts.", Destructive: true,
         "Untick this when responding to a suspected account compromise.", AskLockoutEnd: true);
+    UserActionDialogViewModel confirmDialog = new(Model.Id, "ConfirmEmailPhone", "Confirm email",
+        "The user's email address (and phone number, if one is set) will be marked as confirmed, so they can sign in without the confirmation link.", Destructive: false);
     UserActionDialogViewModel revokeDialog = new(Model.Id, "RevokeAllSessions", "Revoke sessions",
         "The user will be signed out of every device and app, and any password-reset links they hold stop working. They can sign in again straight away.", Destructive: true,
         "Untick this when responding to a suspected account compromise.");
@@ -49,7 +51,7 @@
             }
             @if (!Model.IsEmailPhoneConfirmed)
             {
-                <button type="submit" form="user-confirm-form-@Model.Id" class="btn btn-subtle theme-secondary" title="Mark email and phone as confirmed.">Confirm email/phone</button>
+                <button type="button" data-bs-toggle="dialog" data-bs-target="#@confirmDialog.DialogId" class="btn btn-subtle theme-secondary" title="Mark email and phone as confirmed.">Confirm email/phone</button>
             }
             @* Locked = a lockout end in the future. LockoutEnabled is true for every account and
                only means lockout can apply. *@
@@ -110,9 +112,10 @@
     {
         <partial name="_UserActionDialog" model="lockDialog" />
     }
-    <form id="user-confirm-form-@Model.Id" asp-controller="Users" asp-action="ConfirmEmailPhone" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This will allow them to access the account. Are you sure you want to confirm the user's email and phone number?" data-ajax-success="changeState" hidden>
-        <input type="hidden" name="id" value="@Model.Id" />
-    </form>
+    if (!Model.IsEmailPhoneConfirmed)
+    {
+        <partial name="_UserActionDialog" model="confirmDialog" />
+    }
     <partial name="_UserActionDialog" model="revokeDialog" />
 }
 @section Scripts {

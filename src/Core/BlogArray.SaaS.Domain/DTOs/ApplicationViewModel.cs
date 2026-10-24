@@ -149,6 +149,11 @@ public class AssignViewModelRequest
     public string ApplicationId { get; set; } = default!;
 
     public List<string>? Users { get; set; } = default!;
+
+    /// <summary>
+    /// Email each newly assigned user about their access to the tenant.
+    /// </summary>
+    public bool Notify { get; set; } = true;
 }
 
 public class UnAssignViewModel : AssignViewModel

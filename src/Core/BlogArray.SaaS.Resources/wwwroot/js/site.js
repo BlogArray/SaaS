@@ -15,22 +15,108 @@ var tooltipList = [];
 
 document.addEventListener('DOMContentLoaded', resetTooltips);
 
+// Open dialogs and drawers (<dialog>, showModal) render in the browser's top layer, above any
+// z-index: the toast container and the loader would sit under their overlay. Raising them into
+// the top layer as manual popovers puts them above whatever is already there; the element
+// raised last is on top, so they are re-raised each time they are shown.
+var TopLayer = (function () {
+    const supported = typeof HTMLElement !== 'undefined' && Object.prototype.hasOwnProperty.call(HTMLElement.prototype, 'popover');
+
+    function raise(element) {
+        if (!supported || !element || !element.isConnected) {
+            return;
+        }
+
+        if (!element.hasAttribute('popover')) {
+            element.setAttribute('popover', 'manual');
+        }
+
+        if (element.matches(':popover-open')) {
+            element.hidePopover();
+        }
+
+        element.showPopover();
+    }
+
+    function lower(element) {
+        if (supported && element && element.matches(':popover-open')) {
+            element.hidePopover();
+        }
+    }
+
+    return {
+        raise: raise,
+        lower: lower
+    };
+})();
+
+// Double-submit guard for Unobtrusive Ajax forms (data-ajax="true"): while a form's request is
+// running its submit buttons - including buttons outside it bound with form="..." - are
+// disabled. Unobtrusive Ajax starts the request synchronously from its submit handler (ajaxSend),
+// and only when validation passed and any data-ajax-confirm was accepted. The capture-phase
+// listener runs before every submit handler and the microtask after all of them, so a form is
+// disabled exactly when its submit started a request, whatever order the scripts loaded in.
+var AjaxFormGuard = (function () {
+    let sentCount = 0;
+    const busyForms = new Set();
+
+    $(document).ajaxSend(function () {
+        sentCount++;
+    }).ajaxComplete(function () {
+        busyForms.forEach(function (form) {
+            setSubmitDisabled(form, false);
+        });
+        busyForms.clear();
+    });
+
+    function setSubmitDisabled(form, disabled) {
+        Array.prototype.forEach.call(form.elements, function (element) {
+            if (element.type === 'submit') {
+                element.disabled = disabled;
+            }
+        });
+    }
+
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+
+        if (!(form instanceof HTMLFormElement) || form.getAttribute('data-ajax') !== 'true') {
+            return;
+        }
+
+        const sentBefore = sentCount;
+
+        queueMicrotask(function () {
+            if (sentCount > sentBefore) {
+                setSubmitDisabled(form, true);
+                busyForms.add(form);
+            }
+        });
+    }, true);
+
+    return {};
+})();
+
+function hideGlobalLoader() {
+    $('.global-loader').fadeOut(250, function () {
+        TopLayer.lower(this);
+    });
+}
+
 $(document).ajaxSend(function (event, xhr, options) {
     activeAjaxRequests++;
-    $('.global-loader').fadeIn(250);
+    $('.global-loader').stop(true, true).fadeIn(250).each(function () {
+        TopLayer.raise(this);
+    });
 }).ajaxComplete(function (event, xhr, options) {
+    // ajaxComplete fires for failed requests too, so the count is only decremented here.
     activeAjaxRequests--;
     if (activeAjaxRequests <= 0) {
         activeAjaxRequests = 0;
-        $('.global-loader').fadeOut(250);
+        hideGlobalLoader();
         resetTooltips();
     }
 }).ajaxError(function (event, jqxhr, settings, exception) {
-    activeAjaxRequests--;
-    if (activeAjaxRequests <= 0) {
-        activeAjaxRequests = 0;
-        $('.global-loader').fadeOut(250);
-    }
     if (jqxhr.status === 401) {
         location.reload();
     }
@@ -139,11 +225,18 @@ var Toast = (function () {
 
         toastContainer.appendChild(toast);
 
+        // Above any open dialog or drawer (see TopLayer).
+        TopLayer.raise(toastContainer);
+
         var bsToast = new bootstrap.Toast(toast);
         bsToast.show();
 
         toast.addEventListener('hidden.bs.toast', () => {
             toast.remove();
+
+            if (!toastContainer.querySelector('.toast')) {
+                TopLayer.lower(toastContainer);
+            }
         })
     }
 
