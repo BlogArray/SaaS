@@ -152,6 +152,8 @@
     function changeState(e){
         DynamicContentLoader.load('toolbar');
         DynamicContentLoader.load('basicInfo');
+        // Disable, lock and revoke sessions end the user's sessions: refresh that panel too.
+        DynamicContentLoader.load('sessions');
         Toast.success(e.message);
     }
 </script>

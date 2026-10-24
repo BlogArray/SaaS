@@ -556,11 +556,20 @@ public class TenantsController(OpenIdDbContext context,
     }
 
     [HttpGet]
-    public async Task<IActionResult> RotateApiKeys(string id)
+    /// <summary>
+    /// The rotation prompt (recipients for the new credential) for the API key or, with
+    /// type "secret", the client secret.
+    /// </summary>
+    public async Task<IActionResult> RotateApiKeys(string id, string type = "apikey")
     {
         if (string.IsNullOrEmpty(id))
         {
             return NotFound();
+        }
+
+        if (type is not ("secret" or "apikey"))
+        {
+            return JsonError("Unknown key type.");
         }
 
         OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
@@ -573,6 +582,7 @@ public class TenantsController(OpenIdDbContext context,
         return PartialView("_RotateApiKeysPrompt", new RotateApiKeysPromptViewModel
         {
             ApplicationId = openIdApplication.Id,
+            Type = type,
             Name = openIdApplication.DisplayName,
             Emails = DeserializeEmails(openIdApplication.AdminEmail)
         });
@@ -618,30 +628,37 @@ public class TenantsController(OpenIdDbContext context,
 
             await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ClientSecretRotated, ClientId: openIdApplication.ClientId, Reason: openIdApplication.DisplayName));
         }
-        else if (type == "apikey")
+        else
         {
             // Hash-on-write: the plaintext key is shown once in the response and never stored.
             SetApiKey(openIdApplication, rotateKeys.Key);
             await manager.UpdateAsync(openIdApplication);
 
             await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ApiKeyRotated, ClientId: openIdApplication.ClientId, Reason: $"{openIdApplication.DisplayName} ({openIdApplication.ClientId})"));
+        }
 
-            // Email the new key to the addresses chosen in the rotation prompt, falling back
-            // to the stored tenant admin emails. A mail failure never fails the rotation: the
-            // new key is shown once in the response dialog.
-            List<string> recipients = DeserializeEmailList(emails);
+        // Email the new credential to the addresses chosen in the rotation prompt (prefilled
+        // with the tenant admins). An empty list skips the email, as the prompt says. A mail
+        // failure never fails the rotation: the credential is shown once in the result dialog.
+        List<string> recipients = DeserializeEmailList(emails);
+        string rotatedBy = User.Identity?.Name ?? "an administrator";
+        string credential = type == "secret" ? "client secret" : "API key";
 
-            if (recipients.Count == 0)
+        List<string> failures = SendEach(recipients, email =>
+        {
+            if (type == "secret")
             {
-                recipients = DeserializeEmailList(DeserializeEmails(openIdApplication.AdminEmail));
+                emailTemplate.ClientSecretRotated(email, openIdApplication.DisplayName, rotateKeys.Key, rotatedBy);
             }
-
-            List<string> failures = SendEach(recipients, email => emailTemplate.ApiKeyRotated(email, openIdApplication.DisplayName, rotateKeys.Key, User.Identity?.Name ?? "an administrator"));
-
-            if (failures.Count != 0)
+            else
             {
-                rotateKeys.EmailError = $"The new key could not be emailed to: {string.Join(", ", failures)}. Copy it now - it will not be shown again.";
+                emailTemplate.ApiKeyRotated(email, openIdApplication.DisplayName, rotateKeys.Key, rotatedBy);
             }
+        });
+
+        if (failures.Count != 0)
+        {
+            rotateKeys.EmailError = $"The new {credential} could not be emailed to: {string.Join(", ", failures)}. Copy it now - it will not be shown again.";
         }
 
         await InvalidateTenantCacheAsync(openIdApplication);

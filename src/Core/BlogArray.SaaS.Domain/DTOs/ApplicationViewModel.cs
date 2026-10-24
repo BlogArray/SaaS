@@ -120,6 +120,13 @@ public class RotateApiKeysPromptViewModel
 {
     public string ApplicationId { get; set; } = default!;
 
+    /// <summary>
+    /// What is rotated: "apikey" or "secret" (the client secret).
+    /// </summary>
+    public string Type { get; set; } = "apikey";
+
+    public bool IsClientSecret => Type == "secret";
+
     public string Name { get; set; } = default!;
 
     /// <summary>

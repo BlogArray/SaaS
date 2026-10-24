@@ -1,28 +1,41 @@
 @model RotateApiKeysPromptViewModel
+@{
+    // One prompt for both credentials: the API key and the client secret.
+    string credential = Model.IsClientSecret ? "client secret" : "API key";
+    string title = Model.IsClientSecret ? "Rotate client secret" : "Rotate API key";
+}
 
 <dialog class="dialog" id="rotatePromptModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="rotatePromptModalLabel">
     <form asp-controller="Tenants" asp-action="RotateKeys" method="post" data-ajax="true" data-ajax-method="post" data-ajax-success="onRotatePromptSuccess">
         <div class="dialog-header">
-            <h1 class="dialog-title fs-lg" id="rotatePromptModalLabel">Rotate API key for @Model.Name</h1>
+            <h1 class="dialog-title fs-lg" id="rotatePromptModalLabel">@title for @Model.Name</h1>
             <button type="button" class="btn-close" data-bs-dismiss="dialog" aria-label="Close"></button>
         </div>
         <div class="dialog-body">
             <input type="hidden" name="id" value="@Model.ApplicationId" />
-            <input type="hidden" name="type" value="apikey" />
+            <input type="hidden" name="type" value="@Model.Type" />
             <p class="form-text">
-                Rotating immediately invalidates the current API key. The new key is emailed to the addresses below; pick one or more recipients.
+                @if (Model.IsClientSecret)
+                {
+                    <text>Rotating immediately invalidates the current client secret: any application that signs in with it must be updated. The tenant's BlogArray app picks up the new secret automatically.</text>
+                }
+                else
+                {
+                    <text>Rotating immediately invalidates the current API key: any integration that calls the TenantSuite API with it must be updated. The tenant's BlogArray app picks up the new key automatically.</text>
+                }
+                The new @credential is emailed to the addresses below; pick one or more recipients.
             </p>
             <div class="mb-5">
-                <label for="emails" class="form-label">Email the new key to</label>
+                <label for="emails" class="form-label">Email the new @credential to</label>
                 <input type="text" name="emails" id="emails" class="form-control" value="@Model.Emails" placeholder="admin@example.com" />
             </div>
             <div class="form-text">
-                Leave empty to skip the email - the new key is still shown once after rotating.
+                Leave empty to skip the email - the new @credential is still shown once after rotating, with a copy option.
             </div>
         </div>
         <div class="dialog-footer">
             <button type="button" class="btn btn-solid theme-secondary" data-bs-dismiss="dialog">Cancel</button>
-            <button type="submit" class="btn btn-solid theme-danger">Rotate API key</button>
+            <button type="submit" class="btn btn-solid theme-danger">@title</button>
         </div>
     </form>
 </dialog>

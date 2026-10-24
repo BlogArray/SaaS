@@ -1065,7 +1065,11 @@ public class UsersController(OpenIdDbContext context,
     /// </summary>
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RevokeAllSessions(string id)
+    /// <param name="notify">
+    /// Set by the toolbar's revoke dialog ("Notify the user by email"). Defaults to false so the
+    /// Sessions panel's "Revoke all sessions" button, which posts no choice, sends no email.
+    /// </param>
+    public async Task<IActionResult> RevokeAllSessions(string id, bool notify = false)
     {
         ApplicationUser? entity = await userManager.FindByIdAsync(id);
 
@@ -1076,9 +1080,13 @@ public class UsersController(OpenIdDbContext context,
 
         int sessionCount = await RevokeUserAccessAsync(entity);
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionsRevokedByAdmin, TargetUserId: entity.Id, Reason: $"{sessionCount} session(s) revoked; security stamp rotated; tokens revoked"));
+        NotifyOutcome notified = await NotifyUserAsync(entity, notify,
+            "An administrator has signed you out of all devices and apps. You can sign in again with your password.",
+            "If you were not expecting this, please reset your password and contact our support team.");
 
-        return JsonSuccess($"{sessionCount} session(s) revoked and the security stamp rotated. The user must sign in again.");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.SessionsRevokedByAdmin, TargetUserId: entity.Id, Reason: $"{sessionCount} session(s) revoked; security stamp rotated; tokens revoked; {DescribeForAudit(notified)}"));
+
+        return JsonSuccess($"{sessionCount} session(s) revoked and the security stamp rotated. The user must sign in again.{DescribeForAdmin(notified)}");
     }
 
     /// <summary>

@@ -18,6 +18,9 @@
     UserActionDialogViewModel lockDialog = new(Model.Id, "LockUser", "Lock user",
         "The user will be signed out of every device and can't sign in while the account is locked. Choose how long the lock lasts.", Destructive: true,
         "Untick this when responding to a suspected account compromise.", AskLockoutEnd: true);
+    UserActionDialogViewModel revokeDialog = new(Model.Id, "RevokeAllSessions", "Revoke sessions",
+        "The user will be signed out of every device and app, and any password-reset links they hold stop working. They can sign in again straight away.", Destructive: true,
+        "Untick this when responding to a suspected account compromise.");
 }
 <div class="btn-toolbar mb-3" role="toolbar" aria-label="User actions">
     @if (currentUser == Model.Id)
@@ -68,7 +71,7 @@
             }
             @* Revoking applies to every account; only "Resend invite" is limited to users who
                have not set a password yet. *@
-            <button type="submit" form="user-revoke-form-@Model.Id" class="btn btn-subtle theme-secondary" title="Revoke all sessions and rotate the security stamp.">Revoke sessions</button>
+            <button type="button" data-bs-toggle="dialog" data-bs-target="#@revokeDialog.DialogId" class="btn btn-subtle theme-secondary" title="Revoke all sessions and rotate the security stamp.">Revoke sessions</button>
             @Html.AjaxActionLink("Reset password", "ResetPassword", new { id = Model.Id }, new AjaxOptions
    {
        UpdateTargetId = "changeUserInfo",
@@ -110,9 +113,7 @@
     <form id="user-confirm-form-@Model.Id" asp-controller="Users" asp-action="ConfirmEmailPhone" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This will allow them to access the account. Are you sure you want to confirm the user's email and phone number?" data-ajax-success="changeState" hidden>
         <input type="hidden" name="id" value="@Model.Id" />
     </form>
-    <form id="user-revoke-form-@Model.Id" asp-controller="Users" asp-action="RevokeAllSessions" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="This will sign the user out everywhere and invalidate their password-reset links. Continue?" data-ajax-success="changeState" hidden>
-        <input type="hidden" name="id" value="@Model.Id" />
-    </form>
+    <partial name="_UserActionDialog" model="revokeDialog" />
 }
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

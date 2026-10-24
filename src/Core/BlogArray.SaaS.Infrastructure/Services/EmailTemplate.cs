@@ -54,6 +54,8 @@ public interface IEmailTemplate
     Task MfaResetByAdminNotice(string toEmail, string name);
 
     void ApiKeyRotated(string toEmail, string tenantName, string apiKey, string rotatedBy);
+
+    void ClientSecretRotated(string toEmail, string tenantName, string clientSecret, string rotatedBy);
 }
 
 public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuration) : IEmailTemplate
@@ -316,6 +318,20 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         string body = GenerateEmail(tenantName, template);
 
         Send(toEmail, $"The API key for {Encode(tenantName)} has been rotated - App", body);
+    }
+
+    public void ClientSecretRotated(string toEmail, string tenantName, string clientSecret, string rotatedBy)
+    {
+        string template = $"Hey there!{newLine}" +
+            $"The client secret for the tenant {Encode(tenantName)} has been rotated by {Encode(rotatedBy)} on {DateTime.UtcNow} UTC.{newLine}" +
+            $"The previous client secret no longer works. Any application that signs in with it must be updated with the new secret below - it will not be shown or sent again:{newLine}" +
+            $"{MakeSecretBox(clientSecret)}" +
+            $"If you did not request this change, please contact our support team immediately.{newLine}" +
+            $"Thank you for choosing App.";
+
+        string body = GenerateEmail(tenantName, template);
+
+        Send(toEmail, $"The client secret for {Encode(tenantName)} has been rotated - App", body);
     }
 
 
