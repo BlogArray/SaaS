@@ -5,7 +5,7 @@
 <div class="btn-toolbar mb-3" role="toolbar" aria-label="Toolbar with button groups">
     @if (currentUser == Model.Id)
     {
-        <div class="btn-group btn-group-sm me-3" role="group" aria-label="First group">
+        <div class="btn-group btn-group-sm me-3 btn-group-divider" role="group" aria-label="First group">
             <a target="_blank" asp-action="Manage" title="Manage your profile" asp-controller="Authentication" asp-area=""
                class="btn btn-subtle theme-secondary" data-bs-toggle="tooltip" data-bs-title="Manage your profile">
                 View profile
@@ -15,7 +15,7 @@
     }
     else
     {
-        <div class="btn-group btn-group-sm me-3" role="group" aria-label="First group">
+        <div class="btn-group btn-group-sm me-3 btn-group-divider" role="group" aria-label="First group">
             @if (!Model.IsActive)
             {
                 <form asp-controller="Users" asp-action="EnableUser" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Enabling this user will grant them access to their assigned tenants. Are you sure you want to continue?" data-ajax-success="changeState" class="d-inline">
@@ -73,7 +73,7 @@
    }, new { @class = "btn btn-subtle theme-secondary", title = "Reset password" })
         </div>
     }
-    <div class="btn-group btn-group-sm me-3" role="group" aria-label="First group">
+    <div class="btn-group btn-group-sm me-3 btn-group-divider" role="group" aria-label="First group">
         @Html.AjaxActionLink($"Tenants ({Model.TenantsCount})", "Unassign", new { id = Model.Id }, new AjaxOptions
    {
        UpdateTargetId = "changeUserInfo",
