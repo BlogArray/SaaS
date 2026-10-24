@@ -3,24 +3,36 @@ using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using OpenIddict.Core;
 
 namespace BlogArray.SaaS.Application.Services;
 
 public interface IUserManagementService
 {
-    Task AssignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds);
+    /// <summary>
+    /// Grants the user access to the given tenants. Returns the tenants actually assigned
+    /// (unknown tenants and existing assignments are skipped).
+    /// </summary>
+    Task<List<OpenIdApplication>> AssignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds);
 
-    Task<int> UnassignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds);
+    /// <summary>
+    /// Removes the user's access to the given tenants. Returns the tenants the user was
+    /// actually removed from.
+    /// </summary>
+    Task<List<OpenIdApplication>> UnassignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds);
 }
 
 public class UserManagementService(OpenIdDbContext context,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
     ITenantPersonnelService personnelService,
-    IDataProtector protector) : IUserManagementService
+    IDataProtector protector,
+    ILogger<UserManagementService> logger) : IUserManagementService
 {
-    public async Task AssignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds)
+    public async Task<List<OpenIdApplication>> AssignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds)
     {
+        List<OpenIdApplication> assigned = [];
+
         foreach (string id in tenantIds)
         {
             bool hasAccess = await context.Authorizations
@@ -48,30 +60,48 @@ public class UserManagementService(OpenIdDbContext context,
 
                 await authorizationManager.CreateAsync(auth);
 
+                assigned.Add(openIdApplication);
+
                 string? email = await context.Authorizations
                     .Where(a => a.Subject == userId && a.Application.Id == id)
                     .Select(s => s.SubjectUser.Email)
                     .FirstOrDefaultAsync();
 
-                if (email is not null && openIdApplication.GetConnectionString(protector) is not null)
+                string? connectionString = openIdApplication.GetConnectionString(protector);
+
+                if (email is not null && connectionString is not null)
                 {
-                    await personnelService.EnablePersonnelInTenantAsync(email, openIdApplication.GetConnectionString(protector)!);
+                    // The authorization is the access grant; the tenant's personnel row only
+                    // mirrors it. An unreachable tenant database must not fail the assignment
+                    // (or skip the remaining tenants).
+                    try
+                    {
+                        await personnelService.EnablePersonnelInTenantAsync(email, connectionString);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Could not enable the personnel record in tenant {ClientId} for user {UserId}.", openIdApplication.ClientId, userId);
+                    }
                 }
             }
         }
+
+        return assigned;
     }
 
-    public async Task<int> UnassignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds)
+    public async Task<List<OpenIdApplication>> UnassignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds)
     {
+        // The tenants the user actually belongs to, among those requested.
+        List<OpenIdApplication> applications = await context.Applications
+            .Where(s => tenantIds.Contains(s.Id)
+                && context.Authorizations.Any(a => a.Application!.Id == s.Id && a.Subject == userId))
+            .ToListAsync();
+
         await context.Tokens
             .Where(a => tenantIds.Contains(a.Application.Id) && a.Subject == userId)
             .ExecuteDeleteAsync();
 
-        List<OpenIdApplication> applications = await context.Applications
-            .Where(s => tenantIds.Contains(s.Id) && s.ConnectionStringProtected != null)
-            .ToListAsync();
-
-        int unassignedCount = await context.Authorizations
+        await context.Authorizations
             .Where(a => tenantIds.Contains(a.Application.Id) && a.Subject == userId)
             .ExecuteDeleteAsync();
 
@@ -80,17 +110,30 @@ public class UserManagementService(OpenIdDbContext context,
             .Select(s => s.Email)
             .FirstOrDefaultAsync();
 
-        string[] connectionList = applications
-            .Select(a => a.GetConnectionString(protector))
-            .Where(c => !string.IsNullOrEmpty(c))
-            .Select(c => c!)
-            .ToArray();
-
-        if (!string.IsNullOrEmpty(email) && connectionList.Length > 0)
+        if (!string.IsNullOrEmpty(email))
         {
-            await personnelService.DisablePersonnelInTenantsAsync(connectionList, email!);
+            foreach (OpenIdApplication application in applications)
+            {
+                string? connectionString = application.GetConnectionString(protector);
+
+                if (string.IsNullOrEmpty(connectionString))
+                {
+                    continue;
+                }
+
+                // As for assignment: access is already removed; a tenant database that cannot
+                // be reached must not fail the request or skip the other tenants.
+                try
+                {
+                    await personnelService.DisablePersonnelInTenantsAsync([connectionString], email);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Could not disable the personnel record in tenant {ClientId} for user {UserId}.", application.ClientId, userId);
+                }
+            }
         }
 
-        return unassignedCount;
+        return applications;
     }
 }

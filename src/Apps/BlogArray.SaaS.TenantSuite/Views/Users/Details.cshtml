@@ -43,16 +43,10 @@
 
 <script>
     var userEditCanvas;
-    var logDetailsCanvas;
 
     function userEditFormLoaded() {
         userEditCanvas = new bootstrap.Drawer(document.getElementById('userEditOffcanvas'));
         userEditCanvas.show();
-    }
-
-    function logDetailsLoaded() {
-        logDetailsCanvas = new bootstrap.Drawer(document.getElementById('logDetailsOffcanvas'));
-        logDetailsCanvas.show();
     }
 
      function onUserChangeSuccess(e) {
@@ -83,6 +77,64 @@
         userEditCanvas.hide();
         Toast.success(e.message);
     }
+
+    // Account action dialogs (enable/disable/lock/unlock, _UserActionDialog). Unobtrusive Ajax
+    // calls these with the form as `this`. The confirm button is disabled while the request
+    // runs, so a double click cannot submit twice; on failure the dialog stays open (the global
+    // error dialog shows the reason) and can be corrected and retried.
+    function beginUserAction() {
+        this.querySelectorAll('[type="submit"]').forEach(function (button) { button.disabled = true; });
+    }
+
+    function completeUserAction() {
+        this.querySelectorAll('[type="submit"]').forEach(function (button) { button.disabled = false; });
+    }
+
+    // The dialog lives in the toolbar, which reloads after the action: close it first and
+    // reload only once it has finished closing, so the reload never removes an open dialog.
+    function onAccountActionSuccess(e) {
+        const dialog = this.closest('dialog');
+
+        if (dialog && dialog.open) {
+            dialog.addEventListener('hidden.bs.dialog', function () { changeState(e); }, { once: true });
+            bootstrap.Dialog.getOrCreateInstance(dialog).hide();
+        } else {
+            changeState(e);
+        }
+    }
+
+    // Lock dialog: "Until a date and time" reveals the picker (no past times), and the picked
+    // local time is posted as UTC in lockoutEndUtc. Delegated because the toolbar - and the
+    // dialog inside it - is reloaded after every action.
+    document.addEventListener('change', function (e) {
+        const target = e.target;
+
+        if (target.matches('[data-lockout-mode]')) {
+            const form = target.form;
+            const timed = target.value === 'until';
+            const picker = form.querySelector('[data-lockout-local]');
+
+            form.querySelector('[data-lockout-until]').hidden = !timed;
+
+            if (timed) {
+                // The server requires the lock to end more than a minute from now: start the
+                // allowed range a few minutes ahead (datetime-local wants local time, no zone).
+                const earliest = new Date(Date.now() + 5 * 60 * 1000);
+                earliest.setMinutes(earliest.getMinutes() - earliest.getTimezoneOffset());
+                picker.min = earliest.toISOString().slice(0, 16);
+                picker.required = true;
+                picker.focus();
+            } else {
+                picker.required = false;
+                picker.value = '';
+                form.querySelector('[data-lockout-utc]').value = '';
+            }
+        }
+
+        if (target.matches('[data-lockout-local]')) {
+            target.form.querySelector('[data-lockout-utc]').value = target.value ? new Date(target.value).toISOString() : '';
+        }
+    });
 
     function changeState(e){
         DynamicContentLoader.load('toolbar');

@@ -24,6 +24,8 @@ public class SecurityLogsController(OpenIdDbContext context) : BaseController
 {
     public async Task<IActionResult> SignInLogs(int page = 1, int take = 10, string? term = null, string? tenantId = null)
     {
+        take = ClampPageSize(take);
+
         IQueryable<string> userIds = GetScopedUserIds(tenantId);
 
         IQueryable<SignInLogEntry> logs =
@@ -62,6 +64,8 @@ public class SecurityLogsController(OpenIdDbContext context) : BaseController
 
     public async Task<IActionResult> AuditLogs(int page = 1, int take = 10, string? term = null, string? tenantId = null)
     {
+        take = ClampPageSize(take);
+
         IQueryable<string> userIds = GetScopedUserIds(tenantId);
 
         IQueryable<AuditLogEntry> logs =

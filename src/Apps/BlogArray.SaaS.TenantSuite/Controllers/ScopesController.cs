@@ -20,6 +20,8 @@ public class ScopesController(OpenIdDbContext context, OpenIddictScopeManager<Op
 {
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
+        take = ClampPageSize(take);
+
         ViewBag.SearchTerm = term;
         ViewBag.Take = take;
 

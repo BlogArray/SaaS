@@ -69,9 +69,11 @@ public class ForgotPasswordModel(UserManager<ApplicationUser> userManager,
             }
 
             ApplicationUser user = await userManager.FindByEmailAsync(Input.Email);
-            if (user == null || !await userManager.IsEmailConfirmedAsync(user))
+            // A disabled account gets no reset link: resetting would not restore access, so the
+            // email would only mislead. The response is the same as for unknown addresses.
+            if (user == null || !user.IsActive || !await userManager.IsEmailConfirmedAsync(user))
             {
-                // Don't reveal that the user does not exist or is not confirmed
+                // Don't reveal that the user does not exist, is disabled or is not confirmed
                 return RedirectToPage("./ForgotPasswordConfirmation", new { email = Input.Email });
             }
 

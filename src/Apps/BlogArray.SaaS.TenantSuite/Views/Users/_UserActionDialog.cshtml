@@ -1,0 +1,54 @@
+@model UserActionDialogViewModel
+@* Confirmation for a toolbar account action, with the choice to notify the user by email.
+   The confirm button is disabled while the request runs (beginUserAction/completeUserAction).
+   On success the dialog closes and the toolbar reloads once it has closed
+   (onAccountActionSuccess, Users/Details); on failure the dialog stays open so the
+   administrator can correct the input and retry. *@
+<dialog class="dialog user-action-dialog" id="@Model.DialogId" tabindex="-1" aria-labelledby="@(Model.DialogId)-title">
+    <form asp-controller="Users" asp-action="@Model.Action" method="post" data-ajax="true" data-ajax-method="post" data-ajax-begin="beginUserAction" data-ajax-complete="completeUserAction" data-ajax-success="onAccountActionSuccess">
+        <div class="dialog-header">
+            <h1 class="dialog-title fs-lg" id="@(Model.DialogId)-title">@Model.Title</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="dialog" aria-label="Close"></button>
+        </div>
+        <div class="dialog-body">
+            <input type="hidden" name="id" value="@Model.UserId" />
+            <p>@Model.Message</p>
+            @if (Model.AskLockoutEnd)
+            {
+                @* The date and time are picked in the administrator's local time; the script in
+                   Users/Details converts them to UTC into lockoutEndUtc before submitting. *@
+                <fieldset class="mb-5">
+                    <legend class="form-label">Lock the account</legend>
+                    <div class="form-field">
+                        <input class="radio" type="radio" name="lockoutMode" value="indefinite" id="@(Model.DialogId)-indefinite" data-lockout-mode checked />
+                        <label hide-indicator="true" for="@(Model.DialogId)-indefinite">Until an administrator unlocks it</label>
+                    </div>
+                    <div class="form-field">
+                        <input class="radio" type="radio" name="lockoutMode" value="until" id="@(Model.DialogId)-until" data-lockout-mode />
+                        <label hide-indicator="true" for="@(Model.DialogId)-until">Until a date and time</label>
+                    </div>
+                    <div class="mt-3" data-lockout-until hidden>
+                        <label class="form-label" for="@(Model.DialogId)-end">Lock ends</label>
+                        <input class="form-control" type="datetime-local" id="@(Model.DialogId)-end" data-lockout-local />
+                        <input type="hidden" name="lockoutEndUtc" data-lockout-utc />
+                        <p class="form-text mb-0">In your local time. The account unlocks automatically at this time.</p>
+                    </div>
+                </fieldset>
+            }
+            <div class="form-field">
+                <input class="check" type="checkbox" name="notify" value="true" id="@(Model.DialogId)-notify" checked />
+                <label hide-indicator="true" for="@(Model.DialogId)-notify">Notify the user by email</label>
+            </div>
+            @* Posted when the box is unchecked (checked posts "true" first, which wins). *@
+            <input type="hidden" name="notify" value="false" />
+            @if (!string.IsNullOrEmpty(Model.NotifyHint))
+            {
+                <p class="form-text mt-2 mb-0">@Model.NotifyHint</p>
+            }
+        </div>
+        <div class="dialog-footer">
+            <button type="button" class="btn btn-solid theme-secondary" data-bs-dismiss="dialog">Cancel</button>
+            <button type="submit" class="btn btn-solid @(Model.Destructive ? "theme-danger" : "theme-primary")">@Model.Title</button>
+        </div>
+    </form>
+</dialog>

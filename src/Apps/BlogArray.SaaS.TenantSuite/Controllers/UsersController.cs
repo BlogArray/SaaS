@@ -31,12 +31,70 @@ public class UsersController(OpenIdDbContext context,
     IConfiguration configuration,
     IUserManagementService userManagementService,
     IAuditEventLogger auditLogger,
-    IOpenIddictTokenManager tokenManager) : BaseController
+    IOpenIddictTokenManager tokenManager,
+    ILogger<UsersController> logger) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
+    private const string SuperuserRole = "Superuser";
+
+    /// <summary>
+    /// What happened to the optional notification email of an account action.
+    /// </summary>
+    private enum NotifyOutcome
+    {
+        NotRequested,
+        Sent,
+        Failed
+    }
+
+    /// <summary>
+    /// Sends the account-action notice when the administrator asked for one. A mail failure
+    /// is logged and reported, never thrown: the account change has already been made, and an
+    /// error response would make the administrator believe it failed.
+    /// </summary>
+    private async Task<NotifyOutcome> NotifyUserAsync(ApplicationUser user, bool notify, string action, string advice)
+    {
+        if (!notify)
+        {
+            return NotifyOutcome.NotRequested;
+        }
+
+        if (string.IsNullOrEmpty(user.Email))
+        {
+            return NotifyOutcome.Failed;
+        }
+
+        try
+        {
+            await emailTemplate.SecurityActionByAdminNotice(user.Email, user.DisplayName, action, advice);
+            return NotifyOutcome.Sent;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not send the account action notice to user {UserId}.", user.Id);
+            return NotifyOutcome.Failed;
+        }
+    }
+
+    private static string DescribeForAudit(NotifyOutcome outcome) => outcome switch
+    {
+        NotifyOutcome.Sent => "user notified by email",
+        NotifyOutcome.Failed => "notification email failed",
+        _ => "user not notified"
+    };
+
+    private static string DescribeForAdmin(NotifyOutcome outcome) => outcome switch
+    {
+        NotifyOutcome.Sent => " The user has been notified by email.",
+        NotifyOutcome.Failed => " The notification email could not be sent.",
+        _ => string.Empty
+    };
+
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
+        take = ClampPageSize(take);
+
         ViewBag.SearchTerm = term;
         ViewBag.Take = take;
 
@@ -83,9 +141,12 @@ public class UsersController(OpenIdDbContext context,
 
         user.FirstName = createUserViewModel.FirstName;
         user.LastName = createUserViewModel.LastName;
-        user.DisplayName = createUserViewModel.DisplayName;
+        // Display name is optional in the form but required in the database.
+        user.DisplayName = createUserViewModel.ResolveDisplayName();
 
         user.ProfileImage = "/_content/BlogArray.SaaS.Resources/resources/images/user-icon.webp";
+        user.CreatedOn = DateTime.UtcNow;
+        user.CreatedById = LoggedInUserID;
 
         await userStore.SetUserNameAsync(user, createUserViewModel.Email, CancellationToken.None);
         await emailStore.SetEmailAsync(user, createUserViewModel.Email, CancellationToken.None);
@@ -106,10 +167,22 @@ public class UsersController(OpenIdDbContext context,
 
         string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
-        AddSuccessMessage($"User with email {createUserViewModel.Email} is successfully created. " +
-            $"The password setup link has been sent to {createUserViewModel.Email}. Please ask them to check their email.");
+        // "Email me the password setup link": the administrator receives the link to hand it
+        // over; otherwise it goes straight to the new user.
+        if (createUserViewModel.SendLinkToMe && !string.IsNullOrEmpty(LoggedInUserEmail))
+        {
+            emailTemplate.ForgotPassword(LoggedInUserEmail, user.DisplayName, callbackUrl);
 
-        emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl);
+            AddSuccessMessage($"User with email {createUserViewModel.Email} is successfully created. " +
+                $"The password setup link has been sent to you ({LoggedInUserEmail}). Please pass it on to the user.");
+        }
+        else
+        {
+            emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl);
+
+            AddSuccessMessage($"User with email {createUserViewModel.Email} is successfully created. " +
+                $"The password setup link has been sent to {createUserViewModel.Email}. Please ask them to check their email.");
+        }
 
         return RedirectToAction(nameof(Index));
     }
@@ -156,7 +229,7 @@ public class UsersController(OpenIdDbContext context,
             Id = id,
             IsActive = appUser.IsActive,
             HasPassword = !string.IsNullOrEmpty(appUser.PasswordHash),
-            IsEmailPhoneConfirmed = appUser.EmailConfirmed && appUser.PhoneNumberConfirmed,
+            IsEmailPhoneConfirmed = UserToolbar.IsContactConfirmed(appUser.EmailConfirmed, appUser.PhoneNumber, appUser.PhoneNumberConfirmed),
             LockoutEnabled = appUser.LockoutEnabled,
             LockoutEnd = appUser.LockoutEnd,
             TenantsCount = await context.Authorizations.CountAsync(a => a.Subject == id)
@@ -216,9 +289,13 @@ public class UsersController(OpenIdDbContext context,
 
         var profileBefore = new { entity.FirstName, entity.LastName, entity.DisplayName, entity.Gender, entity.TimeZone, entity.LocaleCode };
 
+        // The email is posted as a hidden field; the stored one is authoritative (it is also the
+        // display-name fallback).
+        editUserViewModel.Email = entity.Email ?? editUserViewModel.Email;
+
         entity.FirstName = editUserViewModel.FirstName;
         entity.LastName = editUserViewModel.LastName;
-        entity.DisplayName = editUserViewModel.DisplayName;
+        entity.DisplayName = editUserViewModel.ResolveDisplayName();
         entity.Gender = editUserViewModel.Gender;
         entity.TimeZone = editUserViewModel.TimeZone;
         entity.LocaleCode = editUserViewModel.LocaleCode;
@@ -325,6 +402,27 @@ public class UsersController(OpenIdDbContext context,
         if (rolesToRemove.Count == 0 && rolesToAdd.Count == 0)
         {
             return JsonError("The selected roles are the same as the current roles.");
+        }
+
+        // TenantSuite must always keep an administrator: an admin can neither demote themselves
+        // nor remove the role from the last remaining Superuser.
+        if (rolesToRemove.Contains(SuperuserRole, StringComparer.OrdinalIgnoreCase))
+        {
+            if (user.Id == LoggedInUserID)
+            {
+                return JsonError("You cannot remove your own Superuser role.");
+            }
+
+            // Only Superusers who can actually sign in count: a disabled or locked one cannot
+            // administer anything.
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            bool anotherUsableSuperuser = (await userManager.GetUsersInRoleAsync(SuperuserRole))
+                .Any(su => su.Id != user.Id && su.IsActive && !(su.LockoutEnd > now));
+
+            if (!anotherUsableSuperuser)
+            {
+                return JsonError("At least one active, unlocked Superuser must remain.");
+            }
         }
 
         // Apply only the difference, through UserManager so the security stamp rotates (a
@@ -550,7 +648,7 @@ public class UsersController(OpenIdDbContext context,
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EnableUser(string id)
+    public async Task<IActionResult> EnableUser(string id, bool notify = true)
     {
         if (id == null)
         {
@@ -575,15 +673,18 @@ public class UsersController(OpenIdDbContext context,
 
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountEnabled, TargetUserId: entity.Id, Reason: "account enabled by administrator"));
-        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been enabled by an administrator. You can sign in again.");
+        NotifyOutcome notified = await NotifyUserAsync(entity, notify,
+            "Your account has been enabled by an administrator. You can sign in again.",
+            "If you were not expecting this, please contact our support team.");
 
-        return JsonSuccess($"User {entity.Email} has been enabled successfully.");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountEnabled, TargetUserId: entity.Id, Reason: $"account enabled by administrator; {DescribeForAudit(notified)}"));
+
+        return JsonSuccess($"User {entity.Email} has been enabled successfully.{DescribeForAdmin(notified)}");
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DisableUser(string id)
+    public async Task<IActionResult> DisableUser(string id, bool notify = true)
     {
         if (id == null)
         {
@@ -612,10 +713,13 @@ public class UsersController(OpenIdDbContext context,
         // future sign-ins.
         await RevokeUserAccessAsync(entity);
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountDisabled, TargetUserId: entity.Id, Reason: "account disabled by administrator"));
-        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been disabled by an administrator. You can no longer sign in.");
+        NotifyOutcome notified = await NotifyUserAsync(entity, notify,
+            "Your account has been disabled by an administrator. You can no longer sign in, and you have been signed out of all devices.",
+            "If you think this is a mistake, please contact your administrator or our support team.");
 
-        return JsonSuccess($"User {entity.Email} has been disabled successfully.");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountDisabled, TargetUserId: entity.Id, Reason: $"account disabled by administrator; {DescribeForAudit(notified)}"));
+
+        return JsonSuccess($"User {entity.Email} has been disabled successfully.{DescribeForAdmin(notified)}");
     }
 
     public async Task<IActionResult> ResetPassword(string id)
@@ -773,9 +877,10 @@ public class UsersController(OpenIdDbContext context,
         }
 
         // Audit-backed rate limit: the resend itself is recorded as a security event, so a
-        // short lookback prevents mail-bombing an address without extra infrastructure.
+        // short lookback prevents mail-bombing an address without extra infrastructure. The
+        // invited user is the event's target (UserId holds the administrator who sent it).
         bool recentlySent = await context.AuditEvents
-            .AnyAsync(e => e.UserId == entity.Id
+            .AnyAsync(e => e.TargetUserId == entity.Id
                         && e.EventType == AuditEventTypes.ResendInvite
                         && e.CreatedOn > DateTime.UtcNow.AddMinutes(-5));
 
@@ -828,22 +933,29 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
+        // A phone number can only be confirmed when the account has one.
+        bool hasPhoneNumber = !string.IsNullOrEmpty(entity.PhoneNumber);
+
         entity.EmailConfirmed = true;
-        entity.PhoneNumberConfirmed = true;
+        entity.PhoneNumberConfirmed = hasPhoneNumber;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id, Reason: "email and phone confirmed by administrator"));
-        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your email address and phone number have been confirmed by an administrator.");
+        string confirmed = hasPhoneNumber ? "email address and phone number" : "email address";
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserUpdated, TargetUserId: entity.Id, Reason: $"{confirmed} confirmed by administrator"));
+        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, hasPhoneNumber
+            ? "Your email address and phone number have been confirmed by an administrator."
+            : "Your email address has been confirmed by an administrator.");
 
         return JsonSuccess("User information has been successfully saved.");
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> LockUser(string id)
+    public async Task<IActionResult> LockUser(string id, bool notify = true, string? lockoutMode = null, DateTimeOffset? lockoutEndUtc = null)
     {
         if (id == null)
         {
@@ -855,6 +967,23 @@ public class UsersController(OpenIdDbContext context,
             return JsonError("You cannot lock yourself.");
         }
 
+        // "until": the lock ends automatically at the chosen time (posted as UTC by the
+        // dialog); otherwise it lasts until an administrator unlocks the account.
+        bool timedLock = string.Equals(lockoutMode, "until", StringComparison.OrdinalIgnoreCase);
+
+        if (timedLock)
+        {
+            if (lockoutEndUtc is null)
+            {
+                return JsonError("Choose the date and time the lock should end.");
+            }
+
+            if (lockoutEndUtc <= DateTimeOffset.UtcNow.AddMinutes(1))
+            {
+                return JsonError("The lock must end in the future. Choose a later date and time.");
+            }
+        }
+
         ApplicationUser? entity = await userManager.FindByIdAsync(id);
 
         if (entity is null)
@@ -862,11 +991,13 @@ public class UsersController(OpenIdDbContext context,
             return NotFound();
         }
 
-        // Lock the account by setting a far-future lockout end. LockoutEnabled stays true:
-        // it is the flag that makes failed-attempt counting (AccountLockedRepeatedFailures)
-        // apply to this user at all.
+        // An indefinite lock is a far-future lockout end. LockoutEnabled stays true: it is the
+        // flag that makes lockout (including failed-attempt counting) apply to the user at all.
+        DateTimeOffset lockoutEnd = timedLock ? lockoutEndUtc!.Value.ToUniversalTime() : DateTimeOffset.MaxValue;
+        string lockedUntil = UserToolbar.DescribeLockoutEnd(lockoutEnd);
+
         entity.LockoutEnabled = true;
-        entity.LockoutEnd = DateTimeOffset.MaxValue;
+        entity.LockoutEnd = lockoutEnd;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
 
@@ -875,15 +1006,20 @@ public class UsersController(OpenIdDbContext context,
         // Locking must end the sessions and tokens the user already holds.
         await RevokeUserAccessAsync(entity);
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountLockedByAdmin, TargetUserId: entity.Id, Reason: "account locked by administrator"));
-        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been locked by an administrator. You can no longer sign in until it is unlocked.");
+        NotifyOutcome notified = await NotifyUserAsync(entity, notify,
+            timedLock
+                ? $"Your account has been locked by an administrator {lockedUntil}. It unlocks automatically at that time; until then you can't sign in, and you have been signed out of all devices."
+                : "Your account has been locked by an administrator. You can't sign in until it is unlocked, and you have been signed out of all devices.",
+            "If you think this is a mistake, please contact your administrator or our support team.");
 
-        return JsonSuccess("The user account is currently locked, preventing any further login attempts until the lock is lifted.");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountLockedByAdmin, TargetUserId: entity.Id, Reason: $"account locked by administrator {lockedUntil}; {DescribeForAudit(notified)}"));
+
+        return JsonSuccess($"The user account is locked {lockedUntil}.{DescribeForAdmin(notified)}");
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UnlockUser(string id)
+    public async Task<IActionResult> UnlockUser(string id, bool notify = true)
     {
         if (id == null)
         {
@@ -902,15 +1038,21 @@ public class UsersController(OpenIdDbContext context,
         // disabled repeated-failure lockout for the user from then on.
         entity.LockoutEnabled = true;
         entity.LockoutEnd = null;
+        // Start the failed-attempt count afresh, so an unlocked user isn't locked again by the
+        // failures that led to the lock.
+        entity.AccessFailedCount = 0;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
 
         await context.SaveChangesAsync();
 
-        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountUnlocked, TargetUserId: entity.Id, Reason: "account unlocked by administrator"));
-        await emailTemplate.SecurityActionByAdminNotice(entity.Email, entity.DisplayName, "Your account has been unlocked by an administrator. You can sign in again.");
+        NotifyOutcome notified = await NotifyUserAsync(entity, notify,
+            "Your account has been unlocked by an administrator. You can sign in again.",
+            "If you were not expecting this, please reset your password and contact our support team.");
 
-        return JsonSuccess("The user account is now unlocked, allowing the user to log in and access their account without any restrictions.");
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.AccountUnlocked, TargetUserId: entity.Id, Reason: $"account unlocked by administrator; {DescribeForAudit(notified)}"));
+
+        return JsonSuccess($"The lockout has been reset: the user can sign in again, and their failed sign-in count is back to 0.{DescribeForAdmin(notified)}");
     }
 
     /// <summary>
@@ -1006,11 +1148,17 @@ public class UsersController(OpenIdDbContext context,
             return JsonError("Please select at least one tenant to assign.");
         }
 
-        string successMessage = $"{assignViewModel.Tenants.Count} tenant(s) have been successfully assigned to the user.";
+        List<OpenIdApplication> assigned = await userManagementService.AssignTenantsAsync(assignViewModel.UserId, assignViewModel.Tenants);
 
-        await userManagementService.AssignTenantsAsync(assignViewModel.UserId, assignViewModel.Tenants);
+        // Tenant access is a security-relevant change: record each grant, as the Membership API does.
+        foreach (OpenIdApplication application in assigned)
+        {
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserAddedToTenant, TargetUserId: user.Id, ClientId: application.ClientId, Reason: "tenant assigned by administrator"));
+        }
 
-        return JsonSuccess(successMessage);
+        return assigned.Count > 0
+            ? JsonSuccess($"{assigned.Count} tenant(s) have been successfully assigned to the user.")
+            : JsonSuccess("The user already has access to the selected tenant(s).");
     }
 
     [HttpGet]
@@ -1066,12 +1214,17 @@ public class UsersController(OpenIdDbContext context,
 
         if (unAssignViewModel.Tenants is null || unAssignViewModel.Tenants.Count is 0)
         {
-            return JsonError("Please select at least one user to unassign.");
+            return JsonError("Please select at least one tenant to unassign.");
         }
 
-        int unassignedCount = await userManagementService.UnassignTenantsAsync(unAssignViewModel.UserId, unAssignViewModel.Tenants);
+        List<OpenIdApplication> unassigned = await userManagementService.UnassignTenantsAsync(unAssignViewModel.UserId, unAssignViewModel.Tenants);
 
-        string successMessage = $"{unassignedCount} tenant(s) have been successfully unassigned from the user.";
+        foreach (OpenIdApplication application in unassigned)
+        {
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRemovedFromTenant, TargetUserId: user.Id, ClientId: application.ClientId, Reason: "tenant unassigned by administrator"));
+        }
+
+        string successMessage = $"{unassigned.Count} tenant(s) have been successfully unassigned from the user.";
 
         //TODO: Remove Admins from the list of unassign
         // if (adminInAssign)

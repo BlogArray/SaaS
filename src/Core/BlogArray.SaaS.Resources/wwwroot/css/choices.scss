@@ -7,9 +7,9 @@ $choices-font-size-sm: 12px !default;
 $choices-guttering: 24px !default;
 $choices-border-radius: var(--bs-radius-5) !default;
 $choices-border-radius-item: 20px !default;
-$choices-bg-color: var(--bs-body-bg) !default;
+$choices-bg-color: var(--bs-bg-body) !default;
 $choices-bg-color-disabled: var(--bs-bg-2);
-$choices-bg-color-dropdown: var(--bs-body-bg) !default;
+$choices-bg-color-dropdown: var(--bs-bg-body) !default;
 $choices-text-color: var(--bs-fg-body) !default;
 $choices-keyline-color: var(--bs-border-color) !default;
 // Outer box of the select: same edge as .form-control (see $form-control-tokens in site.scss).

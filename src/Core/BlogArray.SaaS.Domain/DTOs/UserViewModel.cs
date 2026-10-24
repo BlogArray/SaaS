@@ -74,6 +74,22 @@ public class CreateUserViewModel
     public string Email { get; set; } = default!;
 
     public bool SendLinkToMe { get; set; }
+
+    /// <summary>
+    /// The display name to store: the entered one, else "First Last", else the email. The
+    /// field is optional in the form, but the column is required.
+    /// </summary>
+    public string ResolveDisplayName()
+    {
+        if (!string.IsNullOrWhiteSpace(DisplayName))
+        {
+            return DisplayName.Trim();
+        }
+
+        string fullName = $"{FirstName} {LastName}".Trim();
+
+        return string.IsNullOrEmpty(fullName) ? Email : fullName;
+    }
 }
 
 public class EditUserViewModel : CreateUserViewModel
@@ -123,7 +139,56 @@ public class UserToolbar
 
     public DateTimeOffset? LockoutEnd { get; set; }
 
+    /// <summary>
+    /// True while the account is locked (by an administrator or after repeated failures).
+    /// LockoutEnabled only says lockout can apply to the account - it is true for every user.
+    /// </summary>
+    public bool IsLockedOut => LockoutEnd > DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// An administrator lock with no end date is stored as a far-future LockoutEnd.
+    /// </summary>
+    public static bool IsIndefiniteLockout(DateTimeOffset? lockoutEnd) => lockoutEnd?.Year >= 9999;
+
+    /// <summary>
+    /// Describes when a lock ends, for messages and emails: "until an administrator unlocks
+    /// it" for an indefinite lock, otherwise "until 24 Oct 2026, 18:00 UTC". Times are in UTC
+    /// because the server does not know the reader's time zone.
+    /// </summary>
+    public static string DescribeLockoutEnd(DateTimeOffset? lockoutEnd)
+    {
+        return lockoutEnd is null || IsIndefiniteLockout(lockoutEnd)
+            ? "until an administrator unlocks it"
+            : $"until {lockoutEnd.Value.UtcDateTime.ToString("dd MMM yyyy, HH:mm", System.Globalization.CultureInfo.InvariantCulture)} UTC";
+    }
+
     public int TenantsCount { get; set; } = default!;
+
+    /// <summary>
+    /// The account's contact details count as confirmed when the email is confirmed and the
+    /// phone number, if one is set, is confirmed too. A user without a phone number has
+    /// nothing else to confirm.
+    /// </summary>
+    public static bool IsContactConfirmed(bool emailConfirmed, string? phoneNumber, bool phoneNumberConfirmed)
+    {
+        return emailConfirmed && (string.IsNullOrEmpty(phoneNumber) || phoneNumberConfirmed);
+    }
+}
+
+/// <summary>
+/// A confirmation dialog for a toolbar account action (enable, disable, lock, unlock) that
+/// lets the administrator choose whether the user is notified by email.
+/// </summary>
+/// <param name="UserId">The user the action applies to.</param>
+/// <param name="Action">The UsersController action that performs it, e.g. "LockUser".</param>
+/// <param name="Title">Dialog title and confirm-button text.</param>
+/// <param name="Message">What the action does.</param>
+/// <param name="Destructive">Styles the confirm button as dangerous.</param>
+/// <param name="NotifyHint">Optional guidance shown under the notify checkbox.</param>
+/// <param name="AskLockoutEnd">Lets the administrator choose how long the lock lasts (lock only).</param>
+public record UserActionDialogViewModel(string UserId, string Action, string Title, string Message, bool Destructive, string? NotifyHint = null, bool AskLockoutEnd = false)
+{
+    public string DialogId => $"user-{Action.ToLowerInvariant()}-dialog-{UserId}";
 }
 
 /// <summary>

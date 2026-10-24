@@ -44,7 +44,12 @@ public interface IEmailTemplate
 
     void RecoveryCodeUsedNotice(string toEmail, string name, string ipAddress);
 
-    Task SecurityActionByAdminNotice(string toEmail, string name, string action);
+    /// <summary>
+    /// Tells the user an administrator changed their account. <paramref name="advice"/> is the
+    /// closing guidance; when omitted, the generic "reset your password if unexpected" advice is
+    /// used, which only fits actions that leave the user able to sign in.
+    /// </summary>
+    Task SecurityActionByAdminNotice(string toEmail, string name, string action, string? advice = null);
 
     Task MfaResetByAdminNotice(string toEmail, string name);
 
@@ -267,12 +272,14 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         Send(toEmail, "A recovery code was used to sign in to your App account", body);
     }
 
-    public Task SecurityActionByAdminNotice(string toEmail, string name, string action)
+    public Task SecurityActionByAdminNotice(string toEmail, string name, string action, string? advice = null)
     {
+        advice ??= "If you were not expecting this change, please reset your password immediately and contact our support team.";
+
         string template = $"Hey {Encode(name)}!{newLine}" +
             $"An administrator has performed the following action on your App account on {DateTime.UtcNow} UTC:{newLine}" +
             $"{Encode(action)}{newLine}" +
-            $"If you were not expecting this change, please reset your password immediately and contact our support team.{newLine}" +
+            $"{Encode(advice)}{newLine}" +
             $"Thank you for choosing App.";
 
         string body = GenerateEmail(name, template);

@@ -54,11 +54,15 @@
     <dd class="md:col-9">@Html.DisplayFor(m => m.TwoFactorEnabled, "YesNo")</dd>
     <dt class="md:col-3 fw-medium">Access failed count</dt>
     <dd class="md:col-9">@Model.AccessFailedCount</dd>
-    <dt class="md:col-3 fw-medium">Lockout enabled</dt>
-    <dd class="md:col-9">@Html.DisplayFor(m => m.LockoutEnabled, "YesNo")</dd>
-    @if (Model.LockoutEnabled)
+    @* LockoutEnabled is true for every account (it only means lockout can apply), so the
+       status shown is whether a lockout is currently in effect. *@
+    <dt class="md:col-3 fw-medium">Locked</dt>
+    @if (Model.LockoutEnd is DateTimeOffset lockoutEnd && lockoutEnd > DateTimeOffset.UtcNow)
     {
-        <dt class="md:col-3 fw-medium">Lockout end</dt>
-        <dd class="md:col-9">@Model.LockoutEnd</dd>
+        <dd class="md:col-9">Yes, @UserToolbar.DescribeLockoutEnd(lockoutEnd)</dd>
+    }
+    else
+    {
+        <dd class="md:col-9">No</dd>
     }
 </dl>

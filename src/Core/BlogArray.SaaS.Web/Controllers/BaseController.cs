@@ -23,6 +23,16 @@ public class BaseController : Controller
 
     public string? LoggedInUserEmail => User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Email)?.Value;
 
+    /// <summary>
+    /// Largest page size a list action serves; the size arrives in the query string.
+    /// </summary>
+    protected const int MaxPageSize = 100;
+
+    /// <summary>
+    /// Clamps a requested page size to 1..<see cref="MaxPageSize"/>.
+    /// </summary>
+    protected static int ClampPageSize(int take) => Math.Clamp(take, 1, MaxPageSize);
+
     protected IActionResult JsonError(dynamic message)
     {
         ReturnResult returnResult = new()

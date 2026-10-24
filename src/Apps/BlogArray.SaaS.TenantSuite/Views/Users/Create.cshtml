@@ -41,12 +41,12 @@
                 </div>
                 <div class="col col-12 mb-5">
                     <label asp-for="Email" class="form-label">Email/Username</label>
-                    <input asp-for="Email" class="form-control" placeholder="Display name" />
+                    <input asp-for="Email" class="form-control" placeholder="Email address" />
                     <span asp-validation-for="Email" class="fg-danger"></span>
                 </div>
             </div>
 
-            <p class="form-text">Please note: A secure password setup link will be sent to the user's email. Ensure they follow the link promptly, as it will expire soon for security purposes.</p>
+            <p class="form-text">Please note: A secure password setup link will be sent to the user's email, or to you if you choose that option below. Ensure they follow the link promptly, as it will expire soon for security purposes.</p>
 
             <div class="mb-5 form-field">
                 <input class="check" type="checkbox" asp-for="SendLinkToMe">
@@ -61,109 +61,6 @@
     </div>
 </div>
 
-<dialog class="dialog dialog-lg" id="profileCroppieModal" tabindex="-1" aria-labelledby="exampleModalLabel">
-    <div class="dialog-header">
-        <h1 class="dialog-title fs-lg">
-            Change profile photo
-        </h1>
-        <button type="button" class="btn-close" data-bs-dismiss="dialog" aria-label="Close"></button>
-    </div>
-    <div class="dialog-body" id="main-cropper">
-    </div>
-    <div class="dialog-footer">
-        <button type="button" class="btn btn-solid theme-secondary" data-bs-dismiss="dialog">Close</button>
-        <button type="button" class="btn btn-solid theme-primary" id="uploadFile">Save changes</button>
-    </div>
-</dialog>
-
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.css" integrity="sha512-zxBiDORGDEAYDdKLuYU9X/JaJo/DPzE42UubfBw9yg8Qvb2YRRIQ8v4KsGHOx2H1/+sdSXyXxLXv5r7tHc9ygg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-<script src="https://cdnjs.cloudflare.com/ajax/libs/croppie/2.6.5/croppie.min.js" integrity="sha512-Gs+PsXsGkmr+15rqObPJbenQ2wB3qYvTHuJO6YJzPe/dTLvhy0fmae2BcnaozxDo5iaF8emzmCZWbQ1XXiX2Ig==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-<script>
-    var profileCroppieModal, profileCropper, screenWidth, viewport, boundary;
-
-    $(document).ready(function () {
-        screenWidth = screen.width ?? window.outerWidth;
-
-        profileCroppieModal = new bootstrap.Dialog('#profileCroppieModal');
-
-        viewport = {
-            width: 256,
-            height: 256,
-            type: 'square'
-        };
-
-        boundary = {
-            width: screenWidth < 768 ? 320 : 768,
-            height: screenWidth < 768 ? 336 : screenWidth <= 1366 ? 265 : 336,
-        };
-
-        profileCropper = getCroppie();
-    });
-
-    function getCroppie() {
-        var el = document.getElementById('main-cropper');
-        return new Croppie(el, {
-            viewport: viewport,
-            boundary: boundary,
-            showZoomer: true,
-            mouseWheelZoom: 'ctrl',
-            enforceBoundary: true,
-            enableZoom: true,
-        });
-    }
-
-    function readFile(input) {
-        if (input.files && input.files[0]) {
-            profileCroppieModal.show();
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                profileCropper.bind({
-                    url: e.target.result,
-                    zoom: 0,
-                });
-            }
-            reader.readAsDataURL(input.files[0]);
-        }
-    }
-
-    $('#ProfileFile').on('change', function () { readFile(this); });
-
-    $('#uploadFile').on('click', function () {
-        profileCropper.result({
-            type: 'blob',
-            format: 'webp',
-            circle: false,
-            quality: 0.9,
-            size: {
-                height: 256,
-                width: 256
-            }
-        }).then(function (blob) {
-
-            var formData = new FormData();
-            formData.append('blob', blob);
-
-            $.ajax({
-                url: '@Url.Action("UpdateProfile")',
-                type: "POST",
-                data: formData,
-                enctype: 'multipart/form-data',
-                processData: false,
-                contentType: false
-            }).done(function (data) {
-                setImage('headerProfileImage', data.message);
-                setImage('headerProfileViewImage', data.message);
-                setImage('profilePageImage', data.message);
-                profileCroppieModal.hide();
-            });
-        });
-    });
-
-    function onProfileSave(e) {
-        Toast.success(e.message);
-    }
-</script>
