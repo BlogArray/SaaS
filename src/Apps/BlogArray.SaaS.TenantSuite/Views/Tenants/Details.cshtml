@@ -76,6 +76,24 @@
         newKeysModal.show();
     }
 
+    // The API key prompt is a modal dialog inside #changeTenantInfo, which the result replaces.
+    // Close the prompt first and show the result only once it has closed: removing an open
+    // dialog skips its close handling (the page would stay scroll-locked).
+    function onRotatePromptSuccess(html) {
+        const prompt = this.closest('dialog');
+        const showResult = function () {
+            $('#changeTenantInfo').html(html);
+            onKeysGenerateSuccess();
+        };
+
+        if (prompt && prompt.open) {
+            prompt.addEventListener('hidden.bs.dialog', showResult, { once: true });
+            bootstrap.Dialog.getOrCreateInstance(prompt).hide();
+        } else {
+            showResult();
+        }
+    }
+
     function rotatePromptLoaded() {
         let rotatePromptModal = new bootstrap.Dialog(document.getElementById('rotatePromptModal'));
         rotatePromptModal.show();

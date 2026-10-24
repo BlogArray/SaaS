@@ -96,6 +96,20 @@
 <script>
     var redirectUrlChoice, postLogoutUriChoice, adminEmailChoice;
 
+    // Redirect URI entries must be absolute http(s) URLs, as the server requires.
+    function isAbsoluteHttpUrl(value) {
+        if (!value) {
+            return false;
+        }
+
+        try {
+            const url = new URL(value.trim());
+            return url.protocol === 'https:' || url.protocol === 'http:';
+        } catch {
+            return false;
+        }
+    }
+
     $(document).ready(function () {
         Unobtrusive.reInit($("#saveTenantForm"));
 
@@ -107,14 +121,8 @@
             duplicateItemsAllowed: false,
             uniqueItemText: 'Only unique url\'s can be added',
             customAddItemText: 'Enter valid url',
-            addItemFilter: function(value) {
-            if (!value) {
-              return false;
-            }
-            const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
-            const expression = new RegExp(urlRegex.source, 'i');
-            return expression.test(value);
-          }
+            // Same rule as the server: an absolute http(s) URL (ports and localhost allowed).
+            addItemFilter: isAbsoluteHttpUrl
         });
         postLogoutUriChoice = new Choices('#PostLogoutRedirectUri', {
             placeholderValue: 'Please enter post logout redirect url',
@@ -124,14 +132,8 @@
             duplicateItemsAllowed: false,
             uniqueItemText: 'Only unique url\'s can be added',
             customAddItemText: 'Enter valid url',
-            addItemFilter: function(value) {
-            if (!value) {
-              return false;
-            }
-            const urlRegex = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/;
-            const expression = new RegExp(urlRegex.source, 'i');
-            return expression.test(value);
-          }
+            // Same rule as the server: an absolute http(s) URL (ports and localhost allowed).
+            addItemFilter: isAbsoluteHttpUrl
         });
         adminEmailChoice = new Choices('#AdminEmail', {
             placeholderValue: 'Please enter admin email',

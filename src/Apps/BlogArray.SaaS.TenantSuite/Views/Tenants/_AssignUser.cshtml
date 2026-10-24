@@ -81,7 +81,7 @@
 		choices.passedElement.element.addEventListener('search', async function(event) {
 			const searchTerm = event.detail.value;
 			if (searchTerm) {
-				const response = await fetch(`/Users/Search?term=${encodeURIComponent(searchTerm)}`);
+				const response = await fetch(`@Url.Action("Search", "Users")?term=${encodeURIComponent(searchTerm)}`);
 				const users = await response.json();
 				choices.clearChoices();
 				users.forEach(user => {

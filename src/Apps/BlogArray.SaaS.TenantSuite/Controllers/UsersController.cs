@@ -636,7 +636,8 @@ public class UsersController(OpenIdDbContext context,
             users = users.Where(a => a.DisplayName.Contains(term) || a.Email.Contains(term));
         }
 
-        List<BasicUserViewModel> basicUserViews = await users.Select(u => new BasicUserViewModel
+        // Ordered so the same term always yields the same five suggestions.
+        List<BasicUserViewModel> basicUserViews = await users.OrderBy(u => u.DisplayName).ThenBy(u => u.Email).Select(u => new BasicUserViewModel
         {
             Id = u.Id,
             Email = u.Email,
@@ -1216,6 +1217,20 @@ public class UsersController(OpenIdDbContext context,
         if (unAssignViewModel.Tenants is null || unAssignViewModel.Tenants.Count is 0)
         {
             return JsonError("Please select at least one tenant to unassign.");
+        }
+
+        // Removing your own access to TenantSuite would lock you out of it immediately.
+        if (user.Id == LoggedInUserID && !string.IsNullOrEmpty(configuration["OIDC:ClientId"]))
+        {
+            string? tenantSuiteAppId = await context.Applications
+                .Where(a => a.ClientId == configuration["OIDC:ClientId"])
+                .Select(a => a.Id)
+                .FirstOrDefaultAsync();
+
+            if (tenantSuiteAppId is not null && unAssignViewModel.Tenants.Contains(tenantSuiteAppId))
+            {
+                return JsonError("You cannot remove your own access to TenantSuite.");
+            }
         }
 
         List<OpenIdApplication> unassigned = await userManagementService.UnassignTenantsAsync(unAssignViewModel.UserId, unAssignViewModel.Tenants);

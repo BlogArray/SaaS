@@ -69,6 +69,23 @@ public static class ConfigureTenantStoreServices
 
            options.Events = new OpenIdConnectEvents
            {
+               // Per-tenant options are built once and cached by Finbuckle, so a client secret
+               // rotated in TenantSuite would never reach the cached options (sign-in would fail
+               // with invalid_client until the app restarts). The tenant info is re-read for each
+               // request (TenantSuite clears its cache entry on rotation), so the code exchange
+               // always uses the tenant's current secret.
+               OnAuthorizationCodeReceived = context =>
+               {
+                   AppTenantInfo? tenantInfo = context.HttpContext.GetMultiTenantContext<AppTenantInfo>()?.TenantInfo;
+
+                   if (context.TokenEndpointRequest is not null && !string.IsNullOrEmpty(tenantInfo?.ClientSecretProtected))
+                   {
+                       IDataProtector protector = context.HttpContext.RequestServices.GetRequiredService<IDataProtector>();
+                       context.TokenEndpointRequest.ClientSecret = protector.Unprotect(tenantInfo.ClientSecretProtected);
+                   }
+
+                   return Task.CompletedTask;
+               },
                //There are other events can be found here https://learn.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.authentication.openidconnect.openidconnectevents?view=aspnetcore-9.0
                OnTokenValidated = async context =>
                {

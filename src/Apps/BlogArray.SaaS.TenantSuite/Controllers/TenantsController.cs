@@ -18,6 +18,7 @@ using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using OpenIddict.Abstractions;
 using OpenIddict.Core;
 using P.Pager;
 using static OpenIddict.Abstractions.OpenIddictConstants;
@@ -81,6 +82,27 @@ public class TenantsController(OpenIdDbContext context,
             return View(openIdApplication);
         }
 
+        // The client id is also the tenant's subdomain. Checked here rather than on the view
+        // model so existing tenants with older ids can still be edited.
+        openIdApplication.ClientId = openIdApplication.ClientId?.Trim() ?? string.Empty;
+
+        if (!TenantInputValidator.IsValidClientId(openIdApplication.ClientId))
+        {
+            ModelState.AddModelError("ClientId", "Use lowercase letters, digits and hyphens (1-63 characters, not starting or ending with a hyphen): the client id becomes the tenant's subdomain.");
+            return View(openIdApplication);
+        }
+
+        if (await manager.FindByClientIdAsync(openIdApplication.ClientId) is not null)
+        {
+            ModelState.AddModelError("ClientId", "A tenant with this client id already exists.");
+            return View(openIdApplication);
+        }
+
+        if (!TryValidateRedirectUris(openIdApplication, out List<string> redirectUris, out List<string> postLogoutRedirectUris))
+        {
+            return View(openIdApplication);
+        }
+
         if (!string.IsNullOrEmpty(openIdApplication.ConnectionString))
         {
             bool valid = await personnelService.TestConnectionAsync(openIdApplication.ConnectionString);
@@ -109,6 +131,8 @@ public class TenantsController(OpenIdDbContext context,
         MapProperties(openIdApplication, entity);
 
         entity.AdminEmail = adminEmail;
+        entity.RedirectUris = JsonSerializer.Serialize(redirectUris);
+        entity.PostLogoutRedirectUris = postLogoutRedirectUris.Count > 0 ? JsonSerializer.Serialize(postLogoutRedirectUris) : null;
 
         // Secrets exist in plaintext only for this request (shown once in the browser and
         // emailed); storage keeps the API key hash and DataProtection-protected copies.
@@ -116,7 +140,17 @@ public class TenantsController(OpenIdDbContext context,
         SetClientSecret(entity, openIdApplication.ClientSecret!);
         SetConnectionString(entity, openIdApplication.ConnectionString);
 
-        await manager.CreateAsync(entity, openIdApplication.ClientSecret);
+        try
+        {
+            await manager.CreateAsync(entity, openIdApplication.ClientSecret);
+        }
+        catch (OpenIddictExceptions.ValidationException ex)
+        {
+            // OpenIddict's own checks (e.g. a client id created concurrently): show them on the
+            // form instead of failing the request.
+            ModelState.AddModelError(string.Empty, DescribeValidationErrors(ex));
+            return View(openIdApplication);
+        }
 
         await InvalidateTenantCacheAsync(entity);
 
@@ -169,6 +203,11 @@ public class TenantsController(OpenIdDbContext context,
     public async Task<IActionResult> Toolbar(string id)
     {
         OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
+
+        if (openIdApplication is null)
+        {
+            return NotFound();
+        }
 
         return PartialView("_TenantToolbar", new TenantToolbar
         {
@@ -232,13 +271,28 @@ public class TenantsController(OpenIdDbContext context,
             return ModelStateError(ModelState);
         }
 
+        if (!TryValidateRedirectUris(openIdApplication, out List<string> redirectUris, out List<string> postLogoutRedirectUris))
+        {
+            return ModelStateError(ModelState);
+        }
+
         var infoBefore = new { entity.DisplayName, entity.Legalname, entity.Website, entity.Description, entity.TenantUrl };
 
         MapProperties(openIdApplication, entity);
 
         entity.AdminEmail = adminEmail;
+        entity.RedirectUris = JsonSerializer.Serialize(redirectUris);
+        entity.PostLogoutRedirectUris = postLogoutRedirectUris.Count > 0 ? JsonSerializer.Serialize(postLogoutRedirectUris) : null;
 
-        await manager.UpdateAsync(entity);
+        try
+        {
+            await manager.UpdateAsync(entity);
+        }
+        catch (OpenIddictExceptions.ValidationException ex)
+        {
+            ModelState.AddModelError(string.Empty, DescribeValidationErrors(ex));
+            return ModelStateError(ModelState);
+        }
 
         var infoAfter = new { entity.DisplayName, entity.Legalname, entity.Website, entity.Description, entity.TenantUrl };
         (string? infoOldValueJson, string? infoNewValueJson) = AuditDiff.Changed(infoBefore, infoAfter);
@@ -304,6 +358,26 @@ public class TenantsController(OpenIdDbContext context,
         if (entity is null)
         {
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        // Theme colors are written into the tenant app's inline styles: only hex colors are
+        // accepted (empty means "use the default").
+        foreach ((string field, string? color) in new[]
+                 {
+                     (nameof(themeViewModel.NavbarColor), themeViewModel.NavbarColor),
+                     (nameof(themeViewModel.NavbarTextAndIconColor), themeViewModel.NavbarTextAndIconColor),
+                     (nameof(themeViewModel.PrimaryColor), themeViewModel.PrimaryColor)
+                 })
+        {
+            if (!string.IsNullOrEmpty(color) && !TenantInputValidator.IsValidHexColor(color))
+            {
+                ModelState.AddModelError(field, "Colors must be hex values such as #1a73e8.");
+            }
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return ModelStateError(ModelState);
         }
 
         var themeBefore = new { entity.Theme.NavbarColor, entity.Theme.NavbarTextAndIconColor, entity.Theme.PrimaryColor };
@@ -386,6 +460,13 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("The operation could not be completed. Please refresh the page and try again.");
         }
 
+        // An unreadable certificate would otherwise only surface as a failure at SAML sign-in.
+        if (securityViewModel.IsSsoEnabled && !TenantInputValidator.IsValidX509Certificate(securityViewModel.SsoX509Certificate))
+        {
+            ModelState.AddModelError(nameof(securityViewModel.SsoX509Certificate), "The certificate isn't a valid Base-64 or PEM encoded X.509 certificate.");
+            return ModelStateError(ModelState);
+        }
+
         if (securityViewModel.IsSsoEnabled)
         {
             // When SAML SSO is enabled it takes precedence over the local social-login
@@ -427,6 +508,13 @@ public class TenantsController(OpenIdDbContext context,
         if (id == null)
         {
             return NotFound();
+        }
+
+        // Only the tenant's logo and favicon can be changed here; anything else used to
+        // overwrite the favicon.
+        if (type is not ("logo" or "favicon"))
+        {
+            return JsonError("Unknown image type.");
         }
 
         OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
@@ -497,6 +585,12 @@ public class TenantsController(OpenIdDbContext context,
         if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(type))
         {
             return NotFound();
+        }
+
+        // Unknown types would show a "new key" that was never saved.
+        if (type is not ("secret" or "apikey"))
+        {
+            return JsonError("Unknown key type.");
         }
 
         OpenIdApplication? openIdApplication = await context.Applications.FindAsync(id);
@@ -600,11 +694,17 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("Please select at least one user to assign.");
         }
 
-        string successMessage = $"{assignViewModel.Users.Count} user(s) have been successfully assigned to the tenant.";
+        List<string> assigned = await tenantManagementService.AssignUsersAsync(openIdApplication, assignViewModel.Users);
 
-        await tenantManagementService.AssignUsersAsync(openIdApplication, assignViewModel.Users);
+        // Tenant access is a security-relevant change: record each grant.
+        foreach (string userId in assigned)
+        {
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserAddedToTenant, TargetUserId: userId, ClientId: openIdApplication.ClientId, Reason: "user assigned by administrator"));
+        }
 
-        return JsonSuccess(successMessage);
+        return assigned.Count > 0
+            ? JsonSuccess($"{assigned.Count} user(s) have been successfully assigned to the tenant.")
+            : JsonSuccess("The selected user(s) already have access to this tenant.");
     }
 
     [HttpGet]
@@ -622,16 +722,20 @@ public class TenantsController(OpenIdDbContext context,
             return NotFound();
         }
 
-        // Retrieve distinct users associated with the application
+        // Retrieve distinct users associated with the application. Access left behind by a
+        // deleted account has no user row: it is listed as "Deleted user" (with its id) so it
+        // can still be found and removed, instead of showing as a blank entry.
         List<BasicUserViewModel> users = await context.Authorizations
             .Where(a => a.Application.Id == id)
             .Select(s => new BasicUserViewModel
             {
                 Id = s.Subject,
-                DisplayName = s.SubjectUser.DisplayName,
-                Email = s.SubjectUser.Email,
-                ProfileImage = s.SubjectUser.ProfileImage
+                DisplayName = s.SubjectUser != null ? s.SubjectUser.DisplayName : "Deleted user",
+                Email = s.SubjectUser != null ? s.SubjectUser.Email : s.Subject,
+                ProfileImage = s.SubjectUser != null ? s.SubjectUser.ProfileImage : null
             }).Distinct().ToListAsync();
+
+        users = [.. users.OrderBy(u => u.DisplayName, StringComparer.OrdinalIgnoreCase).ThenBy(u => u.Email, StringComparer.OrdinalIgnoreCase)];
 
         UnAssignViewModel unAssignViewModel = new()
         {
@@ -664,9 +768,20 @@ public class TenantsController(OpenIdDbContext context,
             return JsonError("Please select at least one user to unassign.");
         }
 
-        int unassignedCount = await tenantManagementService.UnassignUsersAsync(openIdApplication, unAssignViewModel.Users);
+        // Removing your own access to TenantSuite would lock you out of it immediately.
+        if (IsTenantSuite(openIdApplication) && unAssignViewModel.Users.Contains(LoggedInUserID ?? string.Empty))
+        {
+            return JsonError("You cannot remove your own access to TenantSuite.");
+        }
 
-        string successMessage = $"{unassignedCount} user(s) have been successfully unassigned from the tenant.";
+        List<string> unassigned = await tenantManagementService.UnassignUsersAsync(openIdApplication, unAssignViewModel.Users);
+
+        foreach (string userId in unassigned)
+        {
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRemovedFromTenant, TargetUserId: userId, ClientId: openIdApplication.ClientId, Reason: "user unassigned by administrator"));
+        }
+
+        string successMessage = $"{unassigned.Count} user(s) have been successfully unassigned from the tenant.";
         //TODO: Remove Admins from the list of unassign
         // if (adminInAssign)
         // {
@@ -685,7 +800,8 @@ public class TenantsController(OpenIdDbContext context,
             tenants = tenants.Where(a => a.DisplayName.Contains(term) || a.ClientId.Contains(term) || a.Description.Contains(term));
         }
 
-        List<BasicApplicationViewModel> basicUserViews = await tenants.Select(u => new BasicApplicationViewModel
+        // Ordered so the same term always yields the same five suggestions.
+        List<BasicApplicationViewModel> basicUserViews = await tenants.OrderBy(a => a.DisplayName).ThenBy(a => a.ClientId).Select(u => new BasicApplicationViewModel
         {
             Id = u.Id,
             ClientId = u.ClientId,
@@ -897,6 +1013,65 @@ public class TenantsController(OpenIdDbContext context,
         entity.APIKeyHash = ApiKeyHasher.Hash(plainKey);
         entity.APIKeyProtected = protector.Protect(plainKey);
         entity.APIKeyPrefix = ApiKeyHasher.GetPrefix(plainKey, _apiKeyPrefixLength);
+    }
+
+    /// <summary>
+    /// True for TenantSuite's own application (its OIDC client), whose access an administrator
+    /// must not remove from themselves.
+    /// </summary>
+    private bool IsTenantSuite(OpenIdApplication application)
+    {
+        string? tenantSuiteClientId = configuration["OIDC:ClientId"];
+
+        return !string.IsNullOrEmpty(tenantSuiteClientId)
+            && string.Equals(application.ClientId, tenantSuiteClientId, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// Parses the redirect and post-logout redirect URI fields (comma-separated, trimmed,
+    /// absolute http(s) URLs; at least one redirect URI). Errors are added to ModelState.
+    /// </summary>
+    private bool TryValidateRedirectUris(ApplicationViewModel model, out List<string> redirectUris, out List<string> postLogoutRedirectUris)
+    {
+        bool valid = true;
+
+        if (!TenantInputValidator.TryParseUris(model.RedirectUri, required: true, "Redirect URIs", out redirectUris, out string redirectError))
+        {
+            ModelState.AddModelError(nameof(model.RedirectUri), redirectError);
+            valid = false;
+        }
+
+        if (!TenantInputValidator.TryParseUris(model.PostLogoutRedirectUri, required: false, "Post logout redirect URIs", out postLogoutRedirectUris, out string postLogoutError))
+        {
+            ModelState.AddModelError(nameof(model.PostLogoutRedirectUri), postLogoutError);
+            valid = false;
+        }
+
+        // The tenant URL is trusted by the identity server (single sign-out target, allowed
+        // SAML return origin), and the website is shown as a link: both must be real URLs.
+        if (!string.IsNullOrWhiteSpace(model.TenantUrl) && !TenantInputValidator.IsValidAbsoluteHttpUrl(model.TenantUrl))
+        {
+            ModelState.AddModelError(nameof(model.TenantUrl), "Tenant URL must be an absolute http(s) URL, e.g. https://acme.blogarray.dev.");
+            valid = false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.Website) && !TenantInputValidator.IsValidAbsoluteHttpUrl(model.Website))
+        {
+            ModelState.AddModelError(nameof(model.Website), "Website must be an absolute http(s) URL, e.g. https://www.example.com.");
+            valid = false;
+        }
+
+        return valid;
+    }
+
+    /// <summary>
+    /// The messages of an OpenIddict validation failure, joined for display.
+    /// </summary>
+    private static string DescribeValidationErrors(OpenIddictExceptions.ValidationException exception)
+    {
+        string details = string.Join(" ", exception.Results.Select(result => result.ErrorMessage).Where(message => !string.IsNullOrEmpty(message)));
+
+        return string.IsNullOrEmpty(details) ? "The tenant could not be saved: its settings are not valid." : details;
     }
 
     private void SetOptions()

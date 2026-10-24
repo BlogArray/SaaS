@@ -53,6 +53,14 @@ public class TenantStoreMappingTests
     }
 
     [Fact]
+    public void TenantCacheKeys_IgnoreClientIdCase()
+    {
+        // The host gives the lowercase identifier; the stored client id may differ in case.
+        Assert.Equal(CacheKeyHelper.GetTenantIdentifierKey("acme"), CacheKeyHelper.GetTenantIdentifierKey("Acme"));
+        Assert.Equal(CacheKeyHelper.GetTenantMembershipKey("acme", "u1"), CacheKeyHelper.GetTenantMembershipKey("ACME", "u1"));
+    }
+
+    [Fact]
     public void CacheKeys_DoNotReuseLegacyPlaintextEntries()
     {
         Assert.Equal("__tenant__v2__id__app-1", CacheKeyHelper.GetTenantIdKey("app-1"));

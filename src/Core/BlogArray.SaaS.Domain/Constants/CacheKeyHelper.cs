@@ -48,7 +48,9 @@ public static class CacheKeyHelper
     /// </example>
     public static string GetTenantIdentifierKey(string clientId)
     {
-        return $"__tenant__v2__identifier__{clientId}";
+        // Client ids arrive in the host's lowercase form but are stored as entered: key on the
+        // lowercase form so lookups and writes always agree.
+        return $"__tenant__v2__identifier__{clientId.ToLowerInvariant()}";
     }
 
     /// <summary>
@@ -66,6 +68,6 @@ public static class CacheKeyHelper
     /// </example>
     public static string GetTenantMembershipKey(string clientId, string userId)
     {
-        return $"__tenant__membership__{clientId}__{userId}";
+        return $"__tenant__membership__{clientId.ToLowerInvariant()}__{userId}";
     }
 }

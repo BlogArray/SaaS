@@ -1,81 +1,145 @@
+using BlogArray.SaaS.Domain.Constants;
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Logging;
 using OpenIddict.Core;
 
 namespace BlogArray.SaaS.Application.Services;
 
 public interface ITenantManagementService
 {
-    Task AssignUsersAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds);
+    /// <summary>
+    /// Grants the given users access to the tenant. Returns the ids of the users actually
+    /// assigned (unknown ids and existing members are skipped).
+    /// </summary>
+    Task<List<string>> AssignUsersAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds);
 
-    Task<int> UnassignUsersAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds);
+    /// <summary>
+    /// Removes the given users' access to the tenant. Returns the ids of the users actually
+    /// removed (those who were members).
+    /// </summary>
+    Task<List<string>> UnassignUsersAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds);
 }
 
 public class TenantManagementService(OpenIdDbContext context,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
     ITenantPersonnelService personnelService,
-    IDataProtector protector) : ITenantManagementService
+    IDataProtector protector,
+    IDistributedCache cache,
+    ILogger<TenantManagementService> logger) : ITenantManagementService
 {
-    public async Task AssignUsersAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds)
+    public async Task<List<string>> AssignUsersAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds)
     {
-        foreach (string id in userIds)
+        // Only real accounts can be assigned: ids come from the browser.
+        var users = await context.Users
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.Email })
+            .ToListAsync();
+
+        List<string> existingMembers = await context.Authorizations
+            .Where(a => a.Application!.Id == application.Id && a.Subject != null && userIds.Contains(a.Subject))
+            .Select(a => a.Subject!)
+            .Distinct()
+            .ToListAsync();
+
+        List<string> assigned = [];
+
+        foreach (var user in users.Where(u => !existingMembers.Contains(u.Id)))
         {
-            bool hasAccess = await context.Authorizations
-                .Where(a => a.Subject == id && a.Application.Id == application.Id)
-                .AnyAsync();
-
-            if (!hasAccess)
+            OpenIdAuthorization auth = new()
             {
-                OpenIdAuthorization auth = new()
+                Application = application,
+                CreationDate = DateTime.UtcNow,
+                Status = "valid",
+                Subject = user.Id,
+                Scopes = "[\"openid\",\"email\",\"profile\",\"roles\"]",
+                Type = "permanent"
+            };
+
+            await authorizationManager.CreateAsync(auth);
+
+            assigned.Add(user.Id);
+
+            // The authorization is the access grant; the tenant's personnel row only mirrors
+            // it. An unreachable tenant database - or a connection string that cannot be
+            // decrypted - must not fail the assignment or skip the remaining users.
+            try
+            {
+                string? connectionString = application.GetConnectionString(protector);
+
+                if (!string.IsNullOrEmpty(user.Email) && !string.IsNullOrEmpty(connectionString))
                 {
-                    Application = application,
-                    CreationDate = DateTime.UtcNow,
-                    Status = "valid",
-                    Subject = id,
-                    Scopes = "[\"openid\",\"email\",\"profile\",\"roles\"]",
-                    Type = "permanent"
-                };
-
-                await authorizationManager.CreateAsync(auth);
+                    await personnelService.EnablePersonnelInTenantAsync(user.Email, connectionString);
+                }
             }
-
-            string? email = await context.Authorizations
-                .Where(a => a.Subject == id && a.Application.Id == application.Id)
-                .Select(s => s.SubjectUser.Email)
-                .FirstOrDefaultAsync();
-
-            if (email is not null && application.GetConnectionString(protector) is not null)
+            catch (Exception ex)
             {
-                await personnelService.EnablePersonnelInTenantAsync(email, application.GetConnectionString(protector)!);
+                logger.LogWarning(ex, "Could not enable the personnel record in tenant {ClientId} for user {UserId}.", application.ClientId, user.Id);
             }
         }
+
+        return assigned;
     }
 
-    public async Task<int> UnassignUsersAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds)
+    public async Task<List<string>> UnassignUsersAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds)
     {
-        await context.Tokens
-            .Where(a => userIds.Contains(a.Subject) && a.Application.Id == application.Id)
-            .ExecuteDeleteAsync();
+        // The members among the requested users, captured before their access is removed.
+        var members = await context.Authorizations
+            .Where(a => a.Application!.Id == application.Id && a.Subject != null && userIds.Contains(a.Subject))
+            .Select(a => new { Id = a.Subject!, a.SubjectUser!.Email })
+            .Distinct()
+            .ToListAsync();
 
-        string?[] emails = await context.Authorizations
-            .Where(a => userIds.Contains(a.Subject) && a.Application.Id == application.Id)
-            .Select(s => s.SubjectUser.Email)
-            .ToArrayAsync();
+        List<string> memberIds = [.. members.Select(m => m.Id).Distinct()];
 
-        int unassignedCount = await context.Authorizations
-            .Where(a => userIds.Contains(a.Subject) && a.Application.Id == application.Id)
-            .ExecuteDeleteAsync();
-
-        string[] emailList = emails.Where(e => !string.IsNullOrEmpty(e)).Select(e => e!).ToArray();
-
-        if (!string.IsNullOrEmpty(application.GetConnectionString(protector)) && emailList.Length > 0)
+        if (memberIds.Count == 0)
         {
-            await personnelService.DisablePersonnelsInTenantAsync(emailList, application.GetConnectionString(protector)!);
+            return memberIds;
         }
 
-        return unassignedCount;
+        await context.Tokens
+            .Where(a => a.Subject != null && memberIds.Contains(a.Subject) && a.Application!.Id == application.Id)
+            .ExecuteDeleteAsync();
+
+        await context.Authorizations
+            .Where(a => a.Subject != null && memberIds.Contains(a.Subject) && a.Application!.Id == application.Id)
+            .ExecuteDeleteAsync();
+
+        // Drop the cached memberships so the tenant app ends each user's session on their next
+        // request rather than when the cache entry expires.
+        if (!string.IsNullOrEmpty(application.ClientId))
+        {
+            foreach (string userId in memberIds)
+            {
+                await cache.RemoveAsync(CacheKeyHelper.GetTenantMembershipKey(application.ClientId, userId));
+            }
+        }
+
+        // Access is already removed: a tenant database that cannot be reached (or a connection
+        // string that cannot be decrypted) must not fail the request.
+        string[] emails = [.. members.Select(m => m.Email).Where(e => !string.IsNullOrEmpty(e)).Select(e => e!).Distinct()];
+
+        if (emails.Length > 0)
+        {
+            try
+            {
+                string? connectionString = application.GetConnectionString(protector);
+
+                if (!string.IsNullOrEmpty(connectionString))
+                {
+                    await personnelService.DisablePersonnelsInTenantAsync(emails, connectionString);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not disable personnel records in tenant {ClientId}.", application.ClientId);
+            }
+        }
+
+        return memberIds;
     }
 }

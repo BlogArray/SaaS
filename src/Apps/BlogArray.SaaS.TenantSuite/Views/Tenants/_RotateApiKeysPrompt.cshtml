@@ -1,7 +1,7 @@
 @model RotateApiKeysPromptViewModel
 
 <dialog class="dialog" id="rotatePromptModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="rotatePromptModalLabel">
-    <form asp-controller="Tenants" asp-action="RotateKeys" method="post" data-ajax="true" data-ajax-method="post" data-ajax-update="#changeTenantInfo" data-ajax-success="onKeysGenerateSuccess">
+    <form asp-controller="Tenants" asp-action="RotateKeys" method="post" data-ajax="true" data-ajax-method="post" data-ajax-success="onRotatePromptSuccess">
         <div class="dialog-header">
             <h1 class="dialog-title fs-lg" id="rotatePromptModalLabel">Rotate API key for @Model.Name</h1>
             <button type="button" class="btn-close" data-bs-dismiss="dialog" aria-label="Close"></button>
