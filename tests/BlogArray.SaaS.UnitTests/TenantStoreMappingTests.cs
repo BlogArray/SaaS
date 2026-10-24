@@ -46,6 +46,13 @@ public class TenantStoreMappingTests
     }
 
     [Fact]
+    public void TenantMembershipKey_IsPerTenantAndUser()
+    {
+        Assert.Equal("__tenant__membership__acme__user-1", CacheKeyHelper.GetTenantMembershipKey("acme", "user-1"));
+        Assert.NotEqual(CacheKeyHelper.GetTenantMembershipKey("acme", "user-1"), CacheKeyHelper.GetTenantMembershipKey("globex", "user-1"));
+    }
+
+    [Fact]
     public void CacheKeys_DoNotReuseLegacyPlaintextEntries()
     {
         Assert.Equal("__tenant__v2__id__app-1", CacheKeyHelper.GetTenantIdKey("app-1"));

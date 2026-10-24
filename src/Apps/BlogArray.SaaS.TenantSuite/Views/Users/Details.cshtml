@@ -132,9 +132,22 @@
         }
 
         if (target.matches('[data-lockout-local]')) {
-            target.form.querySelector('[data-lockout-utc]').value = target.value ? new Date(target.value).toISOString() : '';
+            syncLockoutUtc(target);
         }
     });
+
+    // Typed values may only raise "input" until the field loses focus, so keep the UTC copy in
+    // step on every edit, not only on "change".
+    document.addEventListener('input', function (e) {
+        if (e.target.matches('[data-lockout-local]')) {
+            syncLockoutUtc(e.target);
+        }
+    });
+
+    function syncLockoutUtc(picker) {
+        const local = picker.value ? new Date(picker.value) : null;
+        picker.form.querySelector('[data-lockout-utc]').value = local && !isNaN(local) ? local.toISOString() : '';
+    }
 
     function changeState(e){
         DynamicContentLoader.load('toolbar');

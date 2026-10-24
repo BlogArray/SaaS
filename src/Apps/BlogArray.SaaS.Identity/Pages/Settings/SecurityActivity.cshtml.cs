@@ -33,7 +33,8 @@ public class SecurityActivityModel(OpenIdDbContext context, UserManager<Applicat
         Events = await context.SignInEvents
             .Where(signInEvent => signInEvent.UserId == user.Id)
             .OrderByDescending(signInEvent => signInEvent.CreatedOn)
-            .ToPagerListAsync(page, PageSize);
+            // Pages start at 1: the pager throws for lower values (e.g. "?page=0").
+            .ToPagerListAsync(Math.Max(1, page), PageSize);
 
         return Page();
     }

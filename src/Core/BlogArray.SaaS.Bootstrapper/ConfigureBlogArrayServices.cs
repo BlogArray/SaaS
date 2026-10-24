@@ -25,6 +25,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -33,7 +34,20 @@ namespace BlogArray.SaaS.Bootstrapper;
 
 public static class ConfigureBlogArrayServices
 {
-    public static CookieAuthenticationOptions AddBlogArrayCookieAuthenticationOptions(this CookieAuthenticationOptions options)
+    /// <summary>
+    /// How long a confirmed tenant membership is trusted before the next database check.
+    /// Unassigning a user also clears the cached entry, so this is only the fallback delay.
+    /// </summary>
+    private static readonly TimeSpan TenantMembershipCacheDuration = TimeSpan.FromSeconds(60);
+
+    /// <param name="membershipClientId">
+    /// For apps that are OIDC clients of the identity server (tenant apps, TenantSuite): resolves
+    /// the client id of the current request. When it returns a value, every cookie validation also
+    /// checks that the user still holds a valid authorization for that client, so a user removed
+    /// from a tenant loses that tenant's session - their identity server (SSO) session and other
+    /// tenants are unaffected. Null for the identity server itself.
+    /// </param>
+    public static CookieAuthenticationOptions AddBlogArrayCookieAuthenticationOptions(this CookieAuthenticationOptions options, Func<HttpContext, string?>? membershipClientId = null)
     {
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
         options.SlidingExpiration = true;
@@ -174,46 +188,110 @@ public static class ConfigureBlogArrayServices
 
         options.Events.OnValidatePrincipal = async context =>
         {
-            // Enforce per-session revocation and keep LastSeenOn fresh (throttled to once per
-            // minute per session). Sessions without a tracking claim (or with no row, e.g.
-            // issued before this feature) are allowed - fail-open for legacy cookies.
-            string? sessionId = context.Principal?.FindFirst("session_id")?.Value;
+            await ValidateSessionAsync(context);
 
-            if (string.IsNullOrEmpty(sessionId))
+            if (context.Principal is null || membershipClientId is null)
             {
                 return;
             }
 
-            string? userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            string? clientId = membershipClientId(context.HttpContext);
 
-            OpenIdDbContext dbContext = context.HttpContext.RequestServices.GetRequiredService<OpenIdDbContext>();
-
-            UserSession? session = await dbContext.UserSessions.SingleOrDefaultAsync(tracked => tracked.SessionId == sessionId);
-
-            if (session is null)
+            if (!string.IsNullOrEmpty(clientId))
             {
-                // Claim present but no matching row — treat as invalid rather than
-                // fail-open. A dangling claim with no backing row is more likely
-                // corruption/tampering than a legitimate legacy case.
-                context.RejectPrincipal();
-                return;
-            }
-
-            if (session.Revoked || session.UserId != userId)
-            {
-                context.RejectPrincipal();
-                return;
-            }
-
-            if (DateTime.UtcNow - session.LastSeenOn > TimeSpan.FromMinutes(1))
-            {
-                session.LastSeenOn = DateTime.UtcNow;
-                session.IpAddress = Truncate(context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty, 64);
-                await dbContext.SaveChangesAsync();
+                await ValidateTenantMembershipAsync(context, clientId);
             }
         };
 
         return options;
+    }
+
+    /// <summary>
+    /// Enforces per-session revocation and keeps LastSeenOn fresh (throttled to once per minute
+    /// per session). Sessions without a tracking claim (issued before this feature) are allowed -
+    /// fail-open for legacy cookies.
+    /// </summary>
+    private static async Task ValidateSessionAsync(CookieValidatePrincipalContext context)
+    {
+        string? sessionId = context.Principal?.FindFirst("session_id")?.Value;
+
+        if (string.IsNullOrEmpty(sessionId))
+        {
+            return;
+        }
+
+        string? userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        OpenIdDbContext dbContext = context.HttpContext.RequestServices.GetRequiredService<OpenIdDbContext>();
+
+        UserSession? session = await dbContext.UserSessions.SingleOrDefaultAsync(tracked => tracked.SessionId == sessionId);
+
+        if (session is null)
+        {
+            // Claim present but no matching row — treat as invalid rather than
+            // fail-open. A dangling claim with no backing row is more likely
+            // corruption/tampering than a legitimate legacy case.
+            context.RejectPrincipal();
+            return;
+        }
+
+        if (session.Revoked || session.UserId != userId)
+        {
+            context.RejectPrincipal();
+            return;
+        }
+
+        if (DateTime.UtcNow - session.LastSeenOn > TimeSpan.FromMinutes(1))
+        {
+            session.LastSeenOn = DateTime.UtcNow;
+            session.IpAddress = Truncate(context.HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty, 64);
+            await dbContext.SaveChangesAsync();
+        }
+    }
+
+    /// <summary>
+    /// Rejects the app's local session when the user no longer holds a valid authorization for
+    /// this app's client (they were removed from the tenant). Tenant membership is otherwise only
+    /// checked at /connect/authorize, so without this a removed user keeps the app until its
+    /// cookie expires. The rejected user is challenged, re-authorizes through the identity server
+    /// (no new sign-in: their SSO session is intact) and gets "access denied" for this tenant only.
+    /// Confirmed memberships are cached briefly in the distributed cache (not the cookie, so the
+    /// cookie is not reissued and its lifetime is not extended).
+    /// </summary>
+    private static async Task ValidateTenantMembershipAsync(CookieValidatePrincipalContext context, string clientId)
+    {
+        string? userId = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (string.IsNullOrEmpty(userId))
+        {
+            return;
+        }
+
+        IDistributedCache cache = context.HttpContext.RequestServices.GetRequiredService<IDistributedCache>();
+        string cacheKey = CacheKeyHelper.GetTenantMembershipKey(clientId, userId);
+
+        if (await cache.GetAsync(cacheKey) is not null)
+        {
+            return;
+        }
+
+        OpenIdDbContext dbContext = context.HttpContext.RequestServices.GetRequiredService<OpenIdDbContext>();
+
+        bool isMember = await dbContext.Authorizations.AnyAsync(a =>
+            a.Subject == userId
+            && a.Application!.ClientId == clientId
+            && a.Status == OpenIddict.Abstractions.OpenIddictConstants.Statuses.Valid);
+
+        if (!isMember)
+        {
+            context.RejectPrincipal();
+            return;
+        }
+
+        await cache.SetAsync(cacheKey, [1], new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TenantMembershipCacheDuration
+        });
     }
 
     private static string Truncate(string value, int maxLength)

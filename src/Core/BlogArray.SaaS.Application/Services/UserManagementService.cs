@@ -1,8 +1,10 @@
+using BlogArray.SaaS.Domain.Constants;
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using OpenIddict.Core;
 
@@ -27,6 +29,7 @@ public class UserManagementService(OpenIdDbContext context,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
     ITenantPersonnelService personnelService,
     IDataProtector protector,
+    IDistributedCache cache,
     ILogger<UserManagementService> logger) : IUserManagementService
 {
     public async Task<List<OpenIdApplication>> AssignTenantsAsync(string userId, IReadOnlyCollection<string> tenantIds)
@@ -67,21 +70,21 @@ public class UserManagementService(OpenIdDbContext context,
                     .Select(s => s.SubjectUser.Email)
                     .FirstOrDefaultAsync();
 
-                string? connectionString = openIdApplication.GetConnectionString(protector);
-
-                if (email is not null && connectionString is not null)
+                // The authorization is the access grant; the tenant's personnel row only mirrors
+                // it. An unreachable tenant database - or a connection string that cannot be
+                // decrypted - must not fail the assignment or skip the remaining tenants.
+                try
                 {
-                    // The authorization is the access grant; the tenant's personnel row only
-                    // mirrors it. An unreachable tenant database must not fail the assignment
-                    // (or skip the remaining tenants).
-                    try
+                    string? connectionString = openIdApplication.GetConnectionString(protector);
+
+                    if (email is not null && connectionString is not null)
                     {
                         await personnelService.EnablePersonnelInTenantAsync(email, connectionString);
                     }
-                    catch (Exception ex)
-                    {
-                        logger.LogWarning(ex, "Could not enable the personnel record in tenant {ClientId} for user {UserId}.", openIdApplication.ClientId, userId);
-                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Could not enable the personnel record in tenant {ClientId} for user {UserId}.", openIdApplication.ClientId, userId);
                 }
             }
         }
@@ -105,6 +108,13 @@ public class UserManagementService(OpenIdDbContext context,
             .Where(a => tenantIds.Contains(a.Application.Id) && a.Subject == userId)
             .ExecuteDeleteAsync();
 
+        // Drop the cached memberships so each tenant app ends the user's session on their next
+        // request rather than when the cache entry expires.
+        foreach (OpenIdApplication application in applications.Where(a => !string.IsNullOrEmpty(a.ClientId)))
+        {
+            await cache.RemoveAsync(CacheKeyHelper.GetTenantMembershipKey(application.ClientId!, userId));
+        }
+
         string? email = await context.Users
             .Where(a => a.Id == userId)
             .Select(s => s.Email)
@@ -114,18 +124,17 @@ public class UserManagementService(OpenIdDbContext context,
         {
             foreach (OpenIdApplication application in applications)
             {
-                string? connectionString = application.GetConnectionString(protector);
-
-                if (string.IsNullOrEmpty(connectionString))
-                {
-                    continue;
-                }
-
                 // As for assignment: access is already removed; a tenant database that cannot
-                // be reached must not fail the request or skip the other tenants.
+                // be reached (or a connection string that cannot be decrypted) must not fail
+                // the request or skip the other tenants.
                 try
                 {
-                    await personnelService.DisablePersonnelInTenantsAsync([connectionString], email);
+                    string? connectionString = application.GetConnectionString(protector);
+
+                    if (!string.IsNullOrEmpty(connectionString))
+                    {
+                        await personnelService.DisablePersonnelInTenantsAsync([connectionString], email);
+                    }
                 }
                 catch (Exception ex)
                 {

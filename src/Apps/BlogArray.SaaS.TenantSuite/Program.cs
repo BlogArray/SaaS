@@ -43,7 +43,9 @@ builder.Services.AddAuthentication(o =>
     o.DefaultChallengeScheme = OpenIdConnectDefaults.AuthenticationScheme;
 }).AddCookie(options =>
 {
-    options.AddBlogArrayCookieAuthenticationOptions();
+    // TenantSuite is itself an OIDC client: removing a user's access to it ends their session
+    // here (their identity server session and other apps are unaffected).
+    options.AddBlogArrayCookieAuthenticationOptions(_ => Configuration["OIDC:ClientId"]);
 }).AddOpenIdConnect(options =>
 {
     options.ClientId = Configuration["OIDC:ClientId"];

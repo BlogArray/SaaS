@@ -33,6 +33,11 @@ public class BaseController : Controller
     /// </summary>
     protected static int ClampPageSize(int take) => Math.Clamp(take, 1, MaxPageSize);
 
+    /// <summary>
+    /// Page numbers start at 1; the pager throws for anything lower (e.g. "?page=0").
+    /// </summary>
+    protected static int ClampPage(int page) => Math.Max(1, page);
+
     protected IActionResult JsonError(dynamic message)
     {
         ReturnResult returnResult = new()

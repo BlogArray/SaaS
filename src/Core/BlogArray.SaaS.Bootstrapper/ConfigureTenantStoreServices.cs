@@ -41,7 +41,9 @@ public static class ConfigureTenantStoreServices
        .AddCookie(options =>
        {
            //These are the default options, we can override the options PER TENANT in ConfigurePerTenant<CookieAuthenticationOptions, AppTenantInfo>
-           options.AddBlogArrayCookieAuthenticationOptions();
+           // Tenant apps re-check that the user still belongs to this tenant (the client id is the
+           // tenant identifier), so removing a user from the tenant ends their session here.
+           options.AddBlogArrayCookieAuthenticationOptions(context => context.GetMultiTenantContext<AppTenantInfo>()?.TenantInfo?.Identifier);
        })
        .AddOpenIdConnect(options =>
        {

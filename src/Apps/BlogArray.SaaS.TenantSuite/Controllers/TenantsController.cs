@@ -41,6 +41,7 @@ public class TenantsController(OpenIdDbContext context,
     public async Task<IActionResult> Index(int page = 1, int take = 10, string term = "")
     {
         take = ClampPageSize(take);
+        page = ClampPage(page);
 
         ViewBag.SearchTerm = term;
         ViewBag.Take = take;

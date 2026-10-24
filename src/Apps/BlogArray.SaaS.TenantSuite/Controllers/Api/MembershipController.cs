@@ -15,6 +15,7 @@ using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using OpenIddict.Core;
 
 namespace BlogArray.SaaS.TenantSuite.Controllers.Api;
@@ -35,7 +36,8 @@ public class MembershipController(OpenIdDbContext context,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
     IEmailTemplate emailTemplate,
     IConfiguration configuration,
-    IAuditEventLogger auditLogger) : BaseController
+    IAuditEventLogger auditLogger,
+    IDistributedCache distributedCache) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
@@ -174,7 +176,7 @@ public class MembershipController(OpenIdDbContext context,
         await context.SaveChangesAsync();
 
         //If user is assigned to multiple tenants removing access to the specific tenant
-        await UnassignUserToTenantAsync(entity.Id, openIdApplication.Id);
+        await UnassignUserToTenantAsync(entity.Id, openIdApplication);
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.System, AuditEventTypes.UserRemovedFromTenant, TargetUserId: entity.Id, ClientId: openIdApplication.ClientId));
 
@@ -227,15 +229,22 @@ public class MembershipController(OpenIdDbContext context,
         }
     }
 
-    private async Task UnassignUserToTenantAsync(string userId, string appId)
+    private async Task UnassignUserToTenantAsync(string userId, OpenIdApplication application)
     {
         await context.Tokens
-            .Where(a => a.Application.Id == appId && a.Subject == userId)
+            .Where(a => a.Application.Id == application.Id && a.Subject == userId)
             .ExecuteDeleteAsync();
 
         await context.Authorizations
-            .Where(a => a.Application.Id == appId && a.Subject == userId)
+            .Where(a => a.Application.Id == application.Id && a.Subject == userId)
             .ExecuteDeleteAsync();
+
+        // Drop the cached membership so the tenant app ends the user's session on their next
+        // request rather than when the cache entry expires.
+        if (!string.IsNullOrEmpty(application.ClientId))
+        {
+            await distributedCache.RemoveAsync(CacheKeyHelper.GetTenantMembershipKey(application.ClientId, userId));
+        }
     }
 
 }

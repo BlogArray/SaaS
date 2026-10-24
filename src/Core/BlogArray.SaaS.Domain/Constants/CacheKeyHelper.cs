@@ -50,4 +50,22 @@ public static class CacheKeyHelper
     {
         return $"__tenant__v2__identifier__{clientId}";
     }
+
+    /// <summary>
+    /// Cache key for "this user still belongs to this tenant", checked when a tenant app (or
+    /// TenantSuite) validates its sign-in cookie. Only positive results are cached, briefly;
+    /// unassigning a user removes the entry so the change applies on their next request.
+    /// </summary>
+    /// <param name="clientId">The tenant's client ID (OIDC client of the app).</param>
+    /// <param name="userId">The user's ID.</param>
+    /// <example>
+    /// <code>
+    /// string cacheKey = CacheKeyHelper.GetTenantMembershipKey("client123", "user-1");
+    /// // Result: "__tenant__membership__client123__user-1"
+    /// </code>
+    /// </example>
+    public static string GetTenantMembershipKey(string clientId, string userId)
+    {
+        return $"__tenant__membership__{clientId}__{userId}";
+    }
 }
