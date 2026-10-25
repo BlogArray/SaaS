@@ -33,6 +33,7 @@ public class MfaEnrollmentModel(
     UserManager<ApplicationUser> userManager,
     IUserStore<ApplicationUser> userStore,
     IAuditEventLogger auditLogger,
+    ISignInEventLogger signInEventLogger,
     UrlEncoder urlEncoder) : PageModel
 {
     private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
@@ -171,6 +172,9 @@ public class MfaEnrollmentModel(
         // restricted cookie, then surface the recovery codes on the shared page.
         await CompleteSignInAsync(user);
 
+        // The sign-in stopped for enrollment (LoginFailedMfaRequired) completes here.
+        await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(returnUrl), SignInEventTypes.LoginSucceeded, SignInAuthMethod.Mfa, SignInResultType.Success, "after enforced multi-factor enrollment"));
+
         RecoveryCodes = (await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10)).ToArray();
 
         // The recovery-codes page offers "Continue" back to where the sign-in started.
@@ -225,7 +229,8 @@ public class MfaEnrollmentModel(
 
         if (string.IsNullOrEmpty(unformattedKey))
         {
-            await userManager.ResetAuthenticatorKeyAsync(user);
+            // Without rotating the security stamp (ResetAuthenticatorKeyAsync would).
+            await AuthenticatorKeys.EnsureKeyAsync(userManager, userStore, user);
             unformattedKey = await userManager.GetAuthenticatorKeyAsync(user);
         }
 

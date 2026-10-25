@@ -7,7 +7,9 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using Azure;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using BlogArray.SaaS.Domain.DTOs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
@@ -84,20 +86,43 @@ public class AzureStorageService(IConfiguration configuration) : IAzureStorageSe
         string guid = Guid.NewGuid().ToString();
         string dbPath = GetDbPath(iconType, guid, extension);
 
-        returnResult.Result = await ToBlob(file, dbPath);
-        returnResult.Status = true;
+        try
+        {
+            returnResult.Result = await ToBlob(file, dbPath, ContentTypeFor(extension));
+            returnResult.Status = true;
+        }
+        catch (RequestFailedException)
+        {
+            // Storage unavailable or misconfigured: report a failed upload instead of a 500.
+            returnResult.Message = "The image could not be stored. Please try again later.";
+        }
 
         return returnResult;
     }
 
-    private async Task<string> ToBlob(IFormFile file, string path)
+    /// <summary>
+    /// The served content type for an allowed extension. Without one the blob is stored as
+    /// application/octet-stream.
+    /// </summary>
+    private static string ContentTypeFor(string extension) => extension.ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".webp" => "image/webp",
+        ".ico" => "image/x-icon",
+        ".bmp" => "image/bmp",
+        _ => "application/octet-stream"
+    };
+
+    private async Task<string> ToBlob(IFormFile file, string path, string contentType)
     {
         using MemoryStream output = new();
         file.CopyTo(output);
-        return await UploadToAzure(output, path);
+        return await UploadToAzure(output, path, contentType);
     }
 
-    private async Task<string> UploadToAzure(MemoryStream stream, string path)
+    private async Task<string> UploadToAzure(MemoryStream stream, string path, string contentType)
     {
         string? connectionString = configuration["AzureBlobStorage:ConnectionString"];
 
@@ -122,8 +147,12 @@ public class AzureStorageService(IConfiguration configuration) : IAzureStorageSe
         stream.Position = 0;
 
         // Blob names are server-generated GUIDs, so collisions indicate a bug or tampering:
-        // never silently overwrite an existing blob.
-        await blobClient.UploadAsync(stream, overwrite: false);
+        // never silently overwrite an existing blob (If-None-Match: *).
+        await blobClient.UploadAsync(stream, new BlobUploadOptions
+        {
+            HttpHeaders = new BlobHttpHeaders { ContentType = contentType },
+            Conditions = new BlobRequestConditions { IfNoneMatch = ETag.All }
+        });
 
         return PathToUrl(blobClient.Uri);
     }

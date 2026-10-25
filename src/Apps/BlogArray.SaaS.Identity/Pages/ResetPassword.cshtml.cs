@@ -22,7 +22,8 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate,
     IAuditEventLogger auditLogger,
     IUserAccessRevocationService accessRevocation,
-    ICaptchaService captcha) : PageModel
+    ICaptchaService captcha,
+    ILogger<ResetPasswordModel> logger) : PageModel
 {
     /// <summary>
     ///     True when the Cloudflare Turnstile challenge is configured.
@@ -216,7 +217,7 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
 
             //TODO: Check for tenant and login
 
-            emailTemplate.PasswordChangeSuccessed(user.Email, user.DisplayName);
+            EmailSending.TrySend(logger, () => emailTemplate.PasswordChangeSuccessed(user.Email, user.DisplayName), "password changed notice");
 
             return RedirectToPage("./ResetPasswordConfirmation");
         }

@@ -108,6 +108,8 @@ public class LoginWith2faModel(
         // Only the authenticator app (or a recovery code, on its own page) completes the second
         // factor. Emailed codes are deliberately not offered: the password can be reset by email,
         // so an emailed second factor would let mailbox access alone take over the account.
+        bool wasLockedOut = await signInManager.UserManager.IsLockedOutAsync(user);
+
         // Keep the "remember me" choice made with the first factor.
         bool isPersistent = await signInManager.IsTwoFactorPendingPersistentAsync();
 
@@ -124,7 +126,7 @@ public class LoginWith2faModel(
         else if (result.IsLockedOut)
         {
             logger.LogWarning("User with ID '{UserId}' account locked out.", user.Id);
-            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Mfa, SignInResultType.Failure, "mfa via authenticator"));
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, wasLockedOut ? SignInEventTypes.LoginBlockedLockedOut : SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Mfa, SignInResultType.Failure, "mfa via authenticator"));
             return RedirectToPage("./Lockout");
         }
         else

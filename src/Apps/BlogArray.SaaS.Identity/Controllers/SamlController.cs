@@ -248,7 +248,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         {
             await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, returnUrl, customClaims));
 
-            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, "mfa enrollment required"));
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, client.ClientId, SignInEventTypes.LoginFailedMfaRequired, SignInAuthMethod.Saml, SignInResultType.Failure, $"{tenant}; multi-factor enrollment required"));
 
             return RedirectToPage("/MfaEnrollment");
         }
@@ -267,7 +267,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             return RedirectToPage("/LoginWith2fa", new { next = returnUrl });
         }
 
-        await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, null, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, tenant));
+        await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, client.ClientId, SignInEventTypes.LoginSucceededSaml, SignInAuthMethod.Saml, SignInResultType.Success, tenant));
 
         //Silent view to post the form to tenant's Logon action
         return View(new SamlAuth

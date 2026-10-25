@@ -30,6 +30,7 @@ public class AuthorizationController(
     SignInManagerExtension<ApplicationUser> signInManager,
     UserManager<ApplicationUser> userManager,
     ISignInEventLogger signInEventLogger,
+    IAuditEventLogger auditLogger,
     BlogArray.SaaS.OpenId.OpenIdDbContext openIdDbContext,
     IConfiguration configuration) : Controller
 {
@@ -382,6 +383,12 @@ public class AuthorizationController(
         // A sign-in still at the restricted step (MFA enrollment, temporary-password change)
         // holds its own cookie: logging out ends that too.
         await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
+
+        // Recorded like the other session endings (revoking a device, SAML single sign-out).
+        if (!string.IsNullOrEmpty(userId))
+        {
+            await auditLogger.LogAsync(new AuditEventRecord(userId, AuditTrigger.User, AuditEventTypes.SessionRevoked, TargetUserId: userId, Reason: "signed out"));
+        }
 
         // The end-session request has already been validated by OpenIddict (id_token_hint and
         // post_logout_redirect_uri checks) before this action was invoked, so the values can

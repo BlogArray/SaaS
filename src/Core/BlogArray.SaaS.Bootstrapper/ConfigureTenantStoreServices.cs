@@ -103,7 +103,7 @@ public static class ConfigureTenantStoreServices
                    if (identity != null && !identity.IsAuthenticated)
                    {
                        context?.HandleResponse();
-                       context?.Response.Redirect("/error/accessdenied?message=Unable to retrive the User details. Please contact your administrator if the issue persists.");
+                       context?.Response.Redirect("/error/accessdenied?message=" + Uri.EscapeDataString("Unable to retrieve the user details. Please contact your administrator if the issue persists."));
                        await Task.CompletedTask;
                        return;
                    }
@@ -114,7 +114,7 @@ public static class ConfigureTenantStoreServices
                        if (string.IsNullOrEmpty(email))
                        {
                            context?.HandleResponse();
-                           context?.Response.Redirect("/error/accessdenied?message=Unable to retrive the user email. Please contact your administrator if the issue persists.");
+                           context?.Response.Redirect("/error/accessdenied?message=" + Uri.EscapeDataString("Unable to retrieve the user email. Please contact your administrator if the issue persists."));
                            await Task.CompletedTask;
                            return;
                        }
@@ -124,7 +124,7 @@ public static class ConfigureTenantStoreServices
                        if (appuser is null || appuser.IsActive is false)
                        {
                            context?.HandleResponse();
-                           context?.Response.Redirect("/error/accessdenied?message=User details not found in BlogArray. Please contact your administrator if the issue persists.");
+                           context?.Response.Redirect("/error/accessdenied?message=" + Uri.EscapeDataString("User details not found in BlogArray. Please contact your administrator if the issue persists."));
                            await Task.CompletedTask;
                            return;
                        }

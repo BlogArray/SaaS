@@ -71,7 +71,7 @@
                             <td class="small">@entry.AuthMethod</td>
                             <td>
                                 <span class="badge badge-subtle rounded-pill theme-@(failed ? "danger" : "success")">
-                                    @(entry.EventType == SignInEventTypes.AccountLockedRepeatedFailures ? "Locked out" : failed ? "Failed" : "Success")
+                                    @(entry.EventType is SignInEventTypes.AccountLockedRepeatedFailures or SignInEventTypes.LoginBlockedLockedOut ? "Locked out" : failed ? "Failed" : "Success")
                                 </span>
                             </td>
                             <td class="fg-secondary small">@entry.IpAddress</td>

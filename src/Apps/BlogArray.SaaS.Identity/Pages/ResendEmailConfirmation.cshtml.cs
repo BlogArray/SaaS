@@ -10,6 +10,7 @@
 #nullable disable
 
 using System.Text;
+using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.WebUtilities;
@@ -18,7 +19,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 
 [AllowAnonymous]
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("email")]
-public class ResendEmailConfirmationModel(UserManager<ApplicationUser> userManager, IEmailTemplate emailTemplate, ICaptchaService captcha) : PageModel
+public class ResendEmailConfirmationModel(UserManager<ApplicationUser> userManager, IEmailTemplate emailTemplate, ICaptchaService captcha, ILogger<ResendEmailConfirmationModel> logger) : PageModel
 {
 
     /// <summary>
@@ -91,7 +92,8 @@ public class ResendEmailConfirmationModel(UserManager<ApplicationUser> userManag
             values: new { userId, code },
             protocol: Request.Scheme);
 
-        emailTemplate.ConfirmEmail(Input.Email, user.DisplayName ?? Input.Email, callbackUrl);
+        // A failed send is logged; the reply stays the same, so it reveals nothing about the account.
+        EmailSending.TrySend(logger, () => emailTemplate.ConfirmEmail(Input.Email, user.DisplayName ?? Input.Email, callbackUrl), "email confirmation");
 
         ModelState.AddModelError(string.Empty, "Verification email sent. Please check your email.");
         return Page();

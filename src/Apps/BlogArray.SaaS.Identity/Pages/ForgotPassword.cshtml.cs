@@ -10,6 +10,7 @@
 #nullable disable
 
 using System.Text;
+using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -18,7 +19,8 @@ namespace BlogArray.SaaS.Identity.Pages;
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("email")]
 public class ForgotPasswordModel(UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate, IConfiguration configuration,
-    ICaptchaService captcha) : PageModel
+    ICaptchaService captcha,
+    ILogger<ForgotPasswordModel> logger) : PageModel
 {
     /// <summary>
     ///     True when the Cloudflare Turnstile challenge is configured.
@@ -96,7 +98,9 @@ public class ForgotPasswordModel(UserManager<ApplicationUser> userManager,
 
             string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code });
 
-            emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl);
+            // A failed send is logged; the reply stays the same as for unknown addresses, so it
+            // reveals nothing about the account.
+            EmailSending.TrySend(logger, () => emailTemplate.ForgotPassword(user.Email, user.DisplayName, callbackUrl), "password reset");
 
             return RedirectToPage("./ForgotPasswordConfirmation", new { email = Input.Email });
         }

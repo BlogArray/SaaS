@@ -61,6 +61,12 @@ public static class SignInEventTypes
     public const string AccountLockedRepeatedFailures = "AccountLockedRepeatedFailures";
 
     /// <summary>
+    /// A sign-in attempt on an account that was already locked (by failed attempts or an
+    /// administrator). AccountLockedRepeatedFailures is only the attempt that caused the lock.
+    /// </summary>
+    public const string LoginBlockedLockedOut = "LoginBlockedLockedOut";
+
+    /// <summary>
     /// Reserved for a future conditional-access / risk engine; not produced yet.
     /// </summary>
     public const string ConditionalAccessBlocked = "ConditionalAccessBlocked";

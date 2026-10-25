@@ -187,7 +187,7 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             {
                 VerifyAgainstDummyHash(Input.Password);
 
-                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedInvalidPassword, SignInAuthMethod.Password, SignInResultType.Failure, "account disabled"));
+                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.ConditionalAccessBlocked, SignInAuthMethod.Password, SignInResultType.Failure, "account disabled"));
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return Page();
             }
@@ -198,12 +198,16 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             // cookie. When any of the user's tenants enforces MFA and the user has not
             // completed enrollment, a restricted enrollment cookie is issued and every page
             // except the enrollment page is blocked until it completes.
+            // Distinguishes the attempt that locks the account from attempts on an account that
+            // was already locked: both come back as IsLockedOut.
+            bool wasLockedOut = await userManager.IsLockedOutAsync(user);
+
             Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.CheckPasswordSignInAsync(user, Input.Password, lockoutOnFailure: true);
 
             if (result.IsLockedOut)
             {
                 logger.LogWarning("User account locked out.");
-                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
+                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, wasLockedOut ? SignInEventTypes.LoginBlockedLockedOut : SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
                 return RedirectToPage("./Lockout");
             }
 
@@ -245,6 +249,8 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
             if (await mfaEnrollmentService.IsRequiredAsync(user))
             {
+                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedMfaRequired, SignInAuthMethod.Password, SignInResultType.Failure, "password correct; multi-factor enrollment required"));
+
                 await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, next));
 
                 return RedirectToPage("/MfaEnrollment");

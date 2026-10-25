@@ -28,7 +28,8 @@ public class ConfirmEmailModel(
     UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate,
     PendingExternalLoginProtector pendingLoginProtector,
-    IAuditEventLogger auditLogger) : PageModel
+    IAuditEventLogger auditLogger,
+    ILogger<ConfirmEmailModel> logger) : PageModel
 {
     [BindProperty(SupportsGet = true)]
     public string UserId { get; set; }
@@ -121,7 +122,7 @@ public class ConfirmEmailModel(
             }
         }
 
-        emailTemplate.EmailVerified(user.Email, user.DisplayName);
+        EmailSending.TrySend(logger, () => emailTemplate.EmailVerified(user.Email, user.DisplayName), "email verified notice");
 
         return RedirectToPage("./EmailConfirmation");
     }

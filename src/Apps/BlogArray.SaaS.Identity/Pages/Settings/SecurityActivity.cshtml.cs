@@ -54,6 +54,8 @@ public class SecurityActivityModel(OpenIdDbContext context, UserManager<Applicat
             SignInEventTypes.LoginFailedMfaRequired => "Sign-in stopped: multi-factor enrollment is required",
             SignInEventTypes.LoginFailedMfaInvalid => "Failed sign-in attempt (incorrect multi-factor code)",
             SignInEventTypes.AccountLockedRepeatedFailures => "Account locked out after repeated failed attempts",
+            SignInEventTypes.LoginBlockedLockedOut => "Sign-in blocked: the account is locked",
+            SignInEventTypes.ConditionalAccessBlocked => $"Sign-in blocked{(string.IsNullOrEmpty(signInEvent.Details) ? string.Empty : $" ({signInEvent.Details})")}",
             _ => signInEvent.EventType
         };
     }

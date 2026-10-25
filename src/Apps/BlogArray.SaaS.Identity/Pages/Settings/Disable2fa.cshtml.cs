@@ -71,6 +71,10 @@ public class Disable2faModel(
             throw new InvalidOperationException($"Unexpected error occurred disabling 2FA.");
         }
 
+        // The change rotated the security stamp: re-issue this browser's cookie with the new
+        // stamp, or stamp validation would sign the user out within minutes.
+        await signInManager.RefreshSignInAsync(user);
+
         logger.LogInformation("User with ID '{UserId}' has disabled 2fa.", userManager.GetUserId(User));
         await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.MfaDisabled));
         StatusMessage = "2fa has been disabled. You can reenable 2fa when you setup an authenticator app";

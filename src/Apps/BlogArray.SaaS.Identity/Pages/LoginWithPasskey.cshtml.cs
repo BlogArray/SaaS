@@ -103,6 +103,8 @@ public class LoginWithPasskeyModel(
             // Possession only: the same steps as after a correct password.
             if (await mfaEnrollmentService.IsRequiredAsync(user))
             {
+                await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(Next), SignInEventTypes.LoginFailedMfaRequired, SignInAuthMethod.Passkey, SignInResultType.Failure, "passkey without user verification; multi-factor enrollment required"));
+
                 await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, next, customClaims));
 
                 return RedirectToPage("/MfaEnrollment");

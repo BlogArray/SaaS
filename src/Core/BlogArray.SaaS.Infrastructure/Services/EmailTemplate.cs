@@ -36,12 +36,6 @@ public interface IEmailTemplate
 
     void TenantWelcome(string toEmail, string tenantName, string tenantUrl, string clientSecret, string apiKey);
 
-    void MfaResetRequested(string toEmail, string name, string callbackUrl);
-
-    void MfaResetCompleted(string toEmail, string name);
-
-    void RecoveryCodeUsedNotice(string toEmail, string name, string ipAddress);
-
     /// <summary>
     /// Tells the user an administrator changed their account. <paramref name="advice"/> is the
     /// closing guidance; when omitted, the generic "reset your password if unexpected" advice is
@@ -65,27 +59,25 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     public void ConfirmEmail(string toEmail, string name, string callbackUrl)
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"Welcome to App, your platform for connecting with mentors and advancing your developer skills through live 1:1 mentoring!{newLine}" +
-            $"To kickstart your journey, we invite you to verify your email address. Just click the link below:" +
-            $"{MakeLinkButton(callbackUrl, "Verify Email")}" +
-            $"With your email verified, you'll unlock a treasure trove of features, including:" +
-            $"{MakeList(["Booking sessions with experienced mentors", "Participation in engaging coding challenges and hackathons", "Direct access to top-tier mentors for personalized guidance"])}" +
-            $"Our team is here to support you every step of the way. Should you have any questions or need assistance, please don't hesitate to reach out to us at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
-            $"Thank you for choosing App. We're thrilled to have you on board and can't wait to see the amazing contributions you'll make to our community!";
+            $"Welcome to App. Please confirm that this is your email address by clicking the link below:" +
+            $"{MakeLinkButton(callbackUrl, "Verify email")}" +
+            $"You can sign in once your email address is confirmed.{newLine}" +
+            $"If you did not create an App account, you can ignore this email: the account cannot be used without confirmation.{newLine}" +
+            $"If you have any questions, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
+            $"Thank you for choosing App.";
 
         string body = GenerateEmail(name, template);
 
-        Send(toEmail, "?? Welcome to App! Please verify your email address", body);
+        Send(toEmail, "Welcome to App - please verify your email address", body);
     }
 
     public void EmailVerified(string toEmail, string name)
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"Congratulations! Your email address has been successfully verified for your App account on {DateTime.UtcNow} UTC.{newLine}" +
-            $"Now that your email is verified, you can enjoy full access to all the features and benefits of App, " +
-            $"including connecting with mentors, participating in coding challenges, and engaging with the community.{newLine}" +
+            $"Congratulations! Your email address has been successfully verified for your App account on {Now()}.{newLine}" +
+            $"You can now sign in to App with this email address.{newLine}" +
             $"If you have any questions or need assistance, feel free to reach out to our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
-            $"Thank you for verifying your email address and Thank you for choosing App.";
+            $"Thank you for choosing App.";
 
         string body = GenerateEmail(name, template);
 
@@ -110,7 +102,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     public void PasswordChangeSuccessed(string toEmail, string name)
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"This is to inform you that the password for your App account has been successfully changed on {DateTime.UtcNow} UTC.{newLine}" +
+            $"This is to inform you that the password for your App account has been successfully changed on {Now()}.{newLine}" +
             $"If you did not initiate this change, please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")}. " +
             $"We also recommend reviewing your account for any unauthorized activity.{newLine}" +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
@@ -125,9 +117,8 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
             $"We have received a request to change the email address associated with your App account to {Encode(newEmail)}. " +
-            $"To complete this change, please click the link below to verify your new email address:{newLine}" +
             $"If you did not request this change, please disregard this email.{newLine}" +
-            $"To complete the email change process, please click the link below:" +
+            $"To verify your new email address and complete the change, please click the link below:" +
             $"{MakeLinkButton(callbackUrl, "Change email")}" +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"Thank you for choosing App.";
@@ -140,7 +131,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     public void ChangeEmailConfirmation(string toEmail, string name, string newEmail)
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"This is to confirm that the email address associated with your App account has been successfully updated to {Encode(newEmail)} on {DateTime.UtcNow} UTC.{newLine}" +
+            $"This is to confirm that the email address associated with your App account has been successfully updated to {Encode(newEmail)} on {Now()}.{newLine}" +
             $"If you did not initiate this change, please contact our support team immediately at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"Thank you for choosing App.";
 
@@ -152,46 +143,44 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     public void ChangeUsernameConfirmation(string toEmail, string name, string from, string to)
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"This is to confirm that the username associated with your App account has been successfully changed from {Encode(from)} to {Encode(to)} on {DateTime.UtcNow} UTC.{newLine}" +
-            $"If you did not initiate this change, please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "account/forgotpassword"), "Reset Password Link")}. " +
+            $"This is to confirm that the username associated with your App account has been successfully changed from {Encode(from)} to {Encode(to)} on {Now()}.{newLine}" +
+            $"If you did not initiate this change, please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")}. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"Thank you for choosing App.";
 
         string body = GenerateEmail(name, template);
 
-        Send(toEmail, "Your App usernamae has been changed", body);
+        Send(toEmail, "Your App username has been changed", body);
     }
 
     public void InviteWithPasswordLink(string toEmail, string name, string callbackUrl, string org, string orgUrl, string invitedBy)
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"You are invited to join {Encode(org)} on App. " +
+            $"{Encode(Inviter(invitedBy))} invited you to join {Encode(org)} on App. " +
             $"To get started, please set up your account by creating a password using the link below:" +
-            $"{MakeLinkButton(callbackUrl, "Change password")}" +
-            $"If you’ve already set a password, you can log in directly to your account here:" +
-            $"{MakeLinkButton(orgUrl, "Login")}" +
+            $"{MakeLinkButton(callbackUrl, "Create password")}" +
+            (string.IsNullOrWhiteSpace(orgUrl) ? string.Empty : $"If you’ve already set a password, you can log in directly to your account here:{MakeLinkButton(orgUrl, "Login")}") +
             $"Once inside, you’ll gain access to your organization’s resources. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"We’re excited to have you on board!";
 
         string body = GenerateEmail(name, template);
 
-        Send(toEmail, $"You're Invited to Join {Encode(org)} on App", body);
+        Send(toEmail, $"You're Invited to Join {org} on App", body);
     }
 
     public void Invite(string toEmail, string name, string org, string orgUrl, string invitedBy)
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"You are invited to join {Encode(org)} on App. " +
-            $"You can log in directly to your account here:" +
-            $"{MakeLinkButton(orgUrl, "Login")}" +
+            $"{Encode(Inviter(invitedBy))} invited you to join {Encode(org)} on App. " +
+            (string.IsNullOrWhiteSpace(orgUrl) ? $"You can sign in with your existing App account.{newLine}" : $"You can log in directly to your account here:{MakeLinkButton(orgUrl, "Login")}") +
             $"Once inside, you’ll gain access to your organization’s resources. " +
             $"If you have any questions or concerns, please contact our support team at {MakeLink("mailto:support@app.com", "support@app.com")}.{newLine}" +
             $"We’re excited to have you on board!";
 
         string body = GenerateEmail(name, template);
 
-        Send(toEmail, $"You're Invited to Join {Encode(org)} on App", body);
+        Send(toEmail, $"You're Invited to Join {org} on App", body);
     }
 
 
@@ -202,60 +191,13 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
             $"Keep the credentials below safe - they will not be shown or sent again:{newLine}" +
             $"Client secret:{MakeSecretBox(clientSecret)}" +
             $"API key:{MakeSecretBox(apiKey)}" +
-            $"The tenant is available at {MakeLink(tenantUrl, tenantUrl)}.{newLine}" +
+            (string.IsNullOrWhiteSpace(tenantUrl) ? string.Empty : $"The tenant is available at {MakeLink(tenantUrl, tenantUrl)}.{newLine}") +
             $"If you were not expecting this email, please contact our support team immediately.{newLine}" +
             $"Thank you for choosing App.";
 
         string body = GenerateEmail(tenantName, template);
 
-        Send(toEmail, $"Your tenant {Encode(tenantName)} is ready - App", body);
-    }
-
-    public void MfaResetRequested(string toEmail, string name, string callbackUrl)
-    {
-        string template = $"Hey {Encode(name)}!{newLine}" +
-            $"You are receiving this email because a request to reset multi-factor authentication for your App account has been initiated. " +
-            $"If you did not request this, please disregard this email - your authenticator is still active.{newLine}" +
-            $"To reset multi-factor authentication, please click the link below (valid for a limited time):" +
-            $"{MakeLinkButton(callbackUrl, "Reset multi-factor authentication")}" +
-            $"After the reset you will sign in with your password and set up your authenticator again. " +
-            $"For any questions or concerns, please contact our support team.{newLine}" +
-            $"Thank you for choosing App.";
-
-        string body = GenerateEmail(name, template);
-
-        Send(toEmail, "Reset your App account multi-factor authentication", body);
-    }
-
-    public void MfaResetCompleted(string toEmail, string name)
-    {
-        string template = $"Hey {Encode(name)}!{newLine}" +
-            $"This is to inform you that multi-factor authentication for your App account has been reset on {DateTime.UtcNow} UTC " +
-            $"via an emailed recovery link. Your authenticator enrollment has been cleared and other devices have been signed out.{newLine}" +
-            $"If you did not initiate this reset, your email account may be compromised - " +
-            $"please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")} " +
-            $"and contact our support team.{newLine}" +
-            $"Thank you for choosing App.";
-
-        string body = GenerateEmail(name, template);
-
-        Send(toEmail, "Your App account multi-factor authentication has been reset", body);
-    }
-
-    public void RecoveryCodeUsedNotice(string toEmail, string name, string ipAddress)
-    {
-        string template = $"Hey {Encode(name)}!{newLine}" +
-            $"A recovery code was used to sign in to your App account on {DateTime.UtcNow} UTC from IP {Encode(ipAddress ?? "unknown")}. " +
-            $"Because a recovery code typically means your authenticator was unavailable, multi-factor authentication has been reset " +
-            $"and you will be asked to set up your authenticator again at next sign-in.{newLine}" +
-            $"If this was not you, someone may have obtained your recovery codes - " +
-            $"please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")} " +
-            $"and contact our support team.{newLine}" +
-            $"Thank you for choosing App.";
-
-        string body = GenerateEmail(name, template);
-
-        Send(toEmail, "A recovery code was used to sign in to your App account", body);
+        Send(toEmail, $"Your tenant {tenantName} is ready - App", body);
     }
 
     public Task SecurityActionByAdminNotice(string toEmail, string name, string action, string? advice = null)
@@ -263,7 +205,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         advice ??= "If you were not expecting this change, please reset your password immediately and contact our support team.";
 
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"An administrator has performed the following action on your App account on {DateTime.UtcNow} UTC:{newLine}" +
+            $"An administrator has performed the following action on your App account on {Now()}:{newLine}" +
             $"{Encode(action)}{newLine}" +
             $"{Encode(advice)}{newLine}" +
             $"Thank you for choosing App.";
@@ -278,7 +220,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     public Task MfaResetByAdminNotice(string toEmail, string name)
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"An administrator has reset the multi-factor authentication on your App account on {DateTime.UtcNow} UTC. " +
+            $"An administrator has reset the multi-factor authentication on your App account on {Now()}. " +
             $"Your authenticator enrollment has been cleared - you will be asked to set it up again at next sign-in.{newLine}" +
             $"If you did not request this reset, please reset your password immediately and contact our support team.{newLine}" +
             $"Thank you for choosing App.";
@@ -293,7 +235,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     public void ApiKeyRotated(string toEmail, string tenantName, string apiKey, string rotatedBy)
     {
         string template = $"Hey there!{newLine}" +
-            $"The API key for the tenant {Encode(tenantName)} has been rotated by {Encode(rotatedBy)} on {DateTime.UtcNow} UTC.{newLine}" +
+            $"The API key for the tenant {Encode(tenantName)} has been rotated by {Encode(rotatedBy)} on {Now()}.{newLine}" +
             $"The previous API key is no longer valid. Use the new API key below - it will not be shown or sent again:{newLine}" +
             $"{MakeSecretBox(apiKey)}" +
             $"If you did not request this change, please contact our support team immediately.{newLine}" +
@@ -301,13 +243,13 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
         string body = GenerateEmail(tenantName, template);
 
-        Send(toEmail, $"The API key for {Encode(tenantName)} has been rotated - App", body);
+        Send(toEmail, $"The API key for {tenantName} has been rotated - App", body);
     }
 
     public void ClientSecretRotated(string toEmail, string tenantName, string clientSecret, string rotatedBy)
     {
         string template = $"Hey there!{newLine}" +
-            $"The client secret for the tenant {Encode(tenantName)} has been rotated by {Encode(rotatedBy)} on {DateTime.UtcNow} UTC.{newLine}" +
+            $"The client secret for the tenant {Encode(tenantName)} has been rotated by {Encode(rotatedBy)} on {Now()}.{newLine}" +
             $"The previous client secret no longer works. Any application that signs in with it must be updated with the new secret below - it will not be shown or sent again:{newLine}" +
             $"{MakeSecretBox(clientSecret)}" +
             $"If you did not request this change, please contact our support team immediately.{newLine}" +
@@ -315,7 +257,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
 
         string body = GenerateEmail(tenantName, template);
 
-        Send(toEmail, $"The client secret for {Encode(tenantName)} has been rotated - App", body);
+        Send(toEmail, $"The client secret for {tenantName} has been rotated - App", body);
     }
 
 
@@ -325,6 +267,23 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     }
 
     private static string Encode(string value) => HtmlEncoder.Default.Encode(value ?? string.Empty);
+
+    /// <summary>
+    /// The current time for an email body, in one fixed format whatever the server's culture.
+    /// </summary>
+    private static string Now() => DateTime.UtcNow.ToString("d MMMM yyyy 'at' HH:mm 'UTC'", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Who sent an invitation, for the opening line ("Jane invited you..."); falls back to
+    /// "An administrator". A phrase ("the Acme administrator") is capitalised as it starts the
+    /// sentence; an email address is left as it is.
+    /// </summary>
+    private static string Inviter(string? invitedBy)
+    {
+        string inviter = string.IsNullOrWhiteSpace(invitedBy) ? "An administrator" : invitedBy.Trim();
+
+        return inviter.Contains('@') ? inviter : char.ToUpperInvariant(inviter[0]) + inviter[1..];
+    }
 
     private static string MakeLink(string link, string name) => $"<a href=\"{HtmlEncoder.Default.Encode(link)}\">{Encode(name)}</a>";
 
@@ -393,7 +352,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         html += "<body>";
         html += "<div class=\"container\">";
         html += "<div class=\"logo-container\">";
-        html += $"<img src=\"{BlogArrayConstants.DefaultLogoUrl}\" alt=\"App Logo\" class=\"logo\" />";
+        html += $"<img src=\"{HtmlEncoder.Default.Encode(BlogArrayConstants.DefaultLogoUrl ?? string.Empty)}\" alt=\"App Logo\" class=\"logo\" />";
         html += "</div>";
         html += body;
         html += footer;
@@ -403,6 +362,11 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         return html;
     }
 
-    private void Send(string toEmail, string subject, string body) => emailHelper.SendEmail(toEmail, subject, body);
+    /// <summary>
+    /// The subject is a plain-text header: values are not HTML-encoded there (a tenant named
+    /// "R&D" showed as "R&amp;D"), and line breaks, which a header cannot contain, are removed.
+    /// </summary>
+    private void Send(string toEmail, string subject, string body) =>
+        emailHelper.SendEmail(toEmail, subject.Replace('\r', ' ').Replace('\n', ' '), body);
 
 }

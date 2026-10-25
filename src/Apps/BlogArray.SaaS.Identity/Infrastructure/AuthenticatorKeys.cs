@@ -30,4 +30,20 @@ public static class AuthenticatorKeys
         await keyStore.SetAuthenticatorKeyAsync(user, userManager.GenerateNewAuthenticatorKey(), CancellationToken.None);
         await userManager.UpdateAsync(user);
     }
+
+    /// <summary>
+    /// Gives the user an authenticator key when they have none, without rotating the security
+    /// stamp (which would sign the current session out).
+    /// </summary>
+    public static async Task EnsureKeyAsync(UserManager<ApplicationUser> userManager, IUserStore<ApplicationUser> userStore, ApplicationUser user)
+    {
+        if (!string.IsNullOrEmpty(await userManager.GetAuthenticatorKeyAsync(user))
+            || userStore is not IUserAuthenticatorKeyStore<ApplicationUser> keyStore)
+        {
+            return;
+        }
+
+        await keyStore.SetAuthenticatorKeyAsync(user, userManager.GenerateNewAuthenticatorKey(), CancellationToken.None);
+        await userManager.UpdateAsync(user);
+    }
 }

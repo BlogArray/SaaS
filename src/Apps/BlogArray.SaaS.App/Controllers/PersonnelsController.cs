@@ -54,12 +54,20 @@ public class PersonnelsController(SaasAppDbContext context,
             return View(userVM);
         }
 
+        string? tenantIdentifier = multiTenantContextAccessor.MultiTenantContext.TenantInfo?.Identifier;
+
+        if (string.IsNullOrWhiteSpace(tenantIdentifier))
+        {
+            AddErrorMessage("The tenant could not be resolved for this request. Navigate to the tenant's subdomain URL and try again.");
+            return RedirectToAction("Index");
+        }
+
         try
         {
             await membershipClient.Invite(new UserTenantVM
             {
                 Email = userVM.Email,
-                Tenant = multiTenantContextAccessor.MultiTenantContext.TenantInfo.Identifier
+                Tenant = tenantIdentifier
             });
 
             await context.AppPersonnels.AddAsync(new AppPersonnel
@@ -74,6 +82,13 @@ public class PersonnelsController(SaasAppDbContext context,
         {
             AddErrorMessage($"Unable to invite personnel with email {userVM.Email}.");
             logger.LogError("The API returned an exception with status code {StatusCode} with content {Content}", apiException.StatusCode, apiException.Content);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            // The membership API is unreachable or timed out (Refit only throws ApiException
+            // for HTTP error responses).
+            AddErrorMessage($"Unable to invite personnel with email {userVM.Email}. The membership service is unavailable; try again later.");
+            logger.LogError(ex, "The membership API could not be reached.");
         }
 
         return RedirectToAction("Index");
@@ -111,6 +126,11 @@ public class PersonnelsController(SaasAppDbContext context,
                 AddErrorMessage($"Unable to deactivate personnel with email {user.Email}.");
                 logger.LogError(ex, "The API returned an exception with status code {StatusCode} and content {Content}", ex.StatusCode, ex.Content);
             }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                AddErrorMessage($"Unable to deactivate personnel with email {user.Email}. The membership service is unavailable; try again later.");
+                logger.LogError(ex, "The membership API could not be reached.");
+            }
         }
         return RedirectToAction("Index");
     }
@@ -122,12 +142,20 @@ public class PersonnelsController(SaasAppDbContext context,
         AppPersonnel? user = await context.AppPersonnels.SingleOrDefaultAsync(u => u.Id == id);
         if (user is not null)
         {
+            string? tenantIdentifier = multiTenantContextAccessor.MultiTenantContext.TenantInfo?.Identifier;
+
+            if (string.IsNullOrWhiteSpace(tenantIdentifier))
+            {
+                AddErrorMessage("The tenant could not be resolved for this request. Navigate to the tenant's subdomain URL and try again.");
+                return RedirectToAction("Index");
+            }
+
             try
             {
                 await membershipClient.AddUserToTenant(new UserTenantVM
                 {
                     Email = user.Email,
-                    Tenant = multiTenantContextAccessor.MultiTenantContext.TenantInfo.Identifier
+                    Tenant = tenantIdentifier
                 });
                 user.IsActive = true;
                 await context.SaveChangesAsync();
@@ -137,6 +165,11 @@ public class PersonnelsController(SaasAppDbContext context,
             {
                 AddErrorMessage($"Unable to activate personnel with email {user.Email}.");
                 logger.LogError("The API returned an exception with status code {StatusCode} with content {Content}", apiException.StatusCode, apiException.Content);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                AddErrorMessage($"Unable to activate personnel with email {user.Email}. The membership service is unavailable; try again later.");
+                logger.LogError(ex, "The membership API could not be reached.");
             }
         }
         return RedirectToAction("Index");

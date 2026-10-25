@@ -36,7 +36,8 @@ public class EmailHelper(IOptions<SmtpConfiguration> options) : IEmailHelper
         MailAddress toAddress = new(toEmail);
         bccEMails = bccEMails.Trim();
 
-        SmtpClient smtp = new()
+        // SmtpClient holds a connection: dispose it with the message.
+        using SmtpClient smtp = new()
         {
             Host = Smtp.Host,
             Port = Smtp.Port,
@@ -69,14 +70,7 @@ public class EmailHelper(IOptions<SmtpConfiguration> options) : IEmailHelper
             message.Attachments.Add(new Attachment(new MemoryStream(attachment, false), fileName, fileType));
         }
 
-        try
-        {
-            smtp.Send(message);
-        }
-        catch (Exception)
-        {
-            throw;
-        }
+        smtp.Send(message);
     }
 
     ///// <summary>

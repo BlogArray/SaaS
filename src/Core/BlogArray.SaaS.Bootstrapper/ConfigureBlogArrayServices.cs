@@ -53,6 +53,8 @@ public static class ConfigureBlogArrayServices
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
         options.SlidingExpiration = true;
 
+        TimeSpan sessionLifetime = options.ExpireTimeSpan;
+
         options.Cookie.HttpOnly = true;
         options.Cookie.IsEssential = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
@@ -117,13 +119,18 @@ public static class ConfigureBlogArrayServices
             }
             else
             {
-                // Fresh local login. Reuse the most recent active session for THIS
-                // user on THIS device — UserId must be part of the filter, or two
-                // different users sharing a common UA string will collide.
+                // Fresh local login. The user agent does not identify a device: two computers
+                // with the same browser version send the same string, and reusing (and so
+                // re-keying) a live row signed the other computer out. Only a row no cookie can
+                // still be using - unseen for longer than the sliding cookie lifetime - is
+                // recycled for the same user and user agent; otherwise a new row is created.
+                DateTime staleBefore = DateTime.UtcNow - sessionLifetime;
+
                 session = await dbContext.UserSessions
                     .Where(tracked => !tracked.Revoked
                         && tracked.UserId == userId
-                        && tracked.UserAgent == userAgent)
+                        && tracked.UserAgent == userAgent
+                        && tracked.LastSeenOn < staleBefore)
                     .OrderByDescending(tracked => tracked.LastSeenOn)
                     .FirstOrDefaultAsync();
 
@@ -148,31 +155,11 @@ public static class ConfigureBlogArrayServices
             session.IpAddress = ipAddress;
             session.LastSeenOn = DateTime.UtcNow;
 
-            try
-            {
-                await dbContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                // Concurrent fresh logins on the same device raced on the same row.
-                // Requires a unique constraint on SessionId (or UserId+UserAgent)
-                // plus a concurrency token (e.g. rowversion) on UserSession.
-                // Losing side just mints its own fresh row rather than corrupting
-                // the winner's claim.
-                session = new UserSession
-                {
-                    UserId = userId,
-                    SessionId = sessionId,
-                    DeviceName = deviceName,
-                    UserAgent = userAgent,
-                    IpAddress = ipAddress,
-                    CreatedOn = DateTime.UtcNow,
-                    LastSeenOn = DateTime.UtcNow
-                };
-
-                dbContext.UserSessions.Add(session);
-                await dbContext.SaveChangesAsync();
-            }
+            // (UserSession has no concurrency token, so there is no conflict to retry: the
+            // previous DbUpdateConcurrencyException fallback could never run, and would have
+            // re-saved the same failing change. Live rows are no longer recycled, so concurrent
+            // logins on one device each get their own row.)
+            await dbContext.SaveChangesAsync();
 
             foreach (ClaimsIdentity identity in context.Principal!.Identities)
             {
@@ -187,8 +174,22 @@ public static class ConfigureBlogArrayServices
             }
         };
 
+        // Chain to the handler already configured instead of replacing it: on the identity
+        // server's cookie that is Identity's SecurityStampValidator, which this assignment used
+        // to discard - so security stamp changes (password changes, admin revocations,
+        // "forget all trusted browsers") never ended other identity server sessions and the
+        // principal's roles/claims were never refreshed.
+        Func<CookieValidatePrincipalContext, Task> previousValidatePrincipal = options.Events.OnValidatePrincipal;
+
         options.Events.OnValidatePrincipal = async context =>
         {
+            await previousValidatePrincipal(context);
+
+            if (context.Principal is null)
+            {
+                return;
+            }
+
             await ValidateSessionAsync(context);
 
             if (context.Principal is null || membershipClientId is null)

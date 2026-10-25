@@ -1,8 +1,12 @@
 ﻿using System.Security.Claims;
 using BlogArray.SaaS.Application.Services;
+using BlogArray.SaaS.Bootstrapper;
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.OpenId;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.Memory;
@@ -218,5 +222,41 @@ public class LockoutOptionsTests
 
         Assert.Equal(5, options.Lockout.MaxFailedAccessAttempts);
         Assert.Equal(TimeSpan.FromMinutes(30), options.Lockout.DefaultLockoutTimeSpan);
+    }
+}
+
+public class CookieValidationChainTests
+{
+    private static CookieValidatePrincipalContext Context(CookieAuthenticationOptions options)
+    {
+        ClaimsPrincipal principal = new(new ClaimsIdentity([new Claim("session_id", "session-a")], "test"));
+        AuthenticationScheme scheme = new(CookieAuthenticationDefaults.AuthenticationScheme, null, typeof(CookieAuthenticationHandler));
+
+        // No services: reaching the session check (which needs the database) would throw.
+        return new CookieValidatePrincipalContext(new DefaultHttpContext(), scheme, options,
+            new AuthenticationTicket(principal, CookieAuthenticationDefaults.AuthenticationScheme));
+    }
+
+    [Fact]
+    public async Task ValidatePrincipal_RunsPreviouslyConfiguredHandler()
+    {
+        // On the identity server the previous handler is Identity's SecurityStampValidator:
+        // it used to be overwritten, so stamp changes never ended sessions.
+        bool previousRan = false;
+        CookieAuthenticationOptions options = new();
+        options.Events.OnValidatePrincipal = context =>
+        {
+            previousRan = true;
+            context.RejectPrincipal();
+            return Task.CompletedTask;
+        };
+
+        options.AddBlogArrayCookieAuthenticationOptions();
+
+        CookieValidatePrincipalContext context = Context(options);
+        await options.Events.ValidatePrincipal(context);
+
+        Assert.True(previousRan);
+        Assert.Null(context.Principal);
     }
 }

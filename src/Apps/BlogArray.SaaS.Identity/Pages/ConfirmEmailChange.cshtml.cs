@@ -10,6 +10,8 @@
 #nullable disable
 
 using System.Text;
+using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -18,7 +20,9 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class ConfirmEmailChangeModel(
     UserManager<ApplicationUser> userManager,
     SignInManagerExtension<ApplicationUser> signInManager,
-    IEmailTemplate emailTemplate) : PageModel
+    IEmailTemplate emailTemplate,
+    IAuditEventLogger auditLogger,
+    ILogger<ConfirmEmailChangeModel> logger) : PageModel
 {
 
     /// <summary>
@@ -61,7 +65,11 @@ public class ConfirmEmailChangeModel(
             return Page();
         }
 
-        emailTemplate.ChangeEmailConfirmation(oldEmail, user.DisplayName, email);
+        (string oldValueJson, string newValueJson) = AuditDiff.Changed("Email", oldEmail, email);
+
+        await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.EmailChanged, TargetUserId: user.Id, OldValueJson: oldValueJson, NewValueJson: newValueJson));
+
+        EmailSending.TrySend(logger, () => emailTemplate.ChangeEmailConfirmation(oldEmail, user.DisplayName, email), "email changed notice");
 
         await signInManager.RefreshSignInAsync(user);
         StatusMessage = "Thank you for confirming your email change.";

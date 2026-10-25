@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
@@ -19,7 +20,8 @@ public class SettingsController(
     UserManager<ApplicationUser> userManager,
     OpenIdDbContext db, IEmailTemplate emailTemplate, IAzureStorageService azureStorage,
     BlogArray.SaaS.OpenId.IAuditEventLogger auditLogger,
-    IUserAccessRevocationService accessRevocation) : BaseController
+    IUserAccessRevocationService accessRevocation,
+    ILogger<SettingsController> logger) : BaseController
 {
     #region Profile
 
@@ -194,7 +196,7 @@ public class SettingsController(
             await accessRevocation.RevokeAsync(user.Id, keepSessionId: User.FindFirst("session_id")?.Value);
 
             await signInManager.RefreshSignInAsync(user);
-            emailTemplate.PasswordChangeSuccessed(user.Email, user.DisplayName);
+            EmailSending.TrySend(logger, () => emailTemplate.PasswordChangeSuccessed(user.Email, user.DisplayName), "password changed notice");
             await auditLogger.LogAsync(new BlogArray.SaaS.Domain.Events.AuditEventRecord(user.Id, BlogArray.SaaS.Domain.Events.AuditTrigger.User, BlogArray.SaaS.Domain.Events.AuditEventTypes.PasswordChanged));
             return JsonSuccess("You have successfully updated your password.");
         }

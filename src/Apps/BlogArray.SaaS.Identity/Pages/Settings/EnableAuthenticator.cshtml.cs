@@ -18,6 +18,7 @@ namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class EnableAuthenticatorModel(
     UserManager<ApplicationUser> userManager,
+    SignInManagerExtension<ApplicationUser> signInManager,
     IStepUpService stepUp,
     IUserStore<ApplicationUser> userStore,
     IAuditEventLogger auditLogger,
@@ -149,6 +150,11 @@ public class EnableAuthenticatorModel(
         }
 
         await userManager.SetTwoFactorEnabledAsync(user, true);
+
+        // The change rotated the security stamp: re-issue this browser's cookie with the new
+        // stamp, or stamp validation would sign the user out within minutes.
+        await signInManager.RefreshSignInAsync(user);
+
         string userId = await userManager.GetUserIdAsync(user);
         logger.LogInformation("User with ID '{UserId}' has enabled 2FA with an authenticator app.", userId);
         await auditLogger.LogAsync(new AuditEventRecord(userId, AuditTrigger.User, AuditEventTypes.MfaEnabled));
@@ -170,7 +176,8 @@ public class EnableAuthenticatorModel(
         string unformattedKey = await userManager.GetAuthenticatorKeyAsync(user);
         if (string.IsNullOrEmpty(unformattedKey))
         {
-            await userManager.ResetAuthenticatorKeyAsync(user);
+            // Without rotating the security stamp (ResetAuthenticatorKeyAsync would).
+            await AuthenticatorKeys.EnsureKeyAsync(userManager, userStore, user);
             unformattedKey = await userManager.GetAuthenticatorKeyAsync(user);
         }
 

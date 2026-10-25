@@ -40,30 +40,24 @@ public class SignInEventLogger(
 {
     public async Task LogAsync(SignInEventRecord record)
     {
-        try
-        {
-            HttpContext? httpContext = httpContextAccessor.HttpContext;
+        HttpContext? httpContext = httpContextAccessor.HttpContext;
+        string? userAgent = httpContext?.Request.Headers.UserAgent.ToString();
 
-            context.SignInEvents.Add(new SignInEvent
-            {
-                UserId = Truncate(record.UserId, 400),
-                ClientId = Truncate(record.ClientId, 400),
-                EventType = Truncate(record.EventType, 100),
-                AuthMethod = Truncate(record.AuthMethod.ToString(), 100),
-                Result = Truncate(record.Result.ToString(), 20),
-                Details = Truncate(record.Details, 512),
-                IpAddress = Truncate(httpContext?.Connection.RemoteIpAddress?.ToString(), 64),
-                DeviceInfo = Truncate(Helpers.UserAgentParser.DescribeUserAgent(httpContext?.Request.Headers.UserAgent.ToString()), 256),
-                UserAgent = Truncate(httpContext?.Request.Headers.UserAgent.ToString(), 512),
-                CreatedOn = DateTime.UtcNow
-            });
-
-            await context.SaveChangesAsync();
-        }
-        catch (Exception ex)
+        SignInEvent signInEvent = new()
         {
-            logger.LogWarning(ex, "Failed to record the {EventType} sign-in event for user {UserId}.", record.EventType, record.UserId);
-        }
+            UserId = Truncate(record.UserId, 400)!,
+            ClientId = Truncate(record.ClientId, 400),
+            EventType = Truncate(record.EventType, 100)!,
+            AuthMethod = Truncate(record.AuthMethod.ToString(), 100),
+            Result = Truncate(record.Result.ToString(), 20)!,
+            Details = Truncate(record.Details, 512),
+            IpAddress = Truncate(httpContext?.Connection.RemoteIpAddress?.ToString(), 64),
+            DeviceInfo = Truncate(Helpers.UserAgentParser.DescribeUserAgent(userAgent ?? string.Empty), 256),
+            UserAgent = Truncate(userAgent, 512),
+            CreatedOn = DateTime.UtcNow
+        };
+
+        await SaveBestEffortAsync(context, signInEvent, logger, record.EventType, record.UserId);
     }
 
     internal static string? Truncate(string? value, int length)
@@ -75,6 +69,28 @@ public class SignInEventLogger(
 
         return value[..length];
     }
+
+    /// <summary>
+    /// Saves one event on the request's shared DbContext without letting a failure leak into
+    /// the caller: a row that failed to save stays tracked as Added, so the page's next
+    /// SaveChangesAsync retried it and threw - a logging failure became a page failure. The
+    /// failed row is detached instead.
+    /// </summary>
+    internal static async Task SaveBestEffortAsync<TEvent>(OpenIdDbContext context, TEvent entity, ILogger logger, string eventType, string? userId) where TEvent : class
+    {
+        try
+        {
+            context.Set<TEvent>().Add(entity);
+
+            await context.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            context.Entry(entity).State = Microsoft.EntityFrameworkCore.EntityState.Detached;
+
+            logger.LogWarning(ex, "Failed to record the {EventType} security event for user {UserId}.", eventType, userId);
+        }
+    }
 }
 
 public class AuditEventLogger(
@@ -84,42 +100,26 @@ public class AuditEventLogger(
 {
     public async Task LogAsync(AuditEventRecord record)
     {
-        try
+        HttpContext? httpContext = httpContextAccessor.HttpContext;
+        string? userAgent = httpContext?.Request.Headers.UserAgent.ToString();
+
+        AuditEvent auditEvent = new()
         {
-            HttpContext? httpContext = httpContextAccessor.HttpContext;
+            UserId = SignInEventLogger.Truncate(record.ActorUserId, 400)!,
+            TriggeredBy = SignInEventLogger.Truncate(record.TriggeredBy.ToString(), 20)!,
+            TargetUserId = SignInEventLogger.Truncate(record.TargetUserId, 400),
+            ClientId = SignInEventLogger.Truncate(record.ClientId, 400),
+            EventType = SignInEventLogger.Truncate(record.EventType, 100)!,
+            OldValue = record.OldValueJson,
+            NewValue = record.NewValueJson,
+            Reason = SignInEventLogger.Truncate(record.Reason, 512),
+            Result = SignInEventLogger.Truncate(record.Result, 20)!,
+            IpAddress = SignInEventLogger.Truncate(httpContext?.Connection.RemoteIpAddress?.ToString(), 64),
+            DeviceInfo = SignInEventLogger.Truncate(Helpers.UserAgentParser.DescribeUserAgent(userAgent ?? string.Empty), 256),
+            UserAgent = SignInEventLogger.Truncate(userAgent, 512),
+            CreatedOn = DateTime.UtcNow
+        };
 
-            context.AuditEvents.Add(new AuditEvent
-            {
-                UserId = SignInEventLogger.Truncate(record.ActorUserId, 400),
-                TriggeredBy = Truncate(record.TriggeredBy.ToString(), 20),
-                TargetUserId = Truncate(record.TargetUserId, 400),
-                ClientId = Truncate(record.ClientId, 400),
-                EventType = Truncate(record.EventType, 100),
-                OldValue = record.OldValueJson,
-                NewValue = record.NewValueJson,
-                Reason = Truncate(record.Reason, 512),
-                Result = Truncate(record.Result, 20),
-                IpAddress = Truncate(httpContext?.Connection.RemoteIpAddress?.ToString(), 64),
-                DeviceInfo = Truncate(Helpers.UserAgentParser.DescribeUserAgent(httpContext?.Request.Headers.UserAgent.ToString()), 256),
-                UserAgent = Truncate(httpContext?.Request.Headers.UserAgent.ToString(), 512),
-                CreatedOn = DateTime.UtcNow
-            });
-
-            await context.SaveChangesAsync();
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to record the {EventType} audit event for user {UserId}.", record.EventType, record.ActorUserId);
-        }
-    }
-
-    private static string? Truncate(string? value, int length)
-    {
-        if (string.IsNullOrEmpty(value) || value.Length <= length)
-        {
-            return value;
-        }
-
-        return value[..length];
+        await SignInEventLogger.SaveBestEffortAsync(context, auditEvent, logger, record.EventType, record.ActorUserId);
     }
 }

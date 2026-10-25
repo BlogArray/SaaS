@@ -138,6 +138,8 @@ public class ExternalLoginModel : PageModel
             {
                 await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
+                await _auditLogger.LogAsync(new SignInEventRecord(linkedUser.Id, SecurityEventUrls.GetTenantClientIdFromUrl(next), SignInEventTypes.ConditionalAccessBlocked, SignInAuthMethod.External, SignInResultType.Failure, $"{info.LoginProvider}; account locked, disabled or unconfirmed"));
+
                 if (await _userManager.IsLockedOutAsync(linkedUser))
                 {
                     return RedirectToPage("./Lockout");
@@ -156,7 +158,7 @@ public class ExternalLoginModel : PageModel
                 await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
                 await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(linkedUser.Id, next, [new Claim(ClaimTypes.AuthenticationMethod, info.LoginProvider)]));
 
-                await _auditLogger.LogAsync(new SignInEventRecord(linkedUser.Id, null, SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, $"{info.LoginProvider}; mfa enrollment required"));
+                await _auditLogger.LogAsync(new SignInEventRecord(linkedUser.Id, SecurityEventUrls.GetTenantClientIdFromUrl(next), SignInEventTypes.LoginFailedMfaRequired, SignInAuthMethod.External, SignInResultType.Failure, $"{info.LoginProvider}; multi-factor enrollment required"));
 
                 return RedirectToPage("/MfaEnrollment");
             }
@@ -172,7 +174,7 @@ public class ExternalLoginModel : PageModel
             // correlate with the request log.
             _logger.LogInformation("User logged in with {LoginProvider} provider.", info.LoginProvider);
 
-            await _auditLogger.LogAsync(new SignInEventRecord(linkedUser.Id, null, SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, info.LoginProvider));
+            await _auditLogger.LogAsync(new SignInEventRecord(linkedUser.Id, SecurityEventUrls.GetTenantClientIdFromUrl(next), SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, info.LoginProvider));
 
             return this.SafeLocalRedirect(next);
         }
@@ -287,9 +289,11 @@ public class ExternalLoginModel : PageModel
                         values: new { userId, code, link },
                         protocol: Request.Scheme);
 
-                    _emailTemplate.ConfirmEmail(Input.Email, user.DisplayName ?? Input.Email, callbackUrl);
-
-                    TempData["ErrorMessage"] = "Account created. A verification link has been sent to your email address; confirm it before signing in.";
+                    // The account exists either way: a failed send must not end in an error page
+                    // (signing up again would then fail with "email already in use").
+                    TempData["ErrorMessage"] = EmailSending.TrySend(_logger, () => _emailTemplate.ConfirmEmail(Input.Email, user.DisplayName ?? Input.Email, callbackUrl), "email confirmation")
+                        ? "Account created. A verification link has been sent to your email address; confirm it before signing in."
+                        : "Account created, but the verification email could not be sent. Use \"Resend email confirmation\" to get a new link.";
                     return RedirectToPage("./Login", new { next });
                 }
             }

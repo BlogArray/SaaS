@@ -139,6 +139,10 @@ public class LinkedAccountsModel(
         // Clear the existing external cookie to ensure a clean login process
         await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
+        // The change rotated the security stamp: re-issue this browser's cookie with the new
+        // stamp, or stamp validation would sign the user out within minutes.
+        await signInManager.RefreshSignInAsync(user);
+
         await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.ExternalLoginAdded, Reason: info.LoginProvider));
 
         StatusMessage = "The external login was added.";
