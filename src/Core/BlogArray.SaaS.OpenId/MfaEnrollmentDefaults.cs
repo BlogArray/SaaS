@@ -135,7 +135,10 @@ public static class MfaEnrollmentDefaults
 
     private static bool IsAlwaysAllowed(PathString path)
     {
+        // /connect/logout is where /Logout leads: without it a restricted sign-in could not
+        // log out (the redirect bounced back to the restricted page).
         if (path.StartsWithSegments("/Logout")
+            || path.StartsWithSegments("/connect/logout")
             || path.StartsWithSegments("/error")
             || path.StartsWithSegments("/favicon"))
         {

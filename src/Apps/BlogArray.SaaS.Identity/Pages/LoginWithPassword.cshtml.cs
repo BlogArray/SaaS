@@ -26,8 +26,21 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
     UserManager<ApplicationUser> userManager,
     ISignInEventLogger signInEventLogger,
     IMfaEnrollmentService mfaEnrollmentService,
+    OpenIddict.Core.OpenIddictApplicationManager<OpenIdApplication> appManager,
     ICaptchaService captcha) : PageModel
 {
+    /// <summary>
+    ///     TempData key the email step hands the address over with, so it never appears in the
+    ///     URL (proxy logs, browser history, Referer headers).
+    /// </summary>
+    public const string EmailTempDataKey = "LoginEmail";
+
+    /// <summary>
+    ///     True after a correct password for an account whose email is not confirmed yet: the
+    ///     page offers to resend the confirmation link.
+    /// </summary>
+    public bool EmailNotConfirmed { get; set; }
+
     /// <summary>
     ///     True when the Cloudflare Turnstile challenge is configured (Captcha:SiteKey and
     ///     Captcha:SecretKey). When false the widget is not rendered and tokens are not checked.
@@ -102,8 +115,11 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
         public string CaptchaToken { get; set; }
     }
 
-    public async Task<IActionResult> OnGetAsync(string email, string next)
+    public async Task<IActionResult> OnGetAsync(string? email, string next)
     {
+        // The email step passes the address via TempData; ?email= still works for old links.
+        email ??= TempData[EmailTempDataKey] as string;
+
         if (string.IsNullOrEmpty(email))
         {
             return RedirectToPage("./Login", new { next });
@@ -121,7 +137,7 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             return this.SafeLocalRedirect(next);
         }
 
-        ExternalLogins = (await signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+        await LoadExternalLoginsAsync(next);
 
         Next = next;
         Input = new InputModel
@@ -136,10 +152,13 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
     {
         next ??= Url.Content("~/");
 
+        // Re-rendered forms (wrong password, CAPTCHA) build the social-login form from Next.
+        Next = next;
+
         // The OIDC authorize URL carried in `next` identifies the tenant being signed into.
         string? tenantClientId = SecurityEventUrls.GetTenantClientIdFromUrl(next);
 
-        ExternalLogins = (await signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+        await LoadExternalLoginsAsync(next);
 
         if (ModelState.IsValid)
         {
@@ -150,9 +169,6 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
                 ModelState.AddModelError("Input.CaptchaToken", "Please complete the verification.");
                 return Page();
             }
-
-            // This doesn't count login failures towards account lockout
-            // To enable password failures to trigger account lockout, set lockoutOnFailure: true
 
             ApplicationUser user = await userManager.FindByEmailAsync(Input.Email);
 
@@ -189,6 +205,24 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
                 logger.LogWarning("User account locked out.");
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
                 return RedirectToPage("./Lockout");
+            }
+
+            // NotAllowed (email not confirmed; disabled accounts were answered above) is returned
+            // before the password is checked. Check it here so the owner learns what to do; a
+            // wrong one counts towards lockout like any failed attempt, so this is no guessing
+            // shortcut, and the answer is only given to someone who knows the password.
+            if (result.IsNotAllowed)
+            {
+                if (await userManager.CheckPasswordAsync(user, Input.Password))
+                {
+                    await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedEmailNotConfirmed, SignInAuthMethod.Password, SignInResultType.Failure, "email not confirmed"));
+
+                    EmailNotConfirmed = true;
+                    ModelState.AddModelError(string.Empty, "Confirm your email address before signing in. Check your inbox for the confirmation link.");
+                    return Page();
+                }
+
+                await userManager.AccessFailedAsync(user);
             }
 
             if (!result.Succeeded)
@@ -234,6 +268,25 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
         // If we got this far, something failed, redisplay form
         return Page();
+    }
+
+    /// <summary>
+    /// The configured social providers, unless the application being signed into turned social
+    /// login off: the authorize endpoint would refuse such a session, so the buttons only led
+    /// to an error after signing in.
+    /// </summary>
+    private async Task LoadExternalLoginsAsync(string next)
+    {
+        ExternalLogins = (await signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+
+        string? clientId = StringExtensions.GetParam(next, "client_id");
+
+        if (!string.IsNullOrEmpty(clientId)
+            && await appManager.FindByClientIdAsync(clientId) is OpenIdApplication application
+            && !application.Security.IsSocialAuthEnabled)
+        {
+            ExternalLogins = [];
+        }
     }
 
     /// <summary>

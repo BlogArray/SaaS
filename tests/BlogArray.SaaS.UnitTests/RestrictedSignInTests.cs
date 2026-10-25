@@ -24,6 +24,7 @@ public class RestrictedSignInTests
     [Theory]
     [InlineData("/MfaEnrollment", true)]
     [InlineData("/Logout", true)]
+    [InlineData("/connect/logout", true)]
     [InlineData("/connect/authorize", false)]
     [InlineData("/ResetPassword", false)]
     public void Enrollment_AllowsOnlyEnrollmentPage(string path, bool allowed)

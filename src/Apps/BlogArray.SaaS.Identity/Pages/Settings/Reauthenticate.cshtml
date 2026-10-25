@@ -48,7 +48,11 @@
                 <input type="hidden" asp-for="ReturnUrl" />
                 <div class="mb-5">
                     <label class="form-label" for="Code">Authenticator code</label>
-                    <input asp-for="Code" class="form-control" autocomplete="one-time-code" inputmode="numeric" />
+                    @* Bootstrap OTP input: one real input drawn as 6 digit slots (3 · 3, as authenticator apps show codes). It
+                       sets autocomplete="one-time-code" and a numeric keyboard, and accepts pasted "123 456" / "123-456". *@
+                    <div class="otp" data-bs-otp data-bs-groups="[3,3]">
+                        <input asp-for="Code" class="otp-input" maxlength="6" />
+                    </div>
                 </div>
                 <button class="btn btn-solid theme-primary" type="submit">Confirm with code</button>
             </form>

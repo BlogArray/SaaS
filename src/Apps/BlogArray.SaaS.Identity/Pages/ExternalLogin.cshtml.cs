@@ -96,8 +96,16 @@ public class ExternalLoginModel : PageModel
 
     public IActionResult OnGet() => RedirectToPage("./Login");
 
-    public IActionResult OnPost(string provider, string next)
+    public async Task<IActionResult> OnPostAsync(string provider, string next)
     {
+        // Only configured providers: challenging an unknown scheme throws (a 500 error).
+        if (string.IsNullOrEmpty(provider)
+            || !(await _signInManager.GetExternalAuthenticationSchemesAsync()).Any(scheme => scheme.Name == provider))
+        {
+            ErrorMessage = "That sign-in option is not available.";
+            return RedirectToPage("./Login", new { next });
+        }
+
         // Request a redirect to the external login provider.
         string redirectUrl = Url.Page("./ExternalLogin", pageHandler: "Callback", values: new { next });
         AuthenticationProperties properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
@@ -216,6 +224,14 @@ public class ExternalLoginModel : PageModel
         {
             Input.Email = providerEmail;
             ModelState.Remove("Input.Email");
+        }
+
+        // An address that already has an account cannot be signed up again: say how to connect
+        // the provider instead of showing the raw "email is already taken" validation error
+        // (which disclosed exactly the same thing).
+        if (ModelState.IsValid && await _userManager.FindByEmailAsync(Input.Email) is not null)
+        {
+            ModelState.AddModelError(string.Empty, $"An account already uses this email address. Sign in with your password or passkey, then connect {info.ProviderDisplayName ?? info.LoginProvider} from Linked accounts in your settings.");
         }
 
         if (ModelState.IsValid)

@@ -50,6 +50,7 @@ public class SecurityActivityModel(OpenIdDbContext context, UserManager<Applicat
             SignInEventTypes.LoginSucceededSaml => $"Signed in through tenant single sign-on '{signInEvent.Details ?? method}'",
             SignInEventTypes.LoginFailedInvalidPassword => "Failed sign-in attempt (wrong password)",
             SignInEventTypes.LoginFailedUserNotFound => "Failed sign-in attempt (no matching account)",
+            SignInEventTypes.LoginFailedEmailNotConfirmed => "Sign-in stopped: email address not confirmed",
             SignInEventTypes.LoginFailedMfaRequired => "Sign-in stopped: multi-factor enrollment is required",
             SignInEventTypes.LoginFailedMfaInvalid => "Failed sign-in attempt (incorrect multi-factor code)",
             SignInEventTypes.AccountLockedRepeatedFailures => "Account locked out after repeated failed attempts",

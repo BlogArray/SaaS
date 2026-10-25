@@ -16,7 +16,6 @@ namespace BlogArray.SaaS.Identity.Pages;
 
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWith2faModel(
-    UserManager<ApplicationUser> userManager,
     SignInManagerExtension<ApplicationUser> signInManager,
     ISignInEventLogger signInEventLogger,
     ILogger<LoginWith2faModel> logger) : PageModel
@@ -53,7 +52,9 @@ public class LoginWith2faModel(
         ///     directly from your code. This API may change or be removed in future releases.
         /// </summary>
         [Required(ErrorMessage = "Enter your Authenticator code to continue")]
-        [StringLength(6, ErrorMessage = "The Authenticator code must be 6 digits.", MinimumLength = 6)]
+        // 7 allows the "123 456" grouping authenticator apps display; spaces and hyphens are
+        // stripped before verification.
+        [StringLength(7, ErrorMessage = "The Authenticator code must be 6 digits.", MinimumLength = 6)]
         [DataType(DataType.Text)]
         [Display(Name = "Enter your Authenticator code to continue")]
         public string TwoFactorCode { get; set; }
@@ -77,13 +78,15 @@ public class LoginWith2faModel(
         }
 
         Next = next;
-        //RememberMe = rememberMe;
 
         return Page();
     }
 
     public async Task<IActionResult> OnPostAsync(string next)
     {
+        // Re-rendered forms build their links (recovery code, back) from Next.
+        Next = next;
+
         if (!ModelState.IsValid)
         {
             return Page();
@@ -105,7 +108,10 @@ public class LoginWith2faModel(
         // Only the authenticator app (or a recovery code, on its own page) completes the second
         // factor. Emailed codes are deliberately not offered: the password can be reset by email,
         // so an emailed second factor would let mailbox access alone take over the account.
-        Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorAuthenticatorSignInAsync(code, false, Input.RememberMachine, customClaims);
+        // Keep the "remember me" choice made with the first factor.
+        bool isPersistent = await signInManager.IsTwoFactorPendingPersistentAsync();
+
+        Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorAuthenticatorSignInAsync(code, isPersistent, Input.RememberMachine, customClaims);
 
         string? tenantClientId = SecurityEventUrls.GetTenantClientIdFromUrl(next);
 
@@ -126,6 +132,8 @@ public class LoginWith2faModel(
             logger.LogWarning("Invalid 2FA code entered for user with ID '{UserId}'.", user.Id);
             await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedMfaInvalid, SignInAuthMethod.Mfa, SignInResultType.Failure, "mfa via authenticator"));
             ModelState.AddModelError(string.Empty, "You entered an incorrect code.");
+            // Empty the code slots for the retry (the error stays).
+            ModelState.SetModelValue("Input.TwoFactorCode", null, null);
             return Page();
         }
     }

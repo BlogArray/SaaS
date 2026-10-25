@@ -4,6 +4,7 @@ using BlogArray.SaaS.Domain.Entities;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -89,6 +90,66 @@ public class SignInManagerExtensionTests
         Assert.False(await signInManager.CanUserSignInAsync(user));
     }
 
+    [Fact]
+    public async Task SignIn_StampsAuthTime()
+    {
+        FakeAuthenticationService auth = new();
+        SignInManagerExtension<ApplicationUser> signInManager = CreateSignInManager(auth);
+
+        long before = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        await signInManager.SignInAsync(CreateUser(), isPersistent: false, [], "pwd");
+
+        string? authTime = auth.SignedIn?.FindFirst(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType)?.Value;
+
+        Assert.NotNull(authTime);
+        Assert.InRange(long.Parse(authTime), before, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        Assert.Single(auth.SignedIn!.FindAll(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType));
+    }
+
+    [Fact]
+    public async Task SignIn_KeepsSuppliedAuthTime()
+    {
+        FakeAuthenticationService auth = new();
+        SignInManagerExtension<ApplicationUser> signInManager = CreateSignInManager(auth);
+
+        await signInManager.SignInAsync(CreateUser(), isPersistent: false,
+            [new Claim(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType, "1700000000")]);
+
+        Assert.Equal("1700000000", Assert.Single(auth.SignedIn!.FindAll(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType)).Value);
+    }
+
+    [Fact]
+    public async Task RefreshSignIn_KeepsOriginalAuthTime()
+    {
+        // A refresh (e.g. after a profile change) is not a new authentication: max_age must
+        // keep measuring from the real sign-in.
+        FakeAuthenticationService auth = new()
+        {
+            Current = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType, "1700000000", ClaimValueTypes.Integer64)],
+                IdentityConstants.ApplicationScheme))
+        };
+        SignInManagerExtension<ApplicationUser> signInManager = CreateSignInManager(auth);
+
+        await signInManager.RefreshSignInAsync(CreateUser());
+
+        Assert.Equal("1700000000", Assert.Single(auth.SignedIn!.FindAll(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType)).Value);
+    }
+
+    [Fact]
+    public async Task RecoveryCodeSignIn_UserDisabledAfterFirstFactor_IsNotAllowed()
+    {
+        SignInManagerExtension<ApplicationUser> signInManager = CreateSignInManager(new FakeAuthenticationService());
+        ApplicationUser user = CreateUser();
+        user.TwoFactorEnabled = true;
+
+        Assert.True((await signInManager.SignInWithPendingTwoFactorAsync(user, isPersistent: false, [])).RequiresTwoFactor);
+
+        user.IsActive = false;
+
+        Assert.True((await signInManager.TwoFactorRecoveryCodeSignInAsync("ABCDE-12345", [])).IsNotAllowed);
+    }
+
     private static ApplicationUser CreateUser()
     {
         return new ApplicationUser
@@ -103,7 +164,7 @@ public class SignInManagerExtensionTests
         };
     }
 
-    private static SignInManagerExtension<ApplicationUser> CreateSignInManager()
+    private static SignInManagerExtension<ApplicationUser> CreateSignInManager(FakeAuthenticationService? authentication = null)
     {
         IdentityOptions identityOptions = new();
         identityOptions.SignIn.RequireConfirmedEmail = true;
@@ -116,9 +177,21 @@ public class SignInManagerExtensionTests
             [], [], new UpperInvariantLookupNormalizer(), new IdentityErrorDescriber(),
             null!, NullLogger<UserManager<ApplicationUser>>.Instance);
 
+        // Identity treats two-factor as enabled only when a provider can issue codes.
+        userManager.RegisterTokenProvider(TokenOptions.DefaultAuthenticatorProvider, new AlwaysAvailableTokenProvider());
+
+        DefaultHttpContext httpContext = new();
+
+        if (authentication is not null)
+        {
+            httpContext.RequestServices = new ServiceCollection()
+                .AddSingleton<IAuthenticationService>(authentication)
+                .BuildServiceProvider();
+        }
+
         return new SignInManagerExtension<ApplicationUser>(
             userManager,
-            new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
+            new HttpContextAccessor { HttpContext = httpContext },
             new UserClaimsPrincipalFactory<ApplicationUser>(userManager, options),
             options,
             NullLogger<SignInManager<ApplicationUser>>.Instance,
@@ -126,11 +199,51 @@ public class SignInManagerExtensionTests
             new DefaultUserConfirmation<ApplicationUser>());
     }
 
-    /// <summary>
-    /// Minimal store: the sign-in checks only read the user's own email/lockout fields.
-    /// </summary>
-    private sealed class InMemoryUserStore : IUserEmailStore<ApplicationUser>, IUserLockoutStore<ApplicationUser>
+    private sealed class AlwaysAvailableTokenProvider : IUserTwoFactorTokenProvider<ApplicationUser>
     {
+        public Task<bool> CanGenerateTwoFactorTokenAsync(UserManager<ApplicationUser> manager, ApplicationUser user) => Task.FromResult(true);
+        public Task<string> GenerateAsync(string purpose, UserManager<ApplicationUser> manager, ApplicationUser user) => Task.FromResult("000000");
+        public Task<bool> ValidateAsync(string purpose, string token, UserManager<ApplicationUser> manager, ApplicationUser user) => Task.FromResult(false);
+    }
+
+    /// <summary>
+    /// Records the principal signed in and answers AuthenticateAsync with <see cref="Current"/>
+    /// for the application scheme (nothing for the others).
+    /// </summary>
+    private sealed class FakeAuthenticationService : IAuthenticationService
+    {
+        public ClaimsPrincipal? Current { get; init; }
+
+        public ClaimsPrincipal? SignedIn { get; private set; }
+
+        public Task<AuthenticateResult> AuthenticateAsync(HttpContext context, string? scheme)
+        {
+            return Task.FromResult(Current is not null && scheme == IdentityConstants.ApplicationScheme
+                ? AuthenticateResult.Success(new AuthenticationTicket(Current, new AuthenticationProperties(), scheme))
+                : AuthenticateResult.NoResult());
+        }
+
+        public Task SignInAsync(HttpContext context, string? scheme, ClaimsPrincipal principal, AuthenticationProperties? properties)
+        {
+            SignedIn = principal;
+            return Task.CompletedTask;
+        }
+
+        public Task ChallengeAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => Task.CompletedTask;
+
+        public Task ForbidAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => Task.CompletedTask;
+
+        public Task SignOutAsync(HttpContext context, string? scheme, AuthenticationProperties? properties) => Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Minimal store: the sign-in checks only read the user's own email/lockout/two-factor fields.
+    /// </summary>
+    private sealed class InMemoryUserStore : IUserEmailStore<ApplicationUser>, IUserLockoutStore<ApplicationUser>, IUserTwoFactorStore<ApplicationUser>
+    {
+        public Task SetTwoFactorEnabledAsync(ApplicationUser user, bool enabled, CancellationToken cancellationToken) { user.TwoFactorEnabled = enabled; return Task.CompletedTask; }
+        public Task<bool> GetTwoFactorEnabledAsync(ApplicationUser user, CancellationToken cancellationToken) => Task.FromResult(user.TwoFactorEnabled);
+
         public void Dispose() { }
 
         public Task<string> GetUserIdAsync(ApplicationUser user, CancellationToken cancellationToken) => Task.FromResult(user.Id);

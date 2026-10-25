@@ -1,10 +1,25 @@
 ﻿@page
 @model LockoutModel
 @{
-    ViewData["Title"] = "Locked out";
+    ViewData["Title"] = "Account locked";
+    Layout = "/Views/Shared/_LoginLayout.cshtml";
 }
 
-<header>
-    <h1 class="fg-danger">@ViewData["Title"]</h1>
-    <p class="fg-danger">This account has been locked out, please try again later.</p>
-</header>
+<h6 class="text-center mb-5">@ViewData["Title"]</h6>
+
+<span class="d-block text-center mb-5">
+    <i class="state-icon fg-danger bi bi-lock"></i>
+</span>
+
+<p>
+    This account is temporarily locked after too many failed sign-in attempts.
+    Try again in about @Model.LockoutMinutes minutes.
+</p>
+<p>If it is still locked after that, an administrator may have locked it. Contact your administrator.</p>
+
+<div class="text-center mt-5">
+    <p>
+        <a asp-page="./ForgotPassword">Forgot your password?</a> Reset it now, then sign in with the new one when the lock ends.
+    </p>
+    <p><a asp-page="./Login">Back to sign in</a></p>
+</div>

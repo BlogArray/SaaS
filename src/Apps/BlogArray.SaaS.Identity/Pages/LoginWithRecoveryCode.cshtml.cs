@@ -84,6 +84,9 @@ public class LoginWithRecoveryCodeModel(
 
     public async Task<IActionResult> OnPostAsync(string next)
     {
+        // Re-rendered forms build their links (recovery code, back) from Next.
+        Next = next;
+
         if (!ModelState.IsValid)
         {
             return Page();

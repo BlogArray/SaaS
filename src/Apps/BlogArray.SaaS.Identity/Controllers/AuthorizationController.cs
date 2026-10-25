@@ -57,8 +57,8 @@ public class AuthorizationController(
         // authentication options shouldn't be used, a specific scheme can be specified here.
         AuthenticateResult result = await HttpContext.AuthenticateAsync();
         if (result == null || !result.Succeeded || request.HasPromptValue(PromptValues.Login) ||
-           request.MaxAge != null && result.Properties?.IssuedUtc != null &&
-            DateTimeOffset.UtcNow - result.Properties.IssuedUtc > TimeSpan.FromSeconds(request.MaxAge.Value))
+           request.MaxAge != null && GetAuthenticationTime(result) is DateTimeOffset authenticatedAt &&
+            DateTimeOffset.UtcNow - authenticatedAt > TimeSpan.FromSeconds(request.MaxAge.Value))
         {
             // If the client application requested promptless authentication,
             // return an error indicating that the user is not logged in.
@@ -71,6 +71,15 @@ public class AuthorizationController(
                         [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.LoginRequired,
                         [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "The user is not logged in."
                     }));
+            }
+
+            // A re-authentication (prompt=login or a stale max_age) must actually ask for the
+            // user's credentials: while the session cookie is valid the login pages send the
+            // user straight back here, which skipped the re-authentication for prompt=login and
+            // looped forever for max_age. End the local session first.
+            if (result is { Succeeded: true })
+            {
+                await signInManager.SignOutAsync();
             }
 
             // To avoid endless login -> authorization redirects, the prompt=login flag
@@ -171,6 +180,13 @@ public class AuthorizationController(
         // password or security change.
         identity.SetClaim(userManager.Options.ClaimsIdentity.SecurityStampClaimType, await userManager.GetSecurityStampAsync(user));
 
+        // When the user actually authenticated (not when the cookie was last renewed): required
+        // in the id_token when the client sent max_age, and useful to clients for step-up.
+        if (GetAuthenticationTime(result) is DateTimeOffset authenticationTime)
+        {
+            identity.SetClaim(Claims.AuthenticationTime, authenticationTime.ToUnixTimeSeconds());
+        }
+
         // Propagate the device session id so relying parties can correlate their local
         // session with this identity server session: revoking the shared UserSessions row
         // (at logout or from the "where you're signed in" page) signs the user out of the
@@ -268,6 +284,19 @@ public class AuthorizationController(
     }
 
     /// <summary>
+    /// When the session's user authenticated: the auth_time claim stamped at sign-in, or the
+    /// cookie issue time for sessions created before it existed.
+    /// </summary>
+    private static DateTimeOffset? GetAuthenticationTime(AuthenticateResult result)
+    {
+        string? authTime = result.Principal?.FindFirst(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType)?.Value;
+
+        return long.TryParse(authTime, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long seconds)
+            ? DateTimeOffset.FromUnixTimeSeconds(seconds)
+            : result.Properties?.IssuedUtc;
+    }
+
+    /// <summary>
     /// The local URL of the current authorization request, rebuilt from the query or form
     /// parameters so POSTed requests can be replayed as a redirect target.
     /// </summary>
@@ -349,6 +378,10 @@ public class AuthorizationController(
         // when the user agent is redirected from the external identity provider
         // after a successful authentication flow (e.g Google or Facebook).
         await signInManager.SignOutAsync();
+
+        // A sign-in still at the restricted step (MFA enrollment, temporary-password change)
+        // holds its own cookie: logging out ends that too.
+        await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
 
         // The end-session request has already been validated by OpenIddict (id_token_hint and
         // post_logout_redirect_uri checks) before this action was invoked, so the values can
@@ -634,6 +667,10 @@ public class AuthorizationController(
 
             // Never include the security stamp in the access and identity tokens, as it's a secret value.
             case "AspNet.Identity.SecurityStamp":
+                yield break;
+
+            case Claims.AuthenticationTime:
+                yield return Destinations.IdentityToken;
                 yield break;
 
             // The device session id must be present in the identity token: relying parties

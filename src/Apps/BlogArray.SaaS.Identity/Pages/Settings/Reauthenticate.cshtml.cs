@@ -127,6 +127,9 @@ public class ReauthenticateModel(
 
         await userManager.AccessFailedAsync(user);
 
+        // Empty the code slots for the retry (the error stays).
+        ModelState.SetModelValue(nameof(Code), null, null);
+
         return await FailAsync(user, "Incorrect code.");
     }
 

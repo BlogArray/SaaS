@@ -83,7 +83,7 @@ public class LoginModel(
                 // Route through the SAML login action: it builds the AuthnRequest, records its
                 // id in RelayState (and the fallback cookie) for InResponseTo validation, and
                 // forwards this return URL.
-                return Redirect($"/saml/{clientId}/login?next={Uri.EscapeDataString(next)}");
+                return Redirect($"/saml/{Uri.EscapeDataString(clientId)}/login?next={Uri.EscapeDataString(next)}");
             }
         }
 
@@ -125,10 +125,12 @@ public class LoginModel(
 
             if (ssoTenant is not null)
             {
-                return Redirect($"/saml/{ssoTenant.ClientId}/login?next={Uri.EscapeDataString(next)}");
+                return Redirect($"/saml/{Uri.EscapeDataString(ssoTenant.ClientId)}/login?next={Uri.EscapeDataString(next)}");
             }
         }
 
-        return RedirectToPage("./LoginWithPassword", new { email = Input.Email, next });
+        TempData[LoginWithPasswordModel.EmailTempDataKey] = Input.Email;
+
+        return RedirectToPage("./LoginWithPassword", new { next });
     }
 }

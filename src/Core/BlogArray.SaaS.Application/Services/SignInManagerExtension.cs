@@ -77,6 +77,40 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     }
 
     /// <summary>
+    /// The time the user last actually authenticated (OIDC "auth_time", Unix seconds). Unlike
+    /// the cookie's issue time, which sliding renewal keeps moving, it only changes when the
+    /// user signs in, so the authorize endpoint can enforce max_age and report auth_time.
+    /// </summary>
+    public const string AuthTimeClaimType = "auth_time";
+
+    /// <summary>
+    /// Every sign-in path ends here: stamps the authentication time unless the caller carries
+    /// the original one over (see <see cref="RefreshSignInAsync"/>).
+    /// </summary>
+    public override Task SignInWithClaimsAsync(ApplicationUser user, AuthenticationProperties? authenticationProperties, IEnumerable<Claim> additionalClaims)
+    {
+        List<Claim> claims = [.. additionalClaims];
+
+        if (!claims.Any(claim => claim.Type == AuthTimeClaimType))
+        {
+            claims.Add(new Claim(AuthTimeClaimType, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture), ClaimValueTypes.Integer64));
+        }
+
+        return base.SignInWithClaimsAsync(user, authenticationProperties, claims);
+    }
+
+    /// <summary>
+    /// The "remember me" choice made at the first factor: the pending two-factor cookie was
+    /// issued with it, and completing the challenge must not silently drop it.
+    /// </summary>
+    public virtual async Task<bool> IsTwoFactorPendingPersistentAsync()
+    {
+        AuthenticateResult result = await Context.AuthenticateAsync(IdentityConstants.TwoFactorUserIdScheme);
+
+        return result.Succeeded && result.Properties?.IsPersistent == true;
+    }
+
+    /// <summary>
     /// The profile claims every sign-in adds to the principal. Profile fields are optional
     /// (invited users have none), and a claim value can never be null.
     /// </summary>
@@ -153,6 +187,10 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         Claim? authenticationMethod = auth?.Principal?.FindFirst(ClaimTypes.AuthenticationMethod);
         Claim? amr = auth?.Principal?.FindFirst("amr");
 
+        // A refresh re-issues the cookie (e.g. after a profile change); it is not a new
+        // authentication, so the original authentication time is kept.
+        Claim? authTime = auth?.Principal?.FindFirst(AuthTimeClaimType);
+
         if (authenticationMethod != null)
         {
             claims.Add(authenticationMethod);
@@ -160,6 +198,10 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         if (amr != null)
         {
             claims.Add(amr);
+        }
+        if (authTime != null)
+        {
+            claims.Add(new Claim(AuthTimeClaimType, authTime.Value, authTime.ValueType));
         }
 
         await SignInWithClaimsAsync(user, auth?.Properties, claims);
@@ -223,6 +265,14 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         if (twoFactorInfo == null)
         {
             return SignInResult.Failed;
+        }
+
+        // Same account checks as the authenticator step: a user disabled, locked or unconfirmed
+        // after the first factor must not complete the sign-in.
+        SignInResult? error = await PreSignInCheck(twoFactorInfo.User);
+        if (error != null)
+        {
+            return error;
         }
 
         IdentityResult result = await UserManager.RedeemTwoFactorRecoveryCodeAsync(twoFactorInfo.User, recoveryCode);
@@ -350,7 +400,13 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     public virtual Task SignInAsync(ApplicationUser user, AuthenticationProperties authenticationProperties, List<Claim> customClaims, string? authenticationMethod = null)
     {
         customClaims ??= [];
-        customClaims.Add(new Claim(ClaimTypes.AuthenticationMethod, authenticationMethod));
+
+        // A claim value can never be null: without a method, none is recorded.
+        if (!string.IsNullOrEmpty(authenticationMethod))
+        {
+            customClaims.Add(new Claim(ClaimTypes.AuthenticationMethod, authenticationMethod));
+        }
+
         return SignInWithClaimsAsync(user, authenticationProperties, customClaims);
     }
 

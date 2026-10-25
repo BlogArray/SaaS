@@ -12,11 +12,13 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Identity.Infrastructure;
 
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class EnableAuthenticatorModel(
     UserManager<ApplicationUser> userManager,
+    IUserStore<ApplicationUser> userStore,
     IAuditEventLogger auditLogger,
     ILogger<EnableAuthenticatorModel> logger,
     UrlEncoder urlEncoder) : PageModel
@@ -88,6 +90,11 @@ public class EnableAuthenticatorModel(
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
         }
 
+        // A fresh key for every setup page load while 2FA is off: a key someone saw earlier
+        // must never become the user's second factor. A reload means rescanning the QR code;
+        // a POST that re-renders after a wrong code keeps the current key.
+        await AuthenticatorKeys.IssueFreshKeyAsync(userManager, userStore, user);
+
         await LoadSharedKeyAndQrCodeUriAsync(user);
 
         return Page();
@@ -116,6 +123,8 @@ public class EnableAuthenticatorModel(
         if (!is2faTokenValid)
         {
             ModelState.AddModelError("Input.Code", "Verification code is invalid.");
+            // Empty the code slots for the retry (the error stays).
+            ModelState.SetModelValue("Input.Code", null, null);
             await LoadSharedKeyAndQrCodeUriAsync(user);
             return Page();
         }

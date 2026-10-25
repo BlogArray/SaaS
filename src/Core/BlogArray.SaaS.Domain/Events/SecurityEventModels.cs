@@ -51,6 +51,11 @@ public static class SignInEventTypes
     public const string LoginSucceededSaml = "LoginSucceededSaml";
     public const string LoginFailedInvalidPassword = "LoginFailedInvalidPassword";
     public const string LoginFailedUserNotFound = "LoginFailedUserNotFound";
+
+    /// <summary>
+    /// The password was correct but the email address is not confirmed yet.
+    /// </summary>
+    public const string LoginFailedEmailNotConfirmed = "LoginFailedEmailNotConfirmed";
     public const string LoginFailedMfaRequired = "LoginFailedMfaRequired";
     public const string LoginFailedMfaInvalid = "LoginFailedMfaInvalid";
     public const string AccountLockedRepeatedFailures = "AccountLockedRepeatedFailures";

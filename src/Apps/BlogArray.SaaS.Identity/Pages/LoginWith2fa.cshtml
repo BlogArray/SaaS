@@ -19,7 +19,11 @@
     <div asp-validation-summary="ModelOnly" class="fg-danger" role="alert"></div>
     <div class="mb-5">
         <label asp-for="Input.TwoFactorCode" class="form-label"></label>
-        <input asp-for="Input.TwoFactorCode" class="form-control" autocomplete="off" placeholder="Enter verification code" />
+        @* Bootstrap OTP input: one real input drawn as 6 digit slots (3 · 3, as authenticator apps show codes). It
+           sets autocomplete="one-time-code" and a numeric keyboard, and accepts pasted "123 456" / "123-456". *@
+        <div class="otp @(ViewData.ModelState.IsValid ? null : "is-invalid")" data-bs-otp data-bs-groups="[3,3]">
+            <input asp-for="Input.TwoFactorCode" class="otp-input" maxlength="6" />
+        </div>
         <span asp-validation-for="Input.TwoFactorCode" class="fg-danger"></span>
     </div>
     <div class="mb-5 form-field">

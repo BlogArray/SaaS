@@ -58,6 +58,17 @@ public class ForgotPasswordModel(UserManager<ApplicationUser> userManager,
         public string CaptchaToken { get; set; }
     }
 
+    /// <summary>
+    /// Pre-fills the address when coming from the password step.
+    /// </summary>
+    public void OnGet(string email)
+    {
+        if (!string.IsNullOrEmpty(email))
+        {
+            Input = new InputModel { Email = email };
+        }
+    }
+
     public async Task<IActionResult> OnPostAsync()
     {
         if (ModelState.IsValid)

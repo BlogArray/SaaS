@@ -12,6 +12,7 @@
 using System.Text;
 using System.Text.Encodings.Web;
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
@@ -30,6 +31,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class MfaEnrollmentModel(
     SignInManagerExtension<ApplicationUser> signInManager,
     UserManager<ApplicationUser> userManager,
+    IUserStore<ApplicationUser> userStore,
     IAuditEventLogger auditLogger,
     UrlEncoder urlEncoder) : PageModel
 {
@@ -114,6 +116,11 @@ public class MfaEnrollmentModel(
             return RedirectToPage("/Login", new { next = returnUrl });
         }
 
+        // A fresh key for every setup page load while 2FA is off: a key someone saw earlier
+        // must never become the user's second factor. A reload means rescanning the QR code;
+        // a POST that re-renders after a wrong code keeps the current key.
+        await AuthenticatorKeys.IssueFreshKeyAsync(userManager, userStore, user);
+
         await LoadSharedKeyAndQrCodeUriAsync(user);
 
         return Page();
@@ -143,6 +150,8 @@ public class MfaEnrollmentModel(
         if (!is2faTokenValid)
         {
             ModelState.AddModelError("Input.Code", "Verification code is invalid.");
+            // Empty the code slots for the retry (the error stays).
+            ModelState.SetModelValue("Input.Code", null, null);
             await LoadSharedKeyAndQrCodeUriAsync(user);
             return Page();
         }
