@@ -49,7 +49,9 @@ public class DashboardController(OpenIdDbContext context) : Controller
             .CountAsync(e => e.EventType == SignInEventTypes.AccountLockedRepeatedFailures && e.CreatedOn >= last7Days);
 
         int pendingOnboarding = await context.Users
-            .CountAsync(u => u.PasswordHash == null || u.PasswordHash == "");
+            .CountAsync(u => (u.PasswordHash == null || u.PasswordHash == "")
+                && !context.UserLogins.Any(login => login.UserId == u.Id)
+                && !context.WebAuthnCredentials.Any(credential => credential.UserId == u.Id));
 
         int lockedOutUsers = await context.Users
             .CountAsync(u => u.LockoutEnd != null && u.LockoutEnd > DateTimeOffset.Now);

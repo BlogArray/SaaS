@@ -255,7 +255,9 @@ public class UsersController(OpenIdDbContext context,
         {
             Id = id,
             IsActive = appUser.IsActive,
-            HasPassword = !string.IsNullOrEmpty(appUser.PasswordHash),
+            // "Onboarded": a password, a linked social login or a passkey. Social-only users
+            // have no password but are not pending invites.
+            HasPassword = !await IsPendingAsync(appUser),
             IsEmailPhoneConfirmed = UserToolbar.IsContactConfirmed(appUser.EmailConfirmed, appUser.PhoneNumber, appUser.PhoneNumberConfirmed),
             LockoutEnabled = appUser.LockoutEnabled,
             LockoutEnd = appUser.LockoutEnd,
@@ -852,11 +854,14 @@ public class UsersController(OpenIdDbContext context,
     }
 
     /// <summary>
-    /// A pending user has no password: they were invited but the setup link was never used.
+    /// A pending user was invited but never onboarded: no password, no linked social login and
+    /// no passkey. (Users who sign in only with a social provider have no password.)
     /// </summary>
     private async Task<bool> IsPendingAsync(ApplicationUser user)
     {
-        return !await userManager.HasPasswordAsync(user);
+        return !await userManager.HasPasswordAsync(user)
+            && !await context.UserLogins.AnyAsync(login => login.UserId == user.Id)
+            && !await context.WebAuthnCredentials.AnyAsync(credential => credential.UserId == user.Id);
     }
 
     public async Task<IActionResult> ResendInvite(string id)

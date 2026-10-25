@@ -40,7 +40,12 @@ public class TenantAccessNotifier(UserManager<ApplicationUser> userManager,
             string organisationUrl = application.TenantUrl ?? string.Empty;
             string inviter = invitedBy ?? "an administrator";
 
-            if (!await userManager.HasPasswordAsync(user))
+            // A setup link only for users who can't sign in yet: social-only users have no
+            // password but sign in with their provider.
+            bool canSignIn = await userManager.HasPasswordAsync(user)
+                || (await userManager.GetLoginsAsync(user)).Count > 0;
+
+            if (!canSignIn)
             {
                 string code = await userManager.GeneratePasswordResetTokenAsync(user);
                 code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));

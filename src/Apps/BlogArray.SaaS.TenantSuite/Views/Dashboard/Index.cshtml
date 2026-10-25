@@ -157,7 +157,7 @@
                                     <a asp-action="Details" asp-controller="Tenants" asp-route-id="@tenant.Id" class="fw-semibold">@tenant.DisplayName</a>
                                     <div class="fg-secondary small">@tenant.ClientId</div>
                                 </div>
-                                <span class="fg-secondary small">@tenant.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy")</span>
+                                <span class="fg-secondary small">@DateTime.SpecifyKind(tenant.CreatedOn, DateTimeKind.Utc).ToString("dd'-'MM'-'yyyy", System.Globalization.CultureInfo.InvariantCulture)</span>
                             </li>
                         }
                     </ul>
@@ -187,7 +187,7 @@
                                     <span class="small">@auditEvent.Reason</span>
                                     <div class="fg-secondary small text-truncate" style="max-width:280px">@auditEvent.ActorEmail</div>
                                 </div>
-                                <span class="fg-secondary small text-nowrap">@auditEvent.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</span>
+                                <span class="fg-secondary small text-nowrap">@(DateTime.SpecifyKind(auditEvent.CreatedOn, DateTimeKind.Utc).ToString("dd'-'MM'-'yyyy HH':'mm", System.Globalization.CultureInfo.InvariantCulture)) UTC</span>
                             </li>
                         }
                     </ul>
