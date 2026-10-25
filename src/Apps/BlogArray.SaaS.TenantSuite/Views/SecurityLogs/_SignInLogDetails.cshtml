@@ -44,11 +44,16 @@
             <dt class="sm:col-4">User agent</dt>
             <dd class="sm:col-8 text-wrap small">@(Model.UserAgent ?? "-")</dd>
 
+            @{
+                // Stored in UTC but read back without a kind: converting it would treat it as
+                // server-local time. The viewer's local time is filled in by the page script.
+                DateTime createdUtc = DateTime.SpecifyKind(Model.CreatedOn, DateTimeKind.Utc);
+            }
             <dt class="sm:col-4">Time (UTC)</dt>
-            <dd class="sm:col-8">@Model.CreatedOn.ToUniversalTime().ToString("O")</dd>
+            <dd class="sm:col-8">@createdUtc.ToString("yyyy'-'MM'-'dd HH':'mm':'ss", System.Globalization.CultureInfo.InvariantCulture) UTC</dd>
 
-            <dt class="sm:col-4">Time (local)</dt>
-            <dd class="sm:col-8">@Model.CreatedOn.ToLocalTime().ToString("g")</dd>
+            <dt class="sm:col-4">Your local time</dt>
+            <dd class="sm:col-8"><time datetime="@createdUtc.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'", System.Globalization.CultureInfo.InvariantCulture)" data-local-time>@createdUtc.ToString("yyyy'-'MM'-'dd HH':'mm':'ss", System.Globalization.CultureInfo.InvariantCulture) UTC</time></dd>
         </dl>
     </div>
 </dialog>

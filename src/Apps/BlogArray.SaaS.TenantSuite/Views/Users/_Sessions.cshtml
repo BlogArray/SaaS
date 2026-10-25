@@ -40,8 +40,8 @@ else
                     <tr class="@(session.Revoked ? "fg-secondary" : "")">
                         <td class="text-truncate" style="max-width:180px" title="@session.UserAgent">@session.DeviceName</td>
                         <td class="fg-secondary small">@session.IpAddress</td>
-                        <td class="fg-secondary small">@session.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</td>
-                        <td class="fg-secondary small">@session.LastSeenOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</td>
+                        <td class="fg-secondary small">@(DateTime.SpecifyKind(session.CreatedOn, DateTimeKind.Utc).ToString("dd'-'MM'-'yyyy HH':'mm", System.Globalization.CultureInfo.InvariantCulture)) UTC</td>
+                        <td class="fg-secondary small">@(DateTime.SpecifyKind(session.LastSeenOn, DateTimeKind.Utc).ToString("dd'-'MM'-'yyyy HH':'mm", System.Globalization.CultureInfo.InvariantCulture)) UTC</td>
                         <td>
                             @if (session.Revoked)
                             {

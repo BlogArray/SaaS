@@ -33,7 +33,7 @@
             }
             <div class="col">
                 <div class="input-group">
-                    <input type="text" name="term" value="@searchTerm" class="form-control" placeholder="Search by user or details..." aria-label="Search">
+                    <input type="text" name="term" value="@searchTerm" class="form-control" placeholder="Search by user, target, reason, IP address, event or tenant..." aria-label="Search">
                     <button class="btn btn-subtle theme-secondary" type="submit">
                         <i class="bi bi-search"></i>
                     </button>
@@ -64,10 +64,22 @@
                                 <div class="fw-semibold text-truncate" style="max-width:200px">@entry.ActorDisplayName</div>
                                 <div class="fg-secondary small text-truncate" style="max-width:200px" title="@entry.ActorEmail">@entry.ActorEmail</div>
                             </td>
-                            <td class="text-truncate" style="max-width:260px" title="@entry.Reason">@entry.Reason</td>
+                            <td style="max-width:260px">
+                                @if (!string.IsNullOrEmpty(entry.TargetUserId))
+                                {
+                                    <div class="fw-semibold text-truncate" title="@entry.TargetEmail">@entry.TargetDisplayName</div>
+                                    <div class="fg-secondary small text-truncate" title="@entry.TargetEmail">@entry.TargetEmail</div>
+                                }
+                                <div class="small text-truncate" title="@entry.Reason">@entry.Reason</div>
+                            </td>
                             <td class="text-truncate small" style="max-width:150px" title="@entry.TenantName">@entry.TenantName</td>
                             <td class="fg-secondary small">@entry.IpAddress</td>
-                            <td class="fg-secondary small">@entry.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm:ss")</td>
+                            @{
+                                // Stored in UTC (read back without a kind): shown in the viewer's
+                                // time zone by the script below, UTC as the fallback and tooltip.
+                                DateTime createdUtc = DateTime.SpecifyKind(entry.CreatedOn, DateTimeKind.Utc);
+                            }
+                            <td class="fg-secondary small"><time datetime="@createdUtc.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'", System.Globalization.CultureInfo.InvariantCulture)" data-local-time>@createdUtc.ToString("dd'-'MM'-'yyyy HH':'mm':'ss", System.Globalization.CultureInfo.InvariantCulture) UTC</time></td>
                             <td class="text-end">
                                 @Html.AjaxActionLink("View", "AuditLogDetails", new { id = entry.Id }, new AjaxOptions
        {
@@ -75,6 +87,12 @@
            OnSuccess = "logDetailsLoaded"
        }, new { @class = "btn btn-sm btn-subtle theme-secondary", title = "View all details" })
                             </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center fg-secondary py-7">No audit events match the current filters.</td>
                         </tr>
                     }
                 </tbody>
@@ -98,8 +116,28 @@
 <script>
     var logDetailsCanvas;
 
+    // Event times are rendered in UTC; show them in the viewer's own time zone, keeping the UTC
+    // value as the tooltip.
+    function showLocalTimes(root) {
+        (root || document).querySelectorAll('time[data-local-time]').forEach(function (element) {
+            const date = new Date(element.dateTime);
+
+            if (isNaN(date)) {
+                return;
+            }
+
+            element.title = element.textContent.trim();
+            element.textContent = date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'medium' });
+            element.removeAttribute('data-local-time');
+        });
+    }
+
+    showLocalTimes();
+
     function logDetailsLoaded() {
-        logDetailsCanvas = new bootstrap.Drawer(document.getElementById('logDetailsOffcanvas'));
+        const drawer = document.getElementById('logDetailsOffcanvas');
+        showLocalTimes(drawer);
+        logDetailsCanvas = new bootstrap.Drawer(drawer);
         logDetailsCanvas.show();
     }
 </script>

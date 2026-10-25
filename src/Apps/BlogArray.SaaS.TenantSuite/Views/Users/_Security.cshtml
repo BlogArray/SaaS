@@ -59,8 +59,8 @@ else
                 {
                     <tr>
                         <td>@passkey.Name</td>
-                        <td class="fg-secondary small">@passkey.CreatedOn.ToLocalTime().ToString("dd-MM-yyyy HH:mm")</td>
-                        <td class="fg-secondary small">@(passkey.LastUsedOn?.ToLocalTime().ToString("dd-MM-yyyy HH:mm") ?? "never")</td>
+                        <td class="fg-secondary small">@(DateTime.SpecifyKind(passkey.CreatedOn, DateTimeKind.Utc).ToString("dd'-'MM'-'yyyy HH':'mm", System.Globalization.CultureInfo.InvariantCulture)) UTC</td>
+                        <td class="fg-secondary small">@(passkey.LastUsedOn is DateTime lastUsed ? DateTime.SpecifyKind(lastUsed, DateTimeKind.Utc).ToString("dd'-'MM'-'yyyy HH':'mm", System.Globalization.CultureInfo.InvariantCulture) + " UTC" : "never")</td>
                         <td class="text-end">
                             @{
                                 UserActionDialogViewModel removePasskeyDialog = new(Model.Id, "RemovePasskey", "Remove passkey",
