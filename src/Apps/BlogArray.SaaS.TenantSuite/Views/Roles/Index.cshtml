@@ -94,12 +94,9 @@
                             <a asp-action="Edit" class="btn btn-sm btn-subtle theme-secondary" title="Edit" asp-route-id="@item.Id" data-bs-toggle="tooltip" data-bs-title="Edit">
                                 <i class="bi bi-pencil"></i>
                             </a>
-                            <form asp-action="Delete" asp-controller="Roles" method="post">
-                                <input type="hidden" asp-for="@item.Id" name="Id" />
-                                <button class="btn btn-sm btn-solid theme-danger" type="submit" title="Delete" data-bs-toggle="tooltip" data-bs-title="Delete">
-                                    <i class="bi bi-trash3"></i>
-                                </button>
-                            </form>
+                            <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-solid theme-danger" title="Delete" data-bs-toggle="tooltip" data-bs-title="Delete">
+                                <i class="bi bi-trash3"></i>
+                            </a>
                         }
                     </div>
                 </div>

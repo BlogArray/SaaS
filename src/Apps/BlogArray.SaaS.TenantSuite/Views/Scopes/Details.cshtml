@@ -1,66 +1,39 @@
-﻿@model BlogArray.SaaS.Domain.Entities.OpenIdScope
+﻿@model ScopeViewModel
 
 @{
-    ViewData["Title"] = "Details";
+    ViewData["Title"] = "Scope details";
 }
 
-<h1>Details</h1>
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-1">Scope</h3>
+        <nav aria-label="Breadcrumb">
+            <ol class="breadcrumb breadcrumb-flush">
+                <li class="breadcrumb-item">
+                    <a asp-action="Index" class="breadcrumb-link">
+                        All scopes
+                    </a>
+                </li>
+                <li class="breadcrumb-divider" aria-hidden="true"></li>
+                <li class="breadcrumb-item"><span class="breadcrumb-link active" aria-current="page">Scope @Model.Name</span></li>
+            </ol>
+        </nav>
+    </div>
+    <div class="card-body">
+        <dl class="row">
+            <dt class="sm:col-2">Name</dt>
+            <dd class="sm:col-10"><code>@Model.Name</code></dd>
+            <dt class="sm:col-2">Display name</dt>
+            <dd class="sm:col-10">@Model.DisplayName</dd>
+            <dt class="sm:col-2">Description</dt>
+            <dd class="sm:col-10">@(Model.Description ?? "-")</dd>
+            <dt class="sm:col-2">Resources</dt>
+            <dd class="sm:col-10">@(Model.Resources.Count > 0 ? string.Join(", ", Model.Resources) : "None")</dd>
+            <dt class="sm:col-2">Used by</dt>
+            <dd class="sm:col-10">@(Model.UsedByTenants.Count > 0 ? string.Join(", ", Model.UsedByTenants) : "No tenants")</dd>
+        </dl>
 
-<div>
-    <h4>OpenIdScope</h4>
-    <hr />
-    <dl class="row">
-        <dt class = "sm:col-2">
-            @Html.DisplayNameFor(model => model.ConcurrencyToken)
-        </dt>
-        <dd class = "sm:col-10">
-            @Html.DisplayFor(model => model.ConcurrencyToken)
-        </dd>
-        <dt class = "sm:col-2">
-            @Html.DisplayNameFor(model => model.Description)
-        </dt>
-        <dd class = "sm:col-10">
-            @Html.DisplayFor(model => model.Description)
-        </dd>
-        <dt class = "sm:col-2">
-            @Html.DisplayNameFor(model => model.Descriptions)
-        </dt>
-        <dd class = "sm:col-10">
-            @Html.DisplayFor(model => model.Descriptions)
-        </dd>
-        <dt class = "sm:col-2">
-            @Html.DisplayNameFor(model => model.DisplayName)
-        </dt>
-        <dd class = "sm:col-10">
-            @Html.DisplayFor(model => model.DisplayName)
-        </dd>
-        <dt class = "sm:col-2">
-            @Html.DisplayNameFor(model => model.DisplayNames)
-        </dt>
-        <dd class = "sm:col-10">
-            @Html.DisplayFor(model => model.DisplayNames)
-        </dd>
-        <dt class = "sm:col-2">
-            @Html.DisplayNameFor(model => model.Name)
-        </dt>
-        <dd class = "sm:col-10">
-            @Html.DisplayFor(model => model.Name)
-        </dd>
-        <dt class = "sm:col-2">
-            @Html.DisplayNameFor(model => model.Properties)
-        </dt>
-        <dd class = "sm:col-10">
-            @Html.DisplayFor(model => model.Properties)
-        </dd>
-        <dt class = "sm:col-2">
-            @Html.DisplayNameFor(model => model.Resources)
-        </dt>
-        <dd class = "sm:col-10">
-            @Html.DisplayFor(model => model.Resources)
-        </dd>
-    </dl>
-</div>
-<div>
-    <a asp-action="Edit" asp-route-id="@Model?.Id">Edit</a> |
-    <a asp-action="Index">Back to List</a>
+        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-solid theme-primary">Edit</a>
+        <a asp-action="Index" class="btn btn-solid theme-secondary">Back to scopes</a>
+    </div>
 </div>

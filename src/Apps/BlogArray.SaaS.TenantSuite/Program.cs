@@ -87,10 +87,8 @@ builder.Services.AddAuthentication(o =>
             }
             else
             {
-                string? audience = identity?.FindFirst(Claims.Audience)?.Value;
                 string? name = identity?.FindFirst(Claims.Name)?.Value;
 
-                identity?.AddClaim(new Claim(Claims.Audience, audience ?? ""));
                 identity?.AddClaim(new Claim(ClaimTypes.GivenName, name ?? ""));
             }
             await Task.CompletedTask;
@@ -104,9 +102,6 @@ builder.Services.AddAuthentication(o =>
             System.Text.Json.JsonElement userInfo = context.User.RootElement;
 
             string? image = userInfo.GetString("image");
-
-            var allClaims = userInfo.EnumerateObject()
-                .ToDictionary(p => p.Name, p => p.Value.ToString());
 
             var identity = context?.Principal?.Identity as ClaimsIdentity;
 

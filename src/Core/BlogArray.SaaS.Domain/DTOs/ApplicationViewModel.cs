@@ -256,5 +256,10 @@ public class TenantToolbar
 
     public int UsersCount { get; set; } = default!;
 
+    /// <summary>
+    /// TenantSuite's own application: its client secret is managed in configuration.
+    /// </summary>
+    public bool IsTenantSuite { get; set; }
+
     public bool IsActive { get; set; }
 }

@@ -23,7 +23,17 @@
             </div>
             <div class="mb-5">
                 <label asp-for="Name" class="form-label"></label>
-                <input asp-for="Name" class="form-control" />
+                @if (Model.UsedByTenants.Count > 0)
+                {
+                    @* Tenants are permitted this scope by name: it can't change while they use it. *@
+                    <input asp-for="Name" class="form-control" readonly />
+                    <div class="form-text">Used by @string.Join(", ", Model.UsedByTenants), so the name can't be changed.</div>
+                }
+                else
+                {
+                    <input asp-for="Name" class="form-control" />
+                    <div class="form-text">Letters, digits and . _ - : / only, e.g. orders.read. Not used by any tenant.</div>
+                }
                 <span asp-validation-for="Name" class="fg-danger"></span>
             </div>
             <div class="mb-5">

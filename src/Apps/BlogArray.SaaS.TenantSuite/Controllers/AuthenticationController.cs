@@ -74,6 +74,10 @@ public class AuthenticationController(IConfiguration configuration) : Controller
     [HttpGet("~/manage")]
     public ActionResult Manage()
     {
-        return Redirect(configuration["Links:Identity"]);
+        string? identityUrl = configuration["Links:Identity"];
+
+        return string.IsNullOrEmpty(identityUrl)
+            ? RedirectToAction("Index", "Error", new { message = "The account settings link is not configured (Links:Identity)." })
+            : Redirect(identityUrl);
     }
 }

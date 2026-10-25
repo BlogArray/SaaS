@@ -1,7 +1,7 @@
 ﻿@model RoleViewModel
 
 @{
-    ViewData["Title"] = "Delete";
+    ViewData["Title"] = "Delete role";
 }
 
 <div class="card">
@@ -21,22 +21,29 @@
     </div>
     <div class="card-body">
         <dl class="row">
-            <dt class="sm:col-2">
-                @Html.DisplayNameFor(model => model.Name)
-            </dt>
-            <dd class="sm:col-10">
-                @Html.DisplayFor(model => model.Name)
-            </dd>
+            <dt class="sm:col-2">Name</dt>
+            <dd class="sm:col-10">@Model.Name</dd>
+            <dt class="sm:col-2">Description</dt>
+            <dd class="sm:col-10">@(Model.Description ?? "-")</dd>
+            <dt class="sm:col-2">Users</dt>
+            <dd class="sm:col-10">@Model.UsersAssigned</dd>
         </dl>
 
-        <form asp-action="Delete">
-            <input type="hidden" asp-for="Id" />
-            <input type="submit" value="Delete role" class="btn btn-solid theme-danger" />
-        </form>
+        @if (Model.UsersAssigned > 0)
+        {
+            <div class="alert theme-warning mb-5" role="alert">
+                This role is assigned to @Model.UsersAssigned user(s). Remove it from them (Users &gt; Roles) before deleting it.
+            </div>
+            <a asp-action="Index" class="btn btn-solid theme-secondary">Back to roles</a>
+        }
+        else
+        {
+            <p>The role will be permanently deleted. This can't be undone.</p>
+            <form asp-action="Delete" method="post">
+                <input type="hidden" asp-for="Id" />
+                <input type="submit" value="Delete role" class="btn btn-solid theme-danger" />
+                <a asp-action="Index" class="btn btn-solid theme-secondary">Cancel</a>
+            </form>
+        }
     </div>
 </div>
-
-
-@section Scripts {
-    <partial name="_ValidationScriptsPartial" />
-}

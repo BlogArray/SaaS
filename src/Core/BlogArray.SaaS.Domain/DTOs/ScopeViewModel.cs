@@ -22,4 +22,14 @@ public class ScopeViewModel
     public string DisplayName { get; set; }
 
     public string? Description { get; set; }
+
+    /// <summary>
+    /// APIs (audiences) whose access tokens this scope unlocks.
+    /// </summary>
+    public List<string> Resources { get; set; } = [];
+
+    /// <summary>
+    /// Tenants permitted to request this scope; renaming or deleting it would break them.
+    /// </summary>
+    public List<string> UsedByTenants { get; set; } = [];
 }

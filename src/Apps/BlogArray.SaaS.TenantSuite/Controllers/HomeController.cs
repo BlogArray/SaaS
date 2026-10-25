@@ -16,6 +16,7 @@ public class HomeController : Controller
 {
     public IActionResult Index()
     {
-        return RedirectToActionPermanent("Index", "Dashboard");
+        // Temporary: browsers cache permanent redirects, which would pin the landing page.
+        return RedirectToAction("Index", "Dashboard");
     }
 }

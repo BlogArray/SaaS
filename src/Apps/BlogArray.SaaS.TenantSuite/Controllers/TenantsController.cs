@@ -213,7 +213,8 @@ public class TenantsController(OpenIdDbContext context,
         return PartialView("_TenantToolbar", new TenantToolbar
         {
             Id = id,
-            UsersCount = await context.Authorizations.CountAsync(a => a.Application.Id == id)
+            UsersCount = await context.Authorizations.CountAsync(a => a.Application.Id == id),
+            IsTenantSuite = IsTenantSuite(openIdApplication)
         });
     }
 
@@ -275,6 +276,15 @@ public class TenantsController(OpenIdDbContext context,
         if (!TryValidateRedirectUris(openIdApplication, out List<string> redirectUris, out List<string> postLogoutRedirectUris))
         {
             return ModelStateError(ModelState);
+        }
+
+        // TenantSuite's sign-in callbacks are fixed by its deployment: changing them here would
+        // break signing in to TenantSuite itself.
+        if (IsTenantSuite(entity)
+            && (!SameUris(redirectUris, entity.RedirectUris)
+                || !SameUris(postLogoutRedirectUris, entity.PostLogoutRedirectUris)))
+        {
+            return JsonError("TenantSuite's own redirect URIs can't be changed here: a wrong value would lock every administrator out of TenantSuite.");
         }
 
         var infoBefore = new { entity.DisplayName, entity.Legalname, entity.Website, entity.Description, entity.TenantUrl };
@@ -589,6 +599,14 @@ public class TenantsController(OpenIdDbContext context,
             return NotFound();
         }
 
+        // TenantSuite signs in with the client secret from its own configuration
+        // (OIDC:ClientSecret): rotating it here would lock every administrator out of
+        // TenantSuite until the configuration is updated.
+        if (type == "secret" && IsTenantSuite(openIdApplication))
+        {
+            return JsonError("TenantSuite's own client secret is managed in its configuration (OIDC:ClientSecret) and can't be rotated here.");
+        }
+
         return PartialView("_RotateApiKeysPrompt", new RotateApiKeysPromptViewModel
         {
             ApplicationId = openIdApplication.Id,
@@ -618,6 +636,14 @@ public class TenantsController(OpenIdDbContext context,
         if (openIdApplication is null)
         {
             return NotFound();
+        }
+
+        // TenantSuite signs in with the client secret from its own configuration
+        // (OIDC:ClientSecret): rotating it here would lock every administrator out of
+        // TenantSuite until the configuration is updated.
+        if (type == "secret" && IsTenantSuite(openIdApplication))
+        {
+            return JsonError("TenantSuite's own client secret is managed in its configuration (OIDC:ClientSecret) and can't be rotated here.");
         }
 
         RotateKeysViewModel rotateKeys = new()
@@ -1110,6 +1136,35 @@ public class TenantsController(OpenIdDbContext context,
         }
 
         return valid;
+    }
+
+    /// <summary>
+    /// Whether the submitted URIs are the stored ones, ignoring order, surrounding whitespace
+    /// and duplicates (so editing other fields never trips over how they were stored).
+    /// </summary>
+    private static bool SameUris(IEnumerable<string> submitted, string? storedJson)
+    {
+        static HashSet<string> Normalize(IEnumerable<string> uris) =>
+            [.. uris.Select(uri => uri.Trim()).Where(uri => uri.Length > 0)];
+
+        return Normalize(submitted).SetEquals(Normalize(DeserializeUriList(storedJson)));
+    }
+
+    private static List<string> DeserializeUriList(string? json)
+    {
+        if (string.IsNullOrEmpty(json))
+        {
+            return [];
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(json) ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
     }
 
     /// <summary>

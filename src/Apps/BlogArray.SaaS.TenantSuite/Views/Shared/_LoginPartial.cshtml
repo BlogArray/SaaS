@@ -2,12 +2,13 @@
 @using System.Security.Claims
 
 @{
-    string givenName = User.FindFirst(ClaimTypes.GivenName)?.Value ?? User.Identity?.Name;
-    string email = User.FindFirst(ClaimTypes.Email).Value;
-    string profileIcon = User.FindFirst("image").Value;
+    string givenName = User.FindFirst(ClaimTypes.GivenName)?.Value ?? User.Identity?.Name ?? string.Empty;
+    // Claims can be missing (e.g. an account without an email): never dereference blindly.
+    string email = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+    string? profileIcon = User.FindFirst("image")?.Value;
 }
 <div class="d-flex">
-    @if (User.Identity.IsAuthenticated)
+    @if (User.Identity?.IsAuthenticated == true)
     {
         <div class="me-3">
             <button class="btn btn-solid theme-primary" role="button" data-bs-toggle="menu" data-bs-placement="bottom-end" aria-expanded="false">

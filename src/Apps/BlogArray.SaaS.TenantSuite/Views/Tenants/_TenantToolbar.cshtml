@@ -4,11 +4,14 @@
     <div class="btn-group btn-group-sm btn-group-divider" role="group" aria-label="Credentials">
         @* Both rotations open the same prompt (recipients for the new credential) and then
            show the new value once, with a copy option. *@
-        @Html.AjaxActionLink("Rotate client secret", "RotateApiKeys", "Tenants", new { id = Model.Id, type = "secret" }, new AjaxOptions
-   {
-       UpdateTargetId = "changeTenantInfo",
-       OnSuccess = "rotatePromptLoaded"
-   }, new { @class = "btn btn-subtle theme-secondary", title = "Rotate client secret" })
+        @if (!Model.IsTenantSuite)
+        {
+            @Html.AjaxActionLink("Rotate client secret", "RotateApiKeys", "Tenants", new { id = Model.Id, type = "secret" }, new AjaxOptions
+       {
+           UpdateTargetId = "changeTenantInfo",
+           OnSuccess = "rotatePromptLoaded"
+       }, new { @class = "btn btn-subtle theme-secondary", title = "Rotate client secret" })
+        }
         @Html.AjaxActionLink("Rotate api key", "RotateApiKeys", "Tenants", new { id = Model.Id }, new AjaxOptions
    {
        UpdateTargetId = "changeTenantInfo",

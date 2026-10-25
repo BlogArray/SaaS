@@ -9,6 +9,7 @@
 
 using System.Text;
 using BlogArray.SaaS.Application.Filters;
+using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.Web.Extensions;
@@ -34,16 +35,17 @@ public class MembershipController(OpenIdDbContext context,
     IUserStore<ApplicationUser> userStore,
     UserManager<ApplicationUser> userManager,
     OpenIddictAuthorizationManager<OpenIdAuthorization> authorizationManager,
-    IEmailTemplate emailTemplate,
-    IConfiguration configuration,
     IAuditEventLogger auditLogger,
-    IDistributedCache distributedCache) : BaseController
+    IDistributedCache distributedCache,
+    ITenantAccessNotifier accessNotifier) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
 
     [HttpPost("invite")]
     public async Task<IActionResult> Invite(UserTenantVM userVM)
     {
+        // The response is the same for new and existing accounts (no enumeration).
+
         if (!ModelState.IsValid)
         {
             return ModelStateError(ModelState);
@@ -56,12 +58,10 @@ public class MembershipController(OpenIdDbContext context,
             return TenantForbiddenResult();
         }
 
-        bool newUser = false;
         ApplicationUser? user = await userManager.FindByEmailAsync(userVM.Email);
 
         if (user is null)
         {
-            newUser = true;
             user = Activator.CreateInstance<ApplicationUser>();
 
             user.DisplayName = userVM.Email;
@@ -88,19 +88,15 @@ public class MembershipController(OpenIdDbContext context,
 
         await AssignUserToTenantAsync(user.Id, openIdApplication);
 
-        if (newUser)
+        // Users who have not set a password yet - new ones, or invited earlier but never
+        // onboarded - get the password setup link; others a plain invitation. A mail failure
+        // never fails with a server error: the account and access exist, and inviting again
+        // sends the right email.
+        string inviter = $"the {openIdApplication.Legalname ?? openIdApplication.DisplayName} administrator";
+
+        if (!await accessNotifier.NotifyAssignedAsync(user.Id, openIdApplication, inviter))
         {
-            string code = await userManager.GeneratePasswordResetTokenAsync(user);
-            code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-
-            string callbackUrl = configuration["Links:Identity"].BuildUrl("resetpassword", new { code, tenant = openIdApplication.ClientId });
-
-            emailTemplate.InviteWithPasswordLink(user.Email, user.DisplayName, callbackUrl, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
-        }
-        else
-        {
-
-            emailTemplate.Invite(user.Email, user.DisplayName, openIdApplication.Legalname, openIdApplication.TenantUrl, LoggedInUserEmail);
+            return JsonError("The invitation could not be emailed. Please try again later.");
         }
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.System, AuditEventTypes.UserInvited, TargetUserId: user.Id, ClientId: openIdApplication.ClientId));
@@ -143,7 +139,8 @@ public class MembershipController(OpenIdDbContext context,
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.System, AuditEventTypes.UserAddedToTenant, TargetUserId: entity.Id, ClientId: openIdApplication.ClientId));
 
-        return JsonSuccess($"User {entity.Email} has been enabled successfully.");
+        // Uniform response: known and unknown emails get the same reply (no enumeration).
+        return JsonSuccess("The request has been processed.");
     }
 
     [HttpPost("removeusertotenant")]
@@ -180,7 +177,8 @@ public class MembershipController(OpenIdDbContext context,
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.System, AuditEventTypes.UserRemovedFromTenant, TargetUserId: entity.Id, ClientId: openIdApplication.ClientId));
 
-        return JsonSuccess($"User {entity.Email} has been disabled successfully.");
+        // Uniform response: known and unknown emails get the same reply (no enumeration).
+        return JsonSuccess("The request has been processed.");
     }
 
     /// <summary>
