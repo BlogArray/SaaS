@@ -192,8 +192,11 @@ public static class ConfigureOpenIdServices
         builder.Services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
         {
             options.Lockout.AllowedForNewUsers = true;
-            options.Lockout.MaxFailedAccessAttempts = 3;
-            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromHours(1);
+            // Failed-attempt lockout applies to the account, so anyone who knows an email can
+            // trigger it: a low threshold with a long lockout let strangers lock users out for an
+            // hour with three guesses. Identity:Lockout overrides the defaults (10 / 15 minutes).
+            options.Lockout.MaxFailedAccessAttempts = Math.Max(1, builder.Configuration.GetValue("Identity:Lockout:MaxFailedAccessAttempts", 10));
+            options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(Math.Max(1, builder.Configuration.GetValue("Identity:Lockout:LockoutMinutes", 15)));
             options.SignIn.RequireConfirmedEmail = true;
             options.SignIn.RequireConfirmedAccount = true;
             options.User.RequireUniqueEmail = true;

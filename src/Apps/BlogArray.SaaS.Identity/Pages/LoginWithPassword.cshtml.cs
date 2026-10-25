@@ -10,6 +10,7 @@
 using System.Security.Claims;
 using System.Text;
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -94,9 +95,10 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
         public bool RememberMe { get; set; }
 
         /// <summary>
-        ///     Turnstile widget response token (bound from the widget's response field).
+        ///     Turnstile widget response token (bound from the widget's response field). Not
+        ///     [Required]: the widget is only rendered when Turnstile is configured, and
+        ///     OnPostAsync verifies the token exactly when captcha.IsEnabled.
         /// </summary>
-        [Required(AllowEmptyStrings = false, ErrorMessage = "Please complete the verification")]
         public string CaptchaToken { get; set; }
     }
 
@@ -116,7 +118,7 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
         if (User.Identity.IsAuthenticated)
         {
-            return LocalRedirect(next);
+            return this.SafeLocalRedirect(next);
         }
 
         ExternalLogins = (await signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
@@ -156,6 +158,10 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
             if (user == null)
             {
+                // Same hashing work as a real account, so response time doesn't reveal which
+                // emails have accounts.
+                VerifyAgainstDummyHash(Input.Password);
+
                 await signInEventLogger.LogAsync(new SignInEventRecord(Input.Email, tenantClientId, SignInEventTypes.LoginFailedUserNotFound, SignInAuthMethod.Password, SignInResultType.Failure, "no account for the attempted email"));
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return Page();
@@ -163,6 +169,8 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
             if (!user.IsActive)
             {
+                VerifyAgainstDummyHash(Input.Password);
+
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedInvalidPassword, SignInAuthMethod.Password, SignInResultType.Failure, "account disabled"));
                 ModelState.AddModelError(string.Empty, "Invalid login attempt.");
                 return Page();
@@ -221,11 +229,22 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             logger.LogInformation("User logged in.");
             await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Password, SignInResultType.Success, "password"));
 
-            return LocalRedirect(next);
+            return this.SafeLocalRedirect(next);
         }
 
         // If we got this far, something failed, redisplay form
         return Page();
     }
-}
 
+    /// <summary>
+    /// A password hash of a random value, for constant-time responses to unknown or disabled
+    /// accounts.
+    /// </summary>
+    private static readonly Lazy<string> DummyPasswordHash = new(() =>
+        new PasswordHasher<ApplicationUser>().HashPassword(new ApplicationUser(), Guid.NewGuid().ToString()));
+
+    private void VerifyAgainstDummyHash(string password)
+    {
+        userManager.PasswordHasher.VerifyHashedPassword(new ApplicationUser(), DummyPasswordHash.Value, password ?? string.Empty);
+    }
+}

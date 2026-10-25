@@ -63,9 +63,10 @@ public static class MfaEnrollmentDefaults
 
     /// <summary>
     /// Claim types established by the original authentication that must survive the
-    /// restricted step into the final session (SAML single sign-out needs the saml_* claims).
+    /// restricted step into the final session (SAML single sign-out needs the saml_* claims; the
+    /// authorize endpoint reads the authentication method to enforce a tenant's social-login policy).
     /// </summary>
-    private static readonly string[] FlowClaimTypes = ["amr", "saml_tenant", "saml_session_index", "saml_nameid", "saml_nameid_format"];
+    private static readonly string[] FlowClaimTypes = ["amr", ClaimTypes.AuthenticationMethod, "saml_tenant", "saml_session_index", "saml_nameid", "saml_nameid_format"];
 
     /// <summary>
     /// Builds the restricted principal for a pending MFA enrollment.

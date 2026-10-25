@@ -106,7 +106,14 @@
                     body: new URLSearchParams(fields || {})
                 });
                 if (!response.ok) throw new Error('Request failed: ' + response.status);
-                return response.json();
+                const result = await response.json();
+                // Changing sign-in methods needs a recent "Confirm it's you" step: go there and
+                // come back to this page.
+                if (result.reauthRequired) {
+                    window.location.href = result.url;
+                    throw new Error('Confirm your identity to continue.');
+                }
+                return result;
             }
 
             document.getElementById('registerPasskey').addEventListener('click', async function () {

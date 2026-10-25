@@ -35,8 +35,6 @@
                                     <div>
                                         <input asp-for="@currentProvider.LoginProvider" name="LoginProvider" type="hidden" />
                                         <input asp-for="@currentProvider.ProviderKey" name="ProviderKey" type="hidden" />
-                                        <input asp-for="Input.Password" class="form-control form-control-sm" type="password" autocomplete="current-password" placeholder="Password" style="max-width: 150px;" />
-                                        <span asp-validation-for="Input.Password" class="fg-danger"></span>
                                     </div>
                                     <button type="submit" class="btn" title="Remove this @provider.Name login from your account">Remove</button>
                                 </div>

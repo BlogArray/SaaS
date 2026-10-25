@@ -23,6 +23,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Distributed;
@@ -294,6 +295,13 @@ public static class ConfigureBlogArrayServices
         });
     }
 
+    private static string[] SplitList(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? []
+            : value.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    }
+
     private static string Truncate(string value, int maxLength)
     {
         return value.Length <= maxLength ? value : value[..maxLength];
@@ -336,6 +344,31 @@ public static class ConfigureBlogArrayServices
 
         BlogArrayConstants.DefaultLogoUrl = builder.Configuration.GetValue<string>("Defaults:DefaultLogoUrl");
         BlogArrayConstants.DefaultFaviconUrl = builder.Configuration.GetValue<string>("Defaults:DefaultFaviconUrl");
+
+        // Behind a reverse proxy / load balancer the connection's address and scheme are the
+        // proxy's: the client IP (rate limits, IP allow-lists, session and security logs) and
+        // the scheme (SAML ACS URL, redirects) come from X-Forwarded-For / X-Forwarded-Proto,
+        // trusted only from the proxies listed in ForwardedHeaders:KnownProxies (IP addresses)
+        // and ForwardedHeaders:KnownNetworks (CIDR), semicolon-separated. With neither set only
+        // loopback is trusted, so the headers cannot be spoofed by clients.
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+            foreach (string proxy in SplitList(builder.Configuration["ForwardedHeaders:KnownProxies"]))
+            {
+                options.KnownProxies.Add(System.Net.IPAddress.TryParse(proxy, out System.Net.IPAddress? address)
+                    ? address
+                    : throw new InvalidOperationException($"ForwardedHeaders:KnownProxies contains an invalid IP address: '{proxy}'."));
+            }
+
+            foreach (string network in SplitList(builder.Configuration["ForwardedHeaders:KnownNetworks"]))
+            {
+                options.KnownIPNetworks.Add(System.Net.IPNetwork.TryParse(network, out System.Net.IPNetwork parsed)
+                    ? parsed
+                    : throw new InvalidOperationException($"ForwardedHeaders:KnownNetworks contains an invalid CIDR network: '{network}'."));
+            }
+        });
 
         builder.Services.Configure<CookiePolicyOptions>(options =>
         {
@@ -418,6 +451,8 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddScoped<IDbConnectionFactory, SqlDbConnectionFactory>();
         builder.Services.AddScoped<ITenantManagementService, TenantManagementService>();
         builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+        builder.Services.AddScoped<IUserAccessRevocationService, UserAccessRevocationService>();
+        builder.Services.AddScoped<IStepUpService, StepUpService>();
         builder.Services.AddScoped<ITenantAccessNotifier, TenantAccessNotifier>();
         builder.Services.AddScoped<ApiKeyAuthorizationFilter>();
 

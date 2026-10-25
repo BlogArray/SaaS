@@ -85,7 +85,14 @@ public static class AuditEventTypes
     /// </summary>
     public const string SessionExpired = "SessionExpired";
 
+    public const string ExternalLoginAdded = "ExternalLoginAdded";
     public const string ExternalLoginRemoved = "ExternalLoginRemoved";
+
+    /// <summary>
+    /// The user re-verified their identity (password, authenticator code or passkey) to unlock
+    /// sensitive account settings for a short window.
+    /// </summary>
+    public const string StepUpCompleted = "StepUpCompleted";
     public const string PasskeyRegistered = "PasskeyRegistered";
     public const string PasskeyRemoved = "PasskeyRemoved";
     public const string ApiKeyCreated = "ApiKeyCreated";

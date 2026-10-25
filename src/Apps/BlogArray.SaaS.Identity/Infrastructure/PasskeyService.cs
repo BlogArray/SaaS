@@ -9,6 +9,7 @@
 
 using System.Text;
 using System.Text.Json;
+using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.Web.Helpers;
 using Fido2NetLib;
 using Fido2NetLib.Objects;
@@ -196,8 +197,11 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2, IDistributedC
     /// <summary>
     /// Verifies a passwordless login assertion and resolves the authenticated user from the
     /// credential (the assertion's user handle is bound to the stored credential's owner).
+    /// UserVerified reports the authenticator's UV flag: the options only prefer verification
+    /// (see CreatePasswordlessAssertionOptionsJsonAsync), so an assertion without it proves
+    /// possession of the device only, and callers must treat it as a single factor.
     /// </summary>
-    public async Task<ApplicationUser> VerifyPasswordlessAssertionAsync(string responseJson, string ceremonyId)
+    public async Task<(ApplicationUser User, bool UserVerified)> VerifyPasswordlessAssertionAsync(string responseJson, string ceremonyId)
     {
         AuthenticatorAssertionRawResponse? response = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(responseJson);
 
@@ -243,7 +247,7 @@ public class PasskeyService(OpenIdDbContext context, IFido2 fido2, IDistributedC
             throw new InvalidOperationException("The user account is inactive.");
         }
 
-        return user;
+        return (user, PasskeyAssertion.IsUserVerified(response.Response.AuthenticatorData));
     }
 
     public async Task RemoveCredentialAsync(string userId, string credentialRecordId)

@@ -41,9 +41,12 @@ public class TenantAccessNotifier(UserManager<ApplicationUser> userManager,
             string inviter = invitedBy ?? "an administrator";
 
             // A setup link only for users who can't sign in yet: social-only users have no
-            // password but sign in with their provider.
-            bool canSignIn = await userManager.HasPasswordAsync(user)
-                || (await userManager.GetLoginsAsync(user)).Count > 0;
+            // password but sign in with their provider. An unconfirmed address never proved
+            // whoever set its credentials owns the mailbox (it may be a pre-claimed sign-up), so
+            // its owner gets the setup link, which confirms the address.
+            bool canSignIn = user.EmailConfirmed
+                && (await userManager.HasPasswordAsync(user)
+                    || (await userManager.GetLoginsAsync(user)).Count > 0);
 
             if (!canSignIn)
             {

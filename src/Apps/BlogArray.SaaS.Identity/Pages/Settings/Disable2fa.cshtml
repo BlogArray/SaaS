@@ -22,12 +22,6 @@
         </div>
 
         <form method="post">
-            <div class="mb-5">
-                <label class="form-label" for="Input_Password">Confirm with your password</label>
-                <input asp-for="Input.Password" class="form-control" autocomplete="current-password" />
-                <span asp-validation-for="Input.Password" class="fg-danger"></span>
-                <div class="form-text">Re-enter your password to confirm this security change.</div>
-            </div>
             <button class="btn btn-solid theme-primary" type="submit">Disable 2FA</button>
         </form>
     </div>

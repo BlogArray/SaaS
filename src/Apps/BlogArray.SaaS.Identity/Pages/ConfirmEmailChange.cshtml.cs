@@ -54,12 +54,12 @@ public class ConfirmEmailChangeModel(
 
         // In our UI email and user name are one and the same, so when we update the email
         // we need to update the user name.
-        //var setUserNameResult = await _userManager.SetUserNameAsync(user, email);
-        //if (!setUserNameResult.Succeeded)
-        //{
-        //    StatusMessage = "Error changing user name.";
-        //    return Page();
-        //}
+        IdentityResult setUserNameResult = await userManager.SetUserNameAsync(user, email);
+        if (!setUserNameResult.Succeeded)
+        {
+            StatusMessage = "Error changing user name.";
+            return Page();
+        }
 
         emailTemplate.ChangeEmailConfirmation(oldEmail, user.DisplayName, email);
 

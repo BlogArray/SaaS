@@ -9,6 +9,7 @@
 
 #nullable disable
 
+using BlogArray.SaaS.Identity.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Core;
 
@@ -68,7 +69,7 @@ public class LoginModel(
 
         if (User.Identity.IsAuthenticated)
         {
-            return LocalRedirect(next);
+            return this.SafeLocalRedirect(next);
         }
 
         string clientId = StringExtensions.GetParam(next, "client_id");
@@ -102,16 +103,23 @@ public class LoginModel(
 
         // Users of an SSO-enabled tenant are routed to that tenant's identity provider (SAML)
         // instead of the local password step. Unknown or non-SSO emails continue to the
-        // password step, which returns the same generic error for unknown emails, so account
-        // enumeration is not possible here.
+        // password step, which answers unknown emails like wrong passwords. This home-realm
+        // discovery inherently reveals that an email belongs to an SSO tenant's member (the
+        // redirect differs); that is accepted. It does not reveal other accounts.
         ApplicationUser user = await userManager.FindByEmailAsync(Input.Email);
 
         if (user is not null && user.IsActive)
         {
+            // When the sign-in targets a specific application, only that application's SSO
+            // setting matters: a user of SSO tenant A signing into non-SSO tenant B uses the
+            // password step. (The authorize endpoint enforces SSO either way.)
+            string targetClientId = StringExtensions.GetParam(next, "client_id");
+
             OpenIdApplication ssoTenant = await context.Authorizations
                 .Where(authorization => authorization.Subject == user.Id
                     && authorization.Status == "valid"
-                    && authorization.Application.Security.IsSsoEnabled)
+                    && authorization.Application.Security.IsSsoEnabled
+                    && (string.IsNullOrEmpty(targetClientId) || authorization.Application.ClientId == targetClientId))
                 .Select(authorization => authorization.Application)
                 .FirstOrDefaultAsync();
 

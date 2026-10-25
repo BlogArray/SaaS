@@ -17,6 +17,7 @@ namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class PasskeysModel(
     UserManager<ApplicationUser> userManager,
+    IStepUpService stepUp,
     IAuditEventLogger auditLogger,
     PasskeyService passkeyService,
     ILogger<PasskeysModel> logger) : PageModel
@@ -50,6 +51,13 @@ public class PasskeysModel(
             return NotFound();
         }
 
+        // Security-sensitive action: a passkey is a permanent, password-free way into the
+        // account, so registering one requires a recent step-up ("Confirm it's you").
+        if (!await stepUp.IsSatisfiedAsync(User))
+        {
+            return new JsonResult(new { reauthRequired = true, url = this.GetReauthenticateUrl() });
+        }
+
         (string ceremonyId, string optionsJson) = await passkeyService.CreateRegistrationOptionsJsonAsync(user);
 
         // The server keeps the issued options (and challenge); the client posts back only the
@@ -63,6 +71,13 @@ public class PasskeysModel(
         if (user == null)
         {
             return NotFound();
+        }
+
+        // Security-sensitive action: a passkey is a permanent, password-free way into the
+        // account, so registering one requires a recent step-up ("Confirm it's you").
+        if (!await stepUp.IsSatisfiedAsync(User))
+        {
+            return new JsonResult(new { reauthRequired = true, url = this.GetReauthenticateUrl() });
         }
 
         try
@@ -99,6 +114,12 @@ public class PasskeysModel(
         if (user == null)
         {
             return NotFound();
+        }
+
+        // Security-sensitive action: removing a sign-in method requires a recent step-up.
+        if (!await stepUp.IsSatisfiedAsync(User))
+        {
+            return this.RedirectToReauthenticate();
         }
 
         WebAuthnCredential credential = (await passkeyService.GetCredentialsAsync(user.Id)).FirstOrDefault(existing => existing.Id == id);

@@ -31,7 +31,7 @@ public class UsersController(OpenIdDbContext context,
     IConfiguration configuration,
     IUserManagementService userManagementService,
     IAuditEventLogger auditLogger,
-    IOpenIddictTokenManager tokenManager,
+    IUserAccessRevocationService accessRevocation,
     ITenantAccessNotifier tenantAccessNotifier,
     ILogger<UsersController> logger) : BaseController
 {
@@ -1145,19 +1145,13 @@ public class UsersController(OpenIdDbContext context,
     /// Ends every live credential of the user across the suite: the tracked device sessions
     /// (Identity, TenantSuite and App cookies are rejected at their next validation), the
     /// security stamp (Identity cookies) and the OIDC access/refresh tokens (API clients).
-    /// Returns the number of sessions removed.
+    /// Returns the number of sessions revoked (revoked rows stay listed, marked as revoked).
     /// </summary>
     private async Task<int> RevokeUserAccessAsync(ApplicationUser user)
     {
-        int sessionCount = await context.UserSessions
-            .Where(s => s.UserId == user.Id)
-            .ExecuteDeleteAsync();
-
         await userManager.UpdateSecurityStampAsync(user);
 
-        await tokenManager.RevokeAsync(user.Id, client: null, status: null, type: null);
-
-        return sessionCount;
+        return await accessRevocation.RevokeAsync(user.Id);
     }
 
     public IActionResult IsCurrentuser(string id)

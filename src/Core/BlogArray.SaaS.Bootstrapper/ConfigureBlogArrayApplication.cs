@@ -16,6 +16,10 @@ public static class ConfigureBlogArrayApplication
 {
     public static IApplicationBuilder AddBlogArrayApplication(this IApplicationBuilder app, bool isDevelopment)
     {
+        // First: everything after it must see the real client IP and scheme (see the
+        // ForwardedHeadersOptions in AddBlogArrayServices).
+        app.UseForwardedHeaders();
+
         app.UseCors("AllowedOrigins");
 
         app.UseCookiePolicy();

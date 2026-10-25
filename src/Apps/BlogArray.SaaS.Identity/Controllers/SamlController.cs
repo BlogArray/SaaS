@@ -224,7 +224,8 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
 
         System.Collections.Specialized.NameValueCollection relayStateParams = HttpUtility.ParseQueryString(relayState);
 
-        string returnUrl = string.IsNullOrEmpty(relayStateParams["next"]) ? Url.Content("~/") : relayStateParams["next"];
+        // RelayState is posted by the browser: only a local return URL is honored.
+        string returnUrl = Url.IsLocalUrl(relayStateParams["next"]) ? relayStateParams["next"] : Url.Content("~/");
 
         List<Claim> customClaims = SignInManagerExtension<ApplicationUser>.BuildProfileClaims(user);
 
@@ -375,7 +376,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
     [HttpPost]
     public IActionResult Logon(SamlAuth samlAuth)
     {
-        return LocalRedirect(samlAuth.RedirectTo);
+        return LocalRedirect(Url.IsLocalUrl(samlAuth.RedirectTo) ? samlAuth.RedirectTo : Url.Content("~/"));
     }
 
     /// <summary>

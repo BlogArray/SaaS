@@ -5,9 +5,7 @@
     Layout = "/Views/Shared/_LoginLayout.cshtml";
 }
 
-<h6 class="text-center mb-5">
-    @(Model.IsEmailMode ? "Enter the code we emailed you" : "Continue with two-factor authentication")
-</h6>
+<h6 class="text-center mb-5">Continue with two-factor authentication</h6>
 
 <partial name="_StatusMessage" for="StatusMessage" />
 
@@ -15,15 +13,10 @@
     <i class="state-icon fg-primary bi bi-shield-lock"></i>
 </span>
 
-<p>
-    @(Model.IsEmailMode
-        ? "Enter the verification code sent to your email address to continue."
-        : "Your account is protected with two-factor authentication. Enter the code from your authenticator app below to continue.")
-</p>
+<p>Your account is protected with two-factor authentication. Enter the code from your authenticator app below to continue.</p>
 
 <form method="post">
     <div asp-validation-summary="ModelOnly" class="fg-danger" role="alert"></div>
-    <input type="hidden" asp-for="Method" />
     <div class="mb-5">
         <label asp-for="Input.TwoFactorCode" class="form-label"></label>
         <input asp-for="Input.TwoFactorCode" class="form-control" autocomplete="off" placeholder="Enter verification code" />
@@ -40,35 +33,10 @@
 
 <div class="text-center mt-5">
     <p>
-        @if (Model.IsEmailMode)
-        {
-            <a id="send-code" asp-page="./LoginWith2fa" asp-route-next="@Model.Next" asp-route-method="">Use your authenticator app instead</a>
-        }
-        else
-        {
-            <form method="post" asp-page-handler="SendCode">
-                <input type="hidden" name="next" value="@Model.Next" />
-                @if (Model.CaptchaEnabled)
-                {
-                    <div class="cf-turnstile mb-5"
-                         data-sitekey="@Model.CaptchaSiteKey"
-                         data-response-field-name="sendCaptchaToken"
-                         data-theme="light">
-                    </div>
-                }
-                <button type="submit" class="btn btn-link">Email me a code instead</button>
-            </form>
-        }
-    </p>
-    <p>
         <a id="recovery-code-login" asp-page="./LoginWithRecoveryCode" asp-route-next="@Model.Next">Log in with a recovery code</a>
     </p>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
-    @if (Model.CaptchaEnabled)
-    {
-        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" defer></script>
-    }
 }

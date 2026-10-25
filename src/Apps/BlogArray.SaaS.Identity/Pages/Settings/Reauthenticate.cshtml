@@ -1,0 +1,126 @@
+﻿@page
+@model ReauthenticateModel
+@{
+    ViewData["Title"] = "Confirm it's you";
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+}
+
+<partial name="_StatusMessage" for="StatusMessage" />
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Confirm it's you</h3>
+    </div>
+    <div class="card-body">
+        <p>You're about to change how you sign in or protect your account. Confirm your identity to continue. You won't be asked again for the next few minutes.</p>
+
+        <div asp-validation-summary="ModelOnly" class="fg-danger" role="alert"></div>
+        <div class="alert theme-danger" role="alert" id="passkeyMessage" style="display:none"></div>
+
+        @if (Model.HasPasskeys)
+        {
+            <form id="passkey-form" method="post" asp-page-handler="Passkey" class="mb-5">
+                <input type="hidden" asp-for="ReturnUrl" />
+                <input type="hidden" asp-for="CeremonyId" />
+                <input type="hidden" asp-for="PasskeyResponse" />
+                <input type="hidden" id="AssertionOptions" value="@Model.AssertionOptions" />
+                <button type="button" class="btn btn-solid theme-primary" id="usePasskey">
+                    <i class="bi bi-fingerprint me-1"></i> Use a passkey
+                </button>
+            </form>
+        }
+
+        @if (Model.HasPassword)
+        {
+            <form method="post" asp-page-handler="Password" class="mb-5">
+                <input type="hidden" asp-for="ReturnUrl" />
+                <div class="mb-5">
+                    <label class="form-label" for="Password">Password</label>
+                    <input asp-for="Password" type="password" class="form-control" autocomplete="current-password" />
+                </div>
+                <button class="btn btn-solid theme-primary" type="submit">Confirm with password</button>
+            </form>
+        }
+
+        @if (Model.HasAuthenticator)
+        {
+            <form method="post" asp-page-handler="Code" class="mb-5">
+                <input type="hidden" asp-for="ReturnUrl" />
+                <div class="mb-5">
+                    <label class="form-label" for="Code">Authenticator code</label>
+                    <input asp-for="Code" class="form-control" autocomplete="one-time-code" inputmode="numeric" />
+                </div>
+                <button class="btn btn-solid theme-primary" type="submit">Confirm with code</button>
+            </form>
+        }
+
+        @foreach (AuthenticationScheme provider in Model.ExternalProviders)
+        {
+            <form method="post" asp-page-handler="External" class="mb-5">
+                <input type="hidden" asp-for="ReturnUrl" />
+                <button class="btn btn-outline theme-primary" type="submit" name="provider" value="@provider.Name">Sign in again with @provider.DisplayName</button>
+            </form>
+        }
+
+        @if (!Model.HasPasskeys && !Model.HasPassword && !Model.HasAuthenticator && Model.ExternalProviders.Count == 0)
+        {
+            <div class="alert theme-warning" role="alert">
+                Your account has no sign-in method that can confirm your identity here. Set a password with <a asp-page="/ForgotPassword">Forgot password</a>, then try again.
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    @if (Model.HasPasskeys)
+    {
+        <script>
+            (function () {
+                'use strict';
+
+                function base64UrlToArrayBuffer(value) {
+                    const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+                    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+                    const raw = atob(padded);
+                    const output = new Uint8Array(raw.length);
+                    for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+                    return output.buffer;
+                }
+
+                function arrayBufferToBase64Url(buffer) {
+                    const bytes = new Uint8Array(buffer);
+                    let binary = '';
+                    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+                }
+
+                document.getElementById('usePasskey').addEventListener('click', async function () {
+                    try {
+                        const options = JSON.parse(document.getElementById('AssertionOptions').value);
+                        options.challenge = base64UrlToArrayBuffer(options.challenge);
+
+                        const credential = await navigator.credentials.get({ publicKey: options });
+
+                        document.getElementById('PasskeyResponse').value = JSON.stringify({
+                            id: credential.id,
+                            rawId: arrayBufferToBase64Url(credential.rawId),
+                            type: credential.type,
+                            response: {
+                                authenticatorData: arrayBufferToBase64Url(credential.response.authenticatorData),
+                                clientDataJSON: arrayBufferToBase64Url(credential.response.clientDataJSON),
+                                signature: arrayBufferToBase64Url(credential.response.signature),
+                                userHandle: credential.response.userHandle ? arrayBufferToBase64Url(credential.response.userHandle) : null
+                            }
+                        });
+
+                        document.getElementById('passkey-form').submit();
+                    } catch (error) {
+                        const message = document.getElementById('passkeyMessage');
+                        message.textContent = 'The passkey could not be used: ' + error.message;
+                        message.style.display = '';
+                    }
+                });
+            })();
+        </script>
+    }
+}

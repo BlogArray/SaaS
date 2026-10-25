@@ -18,7 +18,8 @@ public class SettingsController(
     SignInManagerExtension<ApplicationUser> signInManager,
     UserManager<ApplicationUser> userManager,
     OpenIdDbContext db, IEmailTemplate emailTemplate, IAzureStorageService azureStorage,
-    BlogArray.SaaS.OpenId.IAuditEventLogger auditLogger) : BaseController
+    BlogArray.SaaS.OpenId.IAuditEventLogger auditLogger,
+    IUserAccessRevocationService accessRevocation) : BaseController
 {
     #region Profile
 
@@ -67,7 +68,7 @@ public class SettingsController(
     [HttpPost, RequestSizeLimit(5242880)]
     public async Task<IActionResult> UpdateProfile()
     {
-        IFormFile file = Request.Form.Files[0];
+        IFormFile? file = Request.Form.Files.FirstOrDefault();
 
         if (file == null)
         {
@@ -77,14 +78,26 @@ public class SettingsController(
         //ToDo delete existing image
         ReturnResult<string> result = await azureStorage.Upload(file, "user-icon", true);
 
+        // A rejected or failed upload keeps the current image: Result is null on failure.
+        if (!result.Status)
+        {
+            return JsonError(result.Message ?? "An error occurred while saving your information.");
+        }
+
         ApplicationUser? user = await db.Users.SingleOrDefaultAsync(e => e.Id == LoggedInUserID);
+
+        if (user == null)
+        {
+            return NotFound();
+        }
+
         user.ProfileImage = result.Result;
 
         await db.SaveChangesAsync();
 
         await signInManager.RefreshSignInAsync(user);
 
-        return result.Status ? JsonSuccess(result.Result) : JsonError("An error occurred while saving your information.");
+        return JsonSuccess(result.Result);
     }
 
     #endregion Profile
@@ -176,6 +189,10 @@ public class SettingsController(
 
         if (changePasswordResult.Succeeded)
         {
+            // Every other device session and every OIDC token ends with the old password; this
+            // browser's session is kept (and refreshed below with the rotated security stamp).
+            await accessRevocation.RevokeAsync(user.Id, keepSessionId: User.FindFirst("session_id")?.Value);
+
             await signInManager.RefreshSignInAsync(user);
             emailTemplate.PasswordChangeSuccessed(user.Email, user.DisplayName);
             await auditLogger.LogAsync(new BlogArray.SaaS.Domain.Events.AuditEventRecord(user.Id, BlogArray.SaaS.Domain.Events.AuditTrigger.User, BlogArray.SaaS.Domain.Events.AuditEventTypes.PasswordChanged));

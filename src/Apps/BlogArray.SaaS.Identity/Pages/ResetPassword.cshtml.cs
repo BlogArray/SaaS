@@ -11,6 +11,7 @@
 
 using System.Text;
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -20,6 +21,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
     IEmailTemplate emailTemplate,
     IAuditEventLogger auditLogger,
+    IUserAccessRevocationService accessRevocation,
     ICaptchaService captcha) : PageModel
 {
     /// <summary>
@@ -172,6 +174,11 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
 
         if (result.Succeeded)
         {
+            // A reset is how a compromised account is recovered: the reset already rotated the
+            // security stamp (Identity cookies), and every device session (TenantSuite and App
+            // cookies) and OIDC token is revoked here so an attacker's sessions end too.
+            await accessRevocation.RevokeAsync(user.Id);
+
             bool updated = false;
 
             // Completing a reset through an emailed one-time link proves mailbox ownership,
@@ -179,6 +186,10 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
             // involves no email and does not confirm anything.)
             if (!IsTemporaryPasswordSignIn && !user.EmailConfirmed)
             {
+                // Logins attached before the address was proven may belong to whoever
+                // pre-claimed it; the mailbox owner is the one resetting now.
+                await UnprovenLogins.RemoveAsync(userManager, auditLogger, user);
+
                 user.EmailConfirmed = true;
                 updated = true;
             }

@@ -14,15 +14,18 @@ using BlogArray.SaaS.Identity.Infrastructure;
 namespace BlogArray.SaaS.Identity.Pages;
 
 /// <summary>
-/// Passwordless passkey login. This is a standalone authentication path: no password and no
-/// two-factor step are involved. The ceremony starts without any user context and without an
+/// Passwordless passkey login. The ceremony starts without any user context and without an
 /// allow-list, so the browser/OS presents its native passkey chooser; the resolved assertion
-/// identifies the user directly.
+/// identifies the user directly. A user-verified assertion (biometric/PIN) is a complete
+/// sign-in; one without user verification proves only possession of the device, so it is
+/// treated as a first factor and continues through MFA enrollment or the two-factor step,
+/// exactly as a password sign-in does.
 /// </summary>
 [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("auth")]
 public class LoginWithPasskeyModel(
     SignInManagerExtension<ApplicationUser> signInManager,
     ISignInEventLogger signInEventLogger,
+    IMfaEnrollmentService mfaEnrollmentService,
     PasskeyService passkeyService,
     ILogger<LoginWithPasskeyModel> logger) : PageModel
 {
@@ -60,10 +63,11 @@ public class LoginWithPasskeyModel(
         }
 
         ApplicationUser user;
+        bool userVerified;
 
         try
         {
-            user = await passkeyService.VerifyPasswordlessAssertionAsync(Input?.Response, CeremonyId);
+            (user, userVerified) = await passkeyService.VerifyPasswordlessAssertionAsync(Input?.Response, CeremonyId);
         }
         catch (Exception ex)
         {
@@ -92,13 +96,38 @@ public class LoginWithPasskeyModel(
         List<System.Security.Claims.Claim> customClaims = SignInManagerExtension<ApplicationUser>.BuildProfileClaims(user);
         customClaims.Add(new System.Security.Claims.Claim("amr", "webauthn"));
 
+        string next = Url.IsLocalUrl(Next) ? Next : Url.Content("~/");
+
+        if (!userVerified)
+        {
+            // Possession only: the same steps as after a correct password.
+            if (await mfaEnrollmentService.IsRequiredAsync(user))
+            {
+                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, next, customClaims));
+
+                return RedirectToPage("/MfaEnrollment");
+            }
+
+            Microsoft.AspNetCore.Identity.SignInResult twoFactor = await signInManager.SignInWithPendingTwoFactorAsync(
+                user, isPersistent: true, customClaims, loginProvider: "webauthn");
+
+            if (twoFactor.RequiresTwoFactor)
+            {
+                return RedirectToPage("./LoginWith2fa", new { next });
+            }
+
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(Next), SignInEventTypes.LoginSucceeded, SignInAuthMethod.Passkey, SignInResultType.Success, "passkey without user verification"));
+
+            return LocalRedirect(next);
+        }
+
         // Creates the normal authenticated session (roles/claims via the principal factory).
-        // No two-factor logic applies: the verified assertion IS the authentication.
+        // No two-factor logic applies: the user-verified assertion is itself multi-factor.
         await signInManager.SignInAsync(user, isPersistent: true, customClaims, authenticationMethod: "webauthn");
 
         await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(Next), SignInEventTypes.LoginSucceeded, SignInAuthMethod.Passkey, SignInResultType.Success, "passkey"));
 
-        return LocalRedirect(Url.IsLocalUrl(Next) ? Next : Url.Content("~/"));
+        return LocalRedirect(next);
     }
 
     /// <summary>

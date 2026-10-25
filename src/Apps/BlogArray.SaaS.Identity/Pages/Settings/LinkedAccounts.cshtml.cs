@@ -10,15 +10,16 @@
 #nullable disable
 
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Identity.Infrastructure;
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class LinkedAccountsModel(
     UserManager<ApplicationUser> userManager,
+    IStepUpService stepUp,
     IAuditEventLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager,
     IUserStore<ApplicationUser> userStore) : PageModel
 {
-
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
@@ -43,15 +44,6 @@ public class LinkedAccountsModel(
     /// </summary>
     [TempData]
     public string StatusMessage { get; set; }
-
-    [BindProperty]
-    public InputModel Input { get; set; }
-
-    public class InputModel
-    {
-        [DataType(DataType.Password)]
-        public string Password { get; set; }
-    }
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -88,12 +80,10 @@ public class LinkedAccountsModel(
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
         }
 
-        // Security-sensitive action: require the current password to be re-entered before a
-        // recovery login path is removed from the account.
-        if (string.IsNullOrEmpty(Input?.Password) || !await userManager.CheckPasswordAsync(user, Input.Password))
+        // Security-sensitive action: removing a sign-in method requires a recent step-up.
+        if (!await stepUp.IsSatisfiedAsync(User))
         {
-            StatusMessage = "Error: enter your account password to remove a login.";
-            return RedirectToPage();
+            return this.RedirectToReauthenticate();
         }
 
         IdentityResult result = await userManager.RemoveLoginAsync(user, loginProvider, providerKey);
@@ -111,6 +101,13 @@ public class LinkedAccountsModel(
 
     public async Task<IActionResult> OnPostLinkLoginAsync(string provider)
     {
+        // Security-sensitive action: a linked login is a permanent way into the account, so a
+        // stolen session cookie alone must not be able to add one.
+        if (!await stepUp.IsSatisfiedAsync(User))
+        {
+            return this.RedirectToReauthenticate();
+        }
+
         // Clear the existing external cookie to ensure a clean login process
         await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
@@ -141,6 +138,8 @@ public class LinkedAccountsModel(
 
         // Clear the existing external cookie to ensure a clean login process
         await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+        await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.ExternalLoginAdded, Reason: info.LoginProvider));
 
         StatusMessage = "The external login was added.";
         return RedirectToPage();

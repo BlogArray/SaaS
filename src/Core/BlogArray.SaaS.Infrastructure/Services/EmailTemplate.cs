@@ -34,8 +34,6 @@ public interface IEmailTemplate
 
     void Invite(string toEmail, string name, string org, string orgUrl, string invitedBy);
 
-    void TwoFactorCode(string toEmail, string name, string code);
-
     void TenantWelcome(string toEmail, string tenantName, string tenantUrl, string clientSecret, string apiKey);
 
     void MfaResetRequested(string toEmail, string name, string callbackUrl);
@@ -107,20 +105,6 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         string body = GenerateEmail(name, template);
 
         Send(toEmail, "Change your App Account password", body);
-    }
-
-    public void TwoFactorCode(string toEmail, string name, string code)
-    {
-        string template = $"Hey {Encode(name)}!{newLine}" +
-            $"Use the verification code below to complete your sign-in to App. The code expires in a few minutes " +
-            $"and can only be used once.{newLine}" +
-            $"<div style=\"font-size:26px;font-weight:700;letter-spacing:8px;text-align:center;padding:14px;background-color:#f5f5f5;\">{Encode(code)}</div>" +
-            $"If you did not request this code, someone may be trying to access your account - please reset your password immediately by clicking {MakeLink(StringExtensions.MakeUrl(configuration["Links:Identity"], "forgotpassword"), "Reset Password Link")}.{newLine}" +
-            $"Thank you for choosing App.";
-
-        string body = GenerateEmail(Encode(code), template);
-
-        Send(toEmail, $"Your App verification code: {Encode(code)}", body);
     }
 
     public void PasswordChangeSuccessed(string toEmail, string name)

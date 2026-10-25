@@ -7,3 +7,21 @@
 
 <h6>@ViewData["Title"]</h6>
 <partial name="_StatusMessage" model="Model.StatusMessage" />
+
+@if (Model.PendingLogin is not null)
+{
+    <p>
+        This sign-up also connects the <strong>@(Model.PendingLogin.ProviderDisplayName ?? Model.PendingLogin.LoginProvider)</strong>
+        account <strong>@(Model.PendingLogin.AccountName ?? "(no name shared)")</strong> to this email address.
+        Anyone signed in to that account will be able to sign in as you.
+    </p>
+    <p>If you didn't create this account, or don't recognise that account, confirm your email without connecting it.</p>
+
+    <form method="post" class="mb-5">
+        <input type="hidden" asp-for="UserId" />
+        <input type="hidden" asp-for="Code" />
+        <input type="hidden" asp-for="Link" />
+        <button type="submit" name="connect" value="true" class="w-100 btn btn-solid theme-primary mb-5">Confirm and connect</button>
+        <button type="submit" name="connect" value="false" class="w-100 btn btn-subtle theme-secondary">Confirm without connecting</button>
+    </form>
+}

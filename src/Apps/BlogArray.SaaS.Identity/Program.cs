@@ -70,11 +70,13 @@ builder.Services.AddFido2(options =>
 });
 
 builder.Services.AddScoped<BlogArray.SaaS.Identity.Infrastructure.PasskeyService>();
+builder.Services.AddScoped<BlogArray.SaaS.Identity.Infrastructure.PendingExternalLoginProtector>();
 
+// Razor runtime compilation is added in Development only (AddBlogArrayServices).
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Settings");
-}).AddRazorRuntimeCompilation();
+});
 
 builder.Services.AddScoped(container =>
 {

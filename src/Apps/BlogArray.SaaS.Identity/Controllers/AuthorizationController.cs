@@ -110,6 +110,14 @@ public class AuthorizationController(
         OpenIdApplication application = await applicationManager.FindByClientIdAsync(request.ClientId) ??
             throw new InvalidOperationException("Details concerning the calling client application cannot be found.");
 
+        // Enforce the tenant's sign-in method policy here, where codes are issued: the login
+        // pages only route users, and every other sign-in path (posting straight to the
+        // password page, passkeys, social logins) ends at this endpoint.
+        if (await EnforceSignInMethodPolicyAsync(request, application, result.Principal, user) is IActionResult policyResult)
+        {
+            return policyResult;
+        }
+
         // Enforce the per-application MFA policy: instead of denying access, route users
         // without two-factor authentication to MFA enrollment. After enrolling (and saving
         // their recovery codes) they are returned to the original authorization request to
@@ -158,6 +166,11 @@ public class AuthorizationController(
         // Add the claims that will be persisted in the tokens.
         identity = await SetClaims(identity, user);
 
+        // The security stamp travels in the authorization code and refresh tokens only (its
+        // destinations are empty), so the token endpoint can refuse refreshes issued before a
+        // password or security change.
+        identity.SetClaim(userManager.Options.ClaimsIdentity.SecurityStampClaimType, await userManager.GetSecurityStampAsync(user));
+
         // Propagate the device session id so relying parties can correlate their local
         // session with this identity server session: revoking the shared UserSessions row
         // (at logout or from the "where you're signed in" page) signs the user out of the
@@ -190,6 +203,79 @@ public class AuthorizationController(
 
         // Returning a SignInResult will ask OpenIddict to issue the appropriate access/identity tokens.
         return SignIn(new ClaimsPrincipal(identity), OpenIddictServerAspNetCoreDefaults.AuthenticationScheme);
+    }
+
+    /// <summary>
+    /// Returns the response that replaces the authorization when the session's sign-in method
+    /// is not allowed by the application, or null when it is:
+    ///  - SSO tenants accept only a session established through their own SAML IdP (the
+    ///    saml_tenant claim). Any other session is sent through the tenant's SAML login, which
+    ///    returns to this request; a tenant-disabled IdP account therefore loses access even
+    ///    when the user still holds a local password, passkey or social login.
+    ///  - Tenants with social authentication disabled refuse sessions signed in with an
+    ///    external provider.
+    /// </summary>
+    private async Task<IActionResult?> EnforceSignInMethodPolicyAsync(OpenIddictRequest request, OpenIdApplication application, ClaimsPrincipal principal, ApplicationUser user)
+    {
+        string? violation = null;
+        string? redirectUrl = null;
+
+        if (application.Security.IsSsoEnabled)
+        {
+            string? samlTenant = principal.FindFirst("saml_tenant")?.Value;
+
+            if (!string.Equals(samlTenant, application.ClientId, StringComparison.OrdinalIgnoreCase))
+            {
+                violation = "session not established through the tenant's SSO identity provider";
+                redirectUrl = $"/saml/{Uri.EscapeDataString(application.ClientId!)}/login?next={Uri.EscapeDataString(GetAuthorizeRequestUrl())}";
+            }
+        }
+        else if (!application.Security.IsSocialAuthEnabled)
+        {
+            string? authenticationMethod = principal.FindFirst(ClaimTypes.AuthenticationMethod)?.Value;
+
+            if (!string.IsNullOrEmpty(authenticationMethod)
+                && (await signInManager.GetExternalAuthenticationSchemesAsync()).Any(scheme => scheme.Name == authenticationMethod))
+            {
+                violation = $"social sign-in ({authenticationMethod}) is disabled for this tenant";
+            }
+        }
+
+        if (violation is null)
+        {
+            return null;
+        }
+
+        await signInEventLogger.LogAsync(new SignInEventRecord(
+            user.Id, request.ClientId, SignInEventTypes.ConditionalAccessBlocked,
+            application.Security.IsSsoEnabled ? SignInAuthMethod.Saml : SignInAuthMethod.External,
+            SignInResultType.Failure, violation));
+
+        if (request.HasPromptValue(PromptValues.None))
+        {
+            return Forbid(
+                authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+                properties: new AuthenticationProperties(new Dictionary<string, string?>
+                {
+                    [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.LoginRequired,
+                    [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "The application requires a different sign-in method."
+                }));
+        }
+
+        return redirectUrl is not null
+            ? Redirect(redirectUrl)
+            : RedirectToAction("Index", "Error", new { message = "This application does not allow signing in with social accounts. Sign out, then sign in with your password or passkey." });
+    }
+
+    /// <summary>
+    /// The local URL of the current authorization request, rebuilt from the query or form
+    /// parameters so POSTed requests can be replayed as a redirect target.
+    /// </summary>
+    private string GetAuthorizeRequestUrl()
+    {
+        IEnumerable<KeyValuePair<string, StringValues>> parameters = Request.HasFormContentType ? Request.Form : Request.Query;
+
+        return Request.PathBase + Request.Path + QueryString.Create(parameters);
     }
 
     [HttpGet("~/connect/logout")]
@@ -421,6 +507,22 @@ public class AuthorizationController(
                     {
                         [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.InvalidGrant,
                         [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "The user is no longer allowed to sign in."
+                    }));
+            }
+
+            // A password reset/change or other security change rotates the security stamp: codes
+            // and refresh tokens issued before it stop working. (Tokens issued before the stamp
+            // was recorded carry none; credential changes revoke those explicitly.)
+            string? tokenStamp = result.Principal.GetClaim(userManager.Options.ClaimsIdentity.SecurityStampClaimType);
+
+            if (tokenStamp is not null && !string.Equals(tokenStamp, await userManager.GetSecurityStampAsync(user), StringComparison.Ordinal))
+            {
+                return Forbid(
+                    authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+                    properties: new AuthenticationProperties(new Dictionary<string, string?>
+                    {
+                        [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.InvalidGrant,
+                        [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "The token is no longer valid."
                     }));
             }
 

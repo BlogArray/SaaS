@@ -10,8 +10,7 @@
 #nullable disable
 
 using BlogArray.SaaS.Domain.Events;
-using BlogArray.SaaS.Infrastructure.Services;
-using Microsoft.Extensions.Caching.Distributed;
+using BlogArray.SaaS.Identity.Infrastructure;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
@@ -20,9 +19,6 @@ public class LoginWith2faModel(
     UserManager<ApplicationUser> userManager,
     SignInManagerExtension<ApplicationUser> signInManager,
     ISignInEventLogger signInEventLogger,
-    ICaptchaService captcha,
-    IEmailTemplate emailTemplate,
-    IDistributedCache cache,
     ILogger<LoginWith2faModel> logger) : PageModel
 {
 
@@ -32,29 +28,6 @@ public class LoginWith2faModel(
     /// </summary>
     [BindProperty]
     public InputModel Input { get; set; }
-
-    /// <summary>
-    ///     True when the Cloudflare Turnstile challenge is configured (it gates the
-    ///     "email me a code" request).
-    /// </summary>
-    public bool CaptchaEnabled => captcha.IsEnabled;
-
-    /// <summary>
-    ///     The Turnstile site key for rendering the widget (empty when disabled).
-    /// </summary>
-    public string CaptchaSiteKey => captcha.SiteKey;
-
-    /// <summary>
-    ///     Verification mode for the submitted code: the default is the authenticator app;
-    ///     when "email", the code sent by email is verified with the Email token provider.
-    /// </summary>
-    [BindProperty(SupportsGet = true)]
-    public string Method { get; set; }
-
-    /// <summary>
-    ///     True when the current verification mode is the emailed one-time code.
-    /// </summary>
-    public bool IsEmailMode => string.Equals(Method, "email", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -93,7 +66,7 @@ public class LoginWith2faModel(
         public bool RememberMachine { get; set; }
     }
 
-    public async Task<IActionResult> OnGetAsync(string next, string method = null)
+    public async Task<IActionResult> OnGetAsync(string next)
     {
         // Ensure the user has gone through the username & password screen first
         ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
@@ -104,58 +77,9 @@ public class LoginWith2faModel(
         }
 
         Next = next;
-        Method = string.Equals(method, "email", StringComparison.OrdinalIgnoreCase) ? "email" : null;
         //RememberMe = rememberMe;
 
         return Page();
-    }
-
-    /// <summary>
-    /// Generates a one-time code with the Email token provider, sends it to the user's email
-    /// address, and switches the verification mode to "email". A resend is allowed at most
-    /// once every 90 seconds per user.
-    /// </summary>
-    public async Task<IActionResult> OnPostSendCodeAsync(string next)
-    {
-        ApplicationUser user = await signInManager.GetTwoFactorAuthenticationUserAsync();
-
-        if (user == null)
-        {
-            return RedirectToPage("./Login");
-        }
-
-        // CAPTCHA gates the email send when Turnstile is configured (anti email-bombing).
-        if (captcha.IsEnabled)
-        {
-            string sendCaptchaToken = Request.Form["sendCaptchaToken"];
-
-            if (!await captcha.VerifyAsync(sendCaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
-            {
-                StatusMessage = "Error: please complete the verification before requesting an email code.";
-                return RedirectToPage(new { next, method = "email" });
-            }
-        }
-
-        string cacheKey = $"login_otp_sent_{user.Id}";
-
-        if (await cache.GetAsync(cacheKey) is not null)
-        {
-            StatusMessage = "A verification code was already sent recently. Please check your email, or wait a minute before requesting a new one.";
-            return RedirectToPage(new { next, method = "email" });
-        }
-
-        string code = await userManager.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
-
-        emailTemplate.TwoFactorCode(user.Email, user.DisplayName, code);
-
-        await cache.SetStringAsync(cacheKey, DateTime.UtcNow.ToString("O"), new DistributedCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(90)
-        });
-
-        StatusMessage = $"A verification code has been sent to {user.Email}. Enter it below to continue.";
-
-        return RedirectToPage(new { next, method = "email" });
     }
 
     public async Task<IActionResult> OnPostAsync(string next)
@@ -176,53 +100,31 @@ public class LoginWith2faModel(
 
         string code = Input.TwoFactorCode.Replace(" ", string.Empty).Replace("-", string.Empty);
 
-        List<Claim> customClaims = SignInManagerExtension<ApplicationUser>.BuildProfileClaims(user);
+        List<Claim> customClaims = await signInManager.BuildTwoFactorSignInClaimsAsync(user);
 
-        // Preserve flow-specific claims from the pending two-factor cookie (e.g. amr and
-        // saml_tenant from a SAML step-up), so the completed sign-in keeps the attributes
-        // the original authentication established. The pending cookie's own bookkeeping
-        // claims (user id as Name, login provider) are not identity claims: the principal
-        // factory and the two-factor sign-in set those.
-        IReadOnlyList<Claim>? pendingClaims = await signInManager.GetTwoFactorPendingClaimsAsync();
-
-        if (pendingClaims is not null)
-        {
-            foreach (Claim pendingClaim in pendingClaims)
-            {
-                if (pendingClaim.Type is ClaimTypes.Name or ClaimTypes.AuthenticationMethod)
-                {
-                    continue;
-                }
-
-                if (!customClaims.Any(c => c.Type == pendingClaim.Type))
-                {
-                    customClaims.Add(pendingClaim);
-                }
-            }
-        }
-
-        Microsoft.AspNetCore.Identity.SignInResult result = string.Equals(Method, "email", StringComparison.OrdinalIgnoreCase)
-            ? await signInManager.TwoFactorEmailCodeSignInAsync(code, false, Input.RememberMachine, customClaims)
-            : await signInManager.TwoFactorAuthenticatorSignInAsync(code, false, Input.RememberMachine, customClaims);
+        // Only the authenticator app (or a recovery code, on its own page) completes the second
+        // factor. Emailed codes are deliberately not offered: the password can be reset by email,
+        // so an emailed second factor would let mailbox access alone take over the account.
+        Microsoft.AspNetCore.Identity.SignInResult result = await signInManager.TwoFactorAuthenticatorSignInAsync(code, false, Input.RememberMachine, customClaims);
 
         string? tenantClientId = SecurityEventUrls.GetTenantClientIdFromUrl(next);
 
         if (result.Succeeded)
         {
-            logger.LogInformation("User with ID '{UserId}' logged in with 2fa ({Method}).", user.Id, Method ?? "authenticator");
-            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Mfa, SignInResultType.Success, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}"));
-            return LocalRedirect(next);
+            logger.LogInformation("User with ID '{UserId}' logged in with 2fa.", user.Id);
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Mfa, SignInResultType.Success, "mfa via authenticator"));
+            return this.SafeLocalRedirect(next);
         }
         else if (result.IsLockedOut)
         {
             logger.LogWarning("User with ID '{UserId}' account locked out.", user.Id);
-            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Mfa, SignInResultType.Failure, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}"));
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Mfa, SignInResultType.Failure, "mfa via authenticator"));
             return RedirectToPage("./Lockout");
         }
         else
         {
-            logger.LogWarning("Invalid 2FA code ({Method}) entered for user with ID '{UserId}'.", Method ?? "authenticator", user.Id);
-            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedMfaInvalid, SignInAuthMethod.Mfa, SignInResultType.Failure, $"mfa via {(Method ?? "authenticator").ToLowerInvariant()}"));
+            logger.LogWarning("Invalid 2FA code entered for user with ID '{UserId}'.", user.Id);
+            await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedMfaInvalid, SignInAuthMethod.Mfa, SignInResultType.Failure, "mfa via authenticator"));
             ModelState.AddModelError(string.Empty, "You entered an incorrect code.");
             return Page();
         }

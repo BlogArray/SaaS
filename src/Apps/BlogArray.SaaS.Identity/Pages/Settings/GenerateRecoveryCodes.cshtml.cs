@@ -10,17 +10,16 @@
 #nullable disable
 
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Identity.Infrastructure;
 namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class GenerateRecoveryCodesModel(
     UserManager<ApplicationUser> userManager,
+    IStepUpService stepUp,
     IAuditEventLogger auditLogger,
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<GenerateRecoveryCodesModel> logger) : PageModel
 {
-    [BindProperty]
-    public InputModel Input { get; set; }
-
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
     ///     directly from your code. This API may change or be removed in future releases.
@@ -35,19 +34,17 @@ public class GenerateRecoveryCodesModel(
     [TempData]
     public string StatusMessage { get; set; }
 
-    public class InputModel
-    {
-        [Required(AllowEmptyStrings = false, ErrorMessage = "Enter your password")]
-        [DataType(DataType.Password)]
-        public string Password { get; set; }
-    }
-
     public async Task<IActionResult> OnGetAsync()
     {
         ApplicationUser user = await userManager.GetUserAsync(User);
         if (user == null)
         {
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
+        }
+
+        if (!await stepUp.IsSatisfiedAsync(User))
+        {
+            return this.RedirectToReauthenticate();
         }
 
         bool isTwoFactorEnabled = await userManager.GetTwoFactorEnabledAsync(user);
@@ -76,12 +73,11 @@ public class GenerateRecoveryCodesModel(
             return RedirectToPage("./TwoFactorAuthentication");
         }
 
-        // Security-sensitive action: require the current password to be re-entered so minted
-        // recovery codes cannot be generated from a stolen session cookie.
-        if (!await userManager.CheckPasswordAsync(user, Input?.Password))
+        // Security-sensitive action: requires a recent step-up ("Confirm it's you": password,
+        // authenticator code or passkey), so a stolen session cookie alone cannot change it.
+        if (!await stepUp.IsSatisfiedAsync(User))
         {
-            ModelState.AddModelError("Input.Password", "Incorrect password.");
-            return Page();
+            return this.RedirectToReauthenticate();
         }
 
         IEnumerable<string> recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);

@@ -182,15 +182,28 @@ public class MfaEnrollmentModel(
         List<Claim> customClaims = SignInManagerExtension<ApplicationUser>.BuildProfileClaims(user);
 
         // Carry the claims the original authentication established (e.g. saml_* for SAML
-        // single sign-out), plus the second factor just proven.
+        // single sign-out), plus the second factor just proven. The original authentication
+        // method (e.g. the social provider) is passed as the sign-in's method rather than as a
+        // claim, which SignInAsync would otherwise duplicate.
+        string authenticationMethod = IdentityConstants.ApplicationScheme;
+
         if (_enrollmentPrincipal is not null)
         {
-            customClaims.AddRange(MfaEnrollmentDefaults.GetFlowClaims(_enrollmentPrincipal));
+            foreach (Claim flowClaim in MfaEnrollmentDefaults.GetFlowClaims(_enrollmentPrincipal))
+            {
+                if (flowClaim.Type == ClaimTypes.AuthenticationMethod)
+                {
+                    authenticationMethod = flowClaim.Value;
+                    continue;
+                }
+
+                customClaims.Add(flowClaim);
+            }
         }
 
         customClaims.Add(new Claim("amr", "mfa"));
 
-        await signInManager.SignInAsync(user, isPersistent: false, customClaims, IdentityConstants.ApplicationScheme);
+        await signInManager.SignInAsync(user, isPersistent: false, customClaims, authenticationMethod);
 
         await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
     }

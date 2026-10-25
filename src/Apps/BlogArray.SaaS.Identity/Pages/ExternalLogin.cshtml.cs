@@ -10,6 +10,7 @@
 #nullable disable
 using System.Text;
 using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authorization;
@@ -28,6 +29,7 @@ public class ExternalLoginModel : PageModel
     private readonly IEmailTemplate _emailTemplate;
     private readonly ISignInEventLogger _auditLogger;
     private readonly IMfaEnrollmentService _mfaEnrollmentService;
+    private readonly PendingExternalLoginProtector _pendingLoginProtector;
     private readonly ILogger<ExternalLoginModel> _logger;
 
     public ExternalLoginModel(
@@ -37,6 +39,7 @@ public class ExternalLoginModel : PageModel
         IEmailTemplate emailTemplate,
         ISignInEventLogger auditLogger,
         IMfaEnrollmentService mfaEnrollmentService,
+        PendingExternalLoginProtector pendingLoginProtector,
         ILogger<ExternalLoginModel> logger)
     {
         _signInManager = signInManager;
@@ -46,6 +49,7 @@ public class ExternalLoginModel : PageModel
         _emailTemplate = emailTemplate;
         _auditLogger = auditLogger;
         _mfaEnrollmentService = mfaEnrollmentService;
+        _pendingLoginProtector = pendingLoginProtector;
         _logger = logger;
     }
 
@@ -142,7 +146,7 @@ public class ExternalLoginModel : PageModel
             if (await _mfaEnrollmentService.IsRequiredAsync(linkedUser))
             {
                 await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
-                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(linkedUser.Id, next));
+                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(linkedUser.Id, next, [new Claim(ClaimTypes.AuthenticationMethod, info.LoginProvider)]));
 
                 await _auditLogger.LogAsync(new SignInEventRecord(linkedUser.Id, null, SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, $"{info.LoginProvider}; mfa enrollment required"));
 
@@ -162,7 +166,7 @@ public class ExternalLoginModel : PageModel
 
             await _auditLogger.LogAsync(new SignInEventRecord(linkedUser.Id, null, SignInEventTypes.LoginSucceededExternal, SignInAuthMethod.External, SignInResultType.Success, info.LoginProvider));
 
-            return LocalRedirect(next);
+            return this.SafeLocalRedirect(next);
         }
         if (result.IsLockedOut)
         {
@@ -232,32 +236,45 @@ public class ExternalLoginModel : PageModel
             IdentityResult result = await _userManager.CreateAsync(user);
             if (result.Succeeded)
             {
-                result = await _userManager.AddLoginAsync(user, info);
-                if (result.Succeeded)
+                // Without required confirmation there is nothing to protect: attach and sign in.
+                if (!_userManager.Options.SignIn.RequireConfirmedAccount)
+                {
+                    result = await _userManager.AddLoginAsync(user, info);
+
+                    if (result.Succeeded)
+                    {
+                        await _signInManager.SignInAsync(user, isPersistent: false, info.LoginProvider);
+                        return this.SafeLocalRedirect(next);
+                    }
+                }
+                else
                 {
                     _logger.LogInformation("User created an account using {Name} provider.", info.LoginProvider);
 
+                    // The external login is NOT attached yet: the address was supplied by whoever
+                    // signed up, so the login travels in the confirmation link and is attached only
+                    // when the mailbox owner confirms (see ConfirmEmail).
                     string userId = await _userManager.GetUserIdAsync(user);
                     string code = await _userManager.GenerateEmailConfirmationTokenAsync(user);
                     code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
+
+                    string link = _pendingLoginProtector.Protect(new PendingExternalLogin(
+                        userId,
+                        info.LoginProvider,
+                        info.ProviderKey,
+                        info.ProviderDisplayName,
+                        info.Principal.FindFirstValue(ClaimTypes.Email) ?? info.Principal.FindFirstValue(ClaimTypes.Name)));
+
                     string callbackUrl = Url.Page(
                         "/ConfirmEmail",
                         pageHandler: null,
-                        values: new { userId, code },
+                        values: new { userId, code, link },
                         protocol: Request.Scheme);
 
                     _emailTemplate.ConfirmEmail(Input.Email, user.DisplayName ?? Input.Email, callbackUrl);
 
-                    // If account confirmation is required, route the user to the login page with
-                    // instructions instead of a nonexistent confirmation page.
-                    if (_userManager.Options.SignIn.RequireConfirmedAccount)
-                    {
-                        TempData["ErrorMessage"] = "Account created. A verification link has been sent to your email address; confirm it before signing in.";
-                        return RedirectToPage("./Login", new { next });
-                    }
-
-                    await _signInManager.SignInAsync(user, isPersistent: false, info.LoginProvider);
-                    return LocalRedirect(next);
+                    TempData["ErrorMessage"] = "Account created. A verification link has been sent to your email address; confirm it before signing in.";
+                    return RedirectToPage("./Login", new { next });
                 }
             }
             foreach (IdentityError error in result.Errors)
