@@ -127,8 +127,10 @@ public class ReauthenticateModel(
 
         await userManager.AccessFailedAsync(user);
 
-        // Empty the code slots for the retry (the error stays).
+        // Empty the code slots for the retry (the error stays): the input falls back to the
+        // model value when the posted one is cleared, so clear both.
         ModelState.SetModelValue(nameof(Code), null, null);
+        Code = null;
 
         return await FailAsync(user, "Incorrect code.");
     }
@@ -168,6 +170,15 @@ public class ReauthenticateModel(
         if (user == null)
         {
             return NotFound();
+        }
+
+        // Only a configured provider already linked to this account (challenging an unknown
+        // scheme throws).
+        await LoadMethodsAsync(user);
+
+        if (!ExternalProviders.Any(scheme => scheme.Name == provider))
+        {
+            return await FailAsync(user, "That sign-in option is not available for your account.");
         }
 
         await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);

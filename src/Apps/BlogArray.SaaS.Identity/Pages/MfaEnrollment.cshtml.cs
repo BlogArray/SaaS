@@ -150,8 +150,10 @@ public class MfaEnrollmentModel(
         if (!is2faTokenValid)
         {
             ModelState.AddModelError("Input.Code", "Verification code is invalid.");
-            // Empty the code slots for the retry (the error stays).
+            // Empty the code slots for the retry (the error stays): the input falls back to the
+            // model value when the posted one is cleared, so clear both.
             ModelState.SetModelValue("Input.Code", null, null);
+            Input.Code = null;
             await LoadSharedKeyAndQrCodeUriAsync(user);
             return Page();
         }

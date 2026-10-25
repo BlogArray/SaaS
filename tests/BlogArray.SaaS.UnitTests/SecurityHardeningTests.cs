@@ -81,6 +81,28 @@ public class StepUpServiceTests
     }
 
     [Fact]
+    public async Task IsSatisfied_RightAfterSignIn_WithoutStepUp()
+    {
+        StepUpService service = new(Cache(), Config());
+        ClaimsPrincipal principal = Principal("session-a");
+        ((ClaimsIdentity)principal.Identity!).AddClaim(new Claim(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType,
+            DateTimeOffset.UtcNow.AddMinutes(-2).ToUnixTimeSeconds().ToString()));
+
+        Assert.True(await service.IsSatisfiedAsync(principal));
+    }
+
+    [Fact]
+    public async Task IsSatisfied_StaleSignIn_RequiresStepUp()
+    {
+        StepUpService service = new(Cache(), Config());
+        ClaimsPrincipal principal = Principal("session-a");
+        ((ClaimsIdentity)principal.Identity!).AddClaim(new Claim(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType,
+            DateTimeOffset.UtcNow.AddMinutes(-30).ToUnixTimeSeconds().ToString()));
+
+        Assert.False(await service.IsSatisfiedAsync(principal));
+    }
+
+    [Fact]
     public void Window_DefaultsToTenMinutes()
     {
         Assert.Equal(TimeSpan.FromMinutes(10), new StepUpService(Cache(), Config()).Window);

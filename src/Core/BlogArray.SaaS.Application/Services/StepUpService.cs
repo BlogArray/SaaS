@@ -8,6 +8,7 @@
 //
 
 using System.Security.Claims;
+using BlogArray.SaaS.Domain.Entities;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 
@@ -22,8 +23,8 @@ namespace BlogArray.SaaS.Application.Services;
 public interface IStepUpService
 {
     /// <summary>
-    /// True when this session completed a step-up within the window. Principals without a
-    /// device session id are never satisfied (fail closed).
+    /// True when this session signed in, or completed a step-up, within the window. Principals
+    /// without a device session id are never satisfied (fail closed).
     /// </summary>
     Task<bool> IsSatisfiedAsync(ClaimsPrincipal principal);
 
@@ -41,8 +42,6 @@ public interface IStepUpService
 
 public class StepUpService(IDistributedCache cache, IConfiguration configuration) : IStepUpService
 {
-    private const string SessionIdClaimType = "session_id";
-
     /// <summary>
     /// Length of the step-up window: Identity:StepUpMinutes, default 10.
     /// </summary>
@@ -52,7 +51,22 @@ public class StepUpService(IDistributedCache cache, IConfiguration configuration
     {
         string? key = GetKey(principal);
 
-        return key is not null && await cache.GetAsync(key) is not null;
+        if (key is null)
+        {
+            return false;
+        }
+
+        // A sign-in is itself a verification: right after one (e.g. the MFA-enforcement redirect
+        // to authenticator setup) the user is not asked again. auth_time is only set by a real
+        // sign-in; refreshes keep the original.
+        if (long.TryParse(principal.FindFirst(SignInManagerExtension<ApplicationUser>.AuthTimeClaimType)?.Value,
+                System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long authTime)
+            && DateTimeOffset.UtcNow - DateTimeOffset.FromUnixTimeSeconds(authTime) < Window)
+        {
+            return true;
+        }
+
+        return await cache.GetAsync(key) is not null;
     }
 
     public async Task MarkSatisfiedAsync(ClaimsPrincipal principal)
@@ -82,7 +96,7 @@ public class StepUpService(IDistributedCache cache, IConfiguration configuration
 
     private static string? GetKey(ClaimsPrincipal principal)
     {
-        string? sessionId = principal.FindFirst(SessionIdClaimType)?.Value;
+        string? sessionId = principal.FindFirst(SignInManagerExtension<ApplicationUser>.SessionIdClaimType)?.Value;
 
         return string.IsNullOrEmpty(sessionId) ? null : $"stepup:{sessionId}";
     }

@@ -28,11 +28,17 @@ public static class PageModelExtensions
 
     /// <summary>
     /// The step-up page URL that returns to <paramref name="returnUrl"/> (default: the current
-    /// page's path, so the user lands back where the action is offered).
+    /// page, so the user lands back where the action is offered). A GET keeps its query string
+    /// (e.g. EnableAuthenticator's returnUrl back to the app); a POST returns to the page itself,
+    /// since its query only names the handler.
     /// </summary>
     public static string GetReauthenticateUrl(this PageModel page, string? returnUrl = null)
     {
-        return page.Url.Page(ReauthenticatePage, new { returnUrl = returnUrl ?? page.Request.PathBase + page.Request.Path }) ?? ReauthenticatePage;
+        HttpRequest request = page.Request;
+
+        returnUrl ??= request.PathBase + request.Path + (HttpMethods.IsGet(request.Method) ? request.QueryString : QueryString.Empty);
+
+        return page.Url.Page(ReauthenticatePage, new { returnUrl }) ?? ReauthenticatePage;
     }
 
     /// <summary>

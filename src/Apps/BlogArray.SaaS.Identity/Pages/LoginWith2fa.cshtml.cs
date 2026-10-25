@@ -132,8 +132,10 @@ public class LoginWith2faModel(
             logger.LogWarning("Invalid 2FA code entered for user with ID '{UserId}'.", user.Id);
             await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedMfaInvalid, SignInAuthMethod.Mfa, SignInResultType.Failure, "mfa via authenticator"));
             ModelState.AddModelError(string.Empty, "You entered an incorrect code.");
-            // Empty the code slots for the retry (the error stays).
+            // Empty the code slots for the retry (the error stays): the input falls back to the
+            // model value when the posted one is cleared, so clear both.
             ModelState.SetModelValue("Input.TwoFactorCode", null, null);
+            Input.TwoFactorCode = null;
             return Page();
         }
     }

@@ -18,6 +18,7 @@ namespace BlogArray.SaaS.Identity.Pages.Settings;
 
 public class EnableAuthenticatorModel(
     UserManager<ApplicationUser> userManager,
+    IStepUpService stepUp,
     IUserStore<ApplicationUser> userStore,
     IAuditEventLogger auditLogger,
     ILogger<EnableAuthenticatorModel> logger,
@@ -90,6 +91,14 @@ public class EnableAuthenticatorModel(
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
         }
 
+        // Turning on 2FA with an authenticator is a sign-in change: a stolen session cookie
+        // alone could otherwise enroll the attacker's authenticator and lock the owner out.
+        // Right after signing in (e.g. the MFA-enforcement redirect) the step-up is already met.
+        if (!await stepUp.IsSatisfiedAsync(User))
+        {
+            return this.RedirectToReauthenticate();
+        }
+
         // A fresh key for every setup page load while 2FA is off: a key someone saw earlier
         // must never become the user's second factor. A reload means rescanning the QR code;
         // a POST that re-renders after a wrong code keeps the current key.
@@ -108,6 +117,14 @@ public class EnableAuthenticatorModel(
             return NotFound($"Unable to load user with ID '{userManager.GetUserId(User)}'.");
         }
 
+        // Turning on 2FA with an authenticator is a sign-in change: a stolen session cookie
+        // alone could otherwise enroll the attacker's authenticator and lock the owner out.
+        // Right after signing in (e.g. the MFA-enforcement redirect) the step-up is already met.
+        if (!await stepUp.IsSatisfiedAsync(User))
+        {
+            return this.RedirectToReauthenticate();
+        }
+
         if (!ModelState.IsValid)
         {
             await LoadSharedKeyAndQrCodeUriAsync(user);
@@ -123,8 +140,10 @@ public class EnableAuthenticatorModel(
         if (!is2faTokenValid)
         {
             ModelState.AddModelError("Input.Code", "Verification code is invalid.");
-            // Empty the code slots for the retry (the error stays).
+            // Empty the code slots for the retry (the error stays): the input falls back to the
+            // model value when the posted one is cleared, so clear both.
             ModelState.SetModelValue("Input.Code", null, null);
+            Input.Code = null;
             await LoadSharedKeyAndQrCodeUriAsync(user);
             return Page();
         }

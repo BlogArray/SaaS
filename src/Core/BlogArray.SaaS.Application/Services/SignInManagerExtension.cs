@@ -84,6 +84,12 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     public const string AuthTimeClaimType = "auth_time";
 
     /// <summary>
+    /// The device session id the cookie sign-in hook stamps on every session (see
+    /// AddBlogArrayCookieAuthenticationOptions).
+    /// </summary>
+    public const string SessionIdClaimType = "session_id";
+
+    /// <summary>
     /// Every sign-in path ends here: stamps the authentication time unless the caller carries
     /// the original one over (see <see cref="RefreshSignInAsync"/>).
     /// </summary>
@@ -191,6 +197,11 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         // authentication, so the original authentication time is kept.
         Claim? authTime = auth?.Principal?.FindFirst(AuthTimeClaimType);
 
+        // ...and it stays the same device session: without the claim the sign-in hook minted a
+        // new session id, which signed the suite's other apps out on this device (their cookies
+        // carry the old id) and dropped this session's step-up.
+        Claim? sessionId = auth?.Principal?.FindFirst(SessionIdClaimType);
+
         if (authenticationMethod != null)
         {
             claims.Add(authenticationMethod);
@@ -202,6 +213,10 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
         if (authTime != null)
         {
             claims.Add(new Claim(AuthTimeClaimType, authTime.Value, authTime.ValueType));
+        }
+        if (sessionId != null)
+        {
+            claims.Add(new Claim(SessionIdClaimType, sessionId.Value));
         }
 
         await SignInWithClaimsAsync(user, auth?.Properties, claims);

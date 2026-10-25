@@ -137,6 +137,24 @@ public class SignInManagerExtensionTests
     }
 
     [Fact]
+    public async Task RefreshSignIn_KeepsDeviceSessionId()
+    {
+        // Without it the sign-in hook minted a new session id, signing the suite's other apps
+        // out on this device and dropping the session's step-up.
+        FakeAuthenticationService auth = new()
+        {
+            Current = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(SignInManagerExtension<ApplicationUser>.SessionIdClaimType, "session-a")],
+                IdentityConstants.ApplicationScheme))
+        };
+        SignInManagerExtension<ApplicationUser> signInManager = CreateSignInManager(auth);
+
+        await signInManager.RefreshSignInAsync(CreateUser());
+
+        Assert.Equal("session-a", Assert.Single(auth.SignedIn!.FindAll(SignInManagerExtension<ApplicationUser>.SessionIdClaimType)).Value);
+    }
+
+    [Fact]
     public async Task RecoveryCodeSignIn_UserDisabledAfterFirstFactor_IsNotAllowed()
     {
         SignInManagerExtension<ApplicationUser> signInManager = CreateSignInManager(new FakeAuthenticationService());
