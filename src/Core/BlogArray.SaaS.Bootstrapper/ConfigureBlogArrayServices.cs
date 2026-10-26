@@ -143,25 +143,15 @@ public static class ConfigureBlogArrayServices
                     .OrderByDescending(tracked => tracked.LastSeenOn)
                     .FirstOrDefaultAsync();
 
+                // A new-sign-in alert, on the identity server only (where users actually sign
+                // in; the other apps attach to its session). Checked before this sign-in is saved.
+                if (membershipClientId is null)
+                {
+                    newDevice = await IsUnrecognisedSignInAsync(dbContext, userId, uaInfo, ipAddress);
+                }
+
                 if (session is null)
                 {
-                    // A new-device alert, on the identity server only (where users actually sign
-                    // in; the other apps attach to its session): this user has signed in before,
-                    // but never with this browser on this operating system. Versions are ignored,
-                    // or every browser update would look like a new device. The very first
-                    // sign-in is not "new".
-                    if (membershipClientId is null)
-                    {
-                        List<string> previousUserAgents = await dbContext.UserSessions
-                            .Where(tracked => tracked.UserId == userId)
-                            .Select(tracked => tracked.UserAgent)
-                            .Distinct()
-                            .ToListAsync();
-
-                        newDevice = previousUserAgents.Count > 0
-                            && !previousUserAgents.Any(previous => SameDeviceFamily(UserAgentParser.Parse(previous), uaInfo));
-                    }
-
                     session = new UserSession
                     {
                         UserId = userId,
@@ -362,6 +352,46 @@ public static class ConfigureBlogArrayServices
         {
             AbsoluteExpirationRelativeToNow = TenantMembershipCacheDuration
         });
+    }
+
+    /// <summary>
+    /// How far back a sign-in's device and IP address are compared when deciding whether to send
+    /// the "new sign-in" alert.
+    /// </summary>
+    private static readonly TimeSpan NewSignInLookback = TimeSpan.FromDays(30);
+
+    /// <summary>
+    /// True when this sign-in should alert the owner: its browser/OS pair, or its IP address, was
+    /// not seen on the account in the last <see cref="NewSignInLookback"/> - including an account
+    /// with no recent history at all (its first sign-in). Versions are ignored, or every browser
+    /// update would look like a new device. History comes from both the successful sign-in events
+    /// and the recent session rows (whose IP the other apps keep current), so clearing one alone
+    /// does not hide or invent a device.
+    /// </summary>
+    private static async Task<bool> IsUnrecognisedSignInAsync(OpenIdDbContext dbContext, string userId, UserAgentParser.UserAgentInfo uaInfo, string ipAddress)
+    {
+        DateTime since = DateTime.UtcNow - NewSignInLookback;
+        string success = SignInResultType.Success.ToString();
+
+        var signIns = await dbContext.SignInEvents
+            .Where(signIn => signIn.UserId == userId && signIn.Result == success && signIn.CreatedOn >= since)
+            .Select(signIn => new { signIn.UserAgent, signIn.IpAddress })
+            .Distinct()
+            .ToListAsync();
+
+        var sessions = await dbContext.UserSessions
+            .Where(tracked => tracked.UserId == userId && tracked.LastSeenOn >= since)
+            .Select(tracked => new { UserAgent = (string?)tracked.UserAgent, IpAddress = (string?)tracked.IpAddress })
+            .Distinct()
+            .ToListAsync();
+
+        var recent = signIns.Concat(sessions).ToList();
+
+        bool knownDevice = recent.Any(seen => SameDeviceFamily(UserAgentParser.Parse(seen.UserAgent ?? string.Empty), uaInfo));
+        bool knownAddress = !string.IsNullOrEmpty(ipAddress)
+            && recent.Any(seen => string.Equals(seen.IpAddress, ipAddress, StringComparison.OrdinalIgnoreCase));
+
+        return !knownDevice || !knownAddress;
     }
 
     /// <summary>

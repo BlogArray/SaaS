@@ -32,7 +32,7 @@ public interface ISecurityNotificationService
     void ChangeMade(ApplicationUser user, string change);
 
     /// <summary>
-    /// The account was signed in to from a device or browser not seen before.
+    /// The account was signed in to from a device/browser or an IP address not seen on it recently.
     /// </summary>
     void NewSignIn(ApplicationUser user);
 

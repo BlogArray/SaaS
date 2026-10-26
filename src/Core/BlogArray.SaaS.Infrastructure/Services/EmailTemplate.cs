@@ -55,7 +55,8 @@ public interface IEmailTemplate
     void SecurityChangeNotice(string toEmail, string name, string change, string? device, string? ipAddress);
 
     /// <summary>
-    /// Tells the user their account was signed in to from a device or browser not seen before.
+    /// Tells the user their account was signed in to from a device/browser or an IP address not
+    /// seen on it recently.
     /// </summary>
     void NewSignInNotice(string toEmail, string name, string? device, string? ipAddress);
 
@@ -323,7 +324,7 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
     public void NewSignInNotice(string toEmail, string name, string? device, string? ipAddress)
     {
         string template = $"Hey {Encode(name)}!{newLine}" +
-            $"Your App account was just signed in to from a device or browser it has not been used on before:{newLine}" +
+            $"Your App account was just signed in to from a device, browser or location it has not been used from recently:{newLine}" +
             $"<strong>{Encode(device ?? "Unknown device")}</strong>{(string.IsNullOrEmpty(ipAddress) ? string.Empty : $" (IP address {Encode(ipAddress)})")} on {Now()}.{newLine}" +
             $"If this was you, no action is needed.{newLine}" +
             $"If it was not, {MakeLink(IdentityUrl("settings/usersessions"), "sign that device out")} and {MakeLink(IdentityUrl("forgotpassword"), "reset your password")} now.{newLine}" +
