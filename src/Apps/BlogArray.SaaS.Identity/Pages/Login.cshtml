@@ -14,7 +14,7 @@
         <div asp-validation-summary="ModelOnly" class="fg-danger" role="alert"></div>
         <div class="mb-5">
             <label asp-for="Input.Email" class="form-label">Email</label>
-            <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="Enter your email" />
+            <input asp-for="Input.Email" class="form-control" autocomplete="username webauthn" aria-required="true" placeholder="Enter your email" />
             <span asp-validation-for="Input.Email" class="fg-danger"></span>
         </div>
 
@@ -29,19 +29,81 @@
             <hr class="flex-grow-1">
         </div>
 
-        <a id="passkey-signin" asp-page="./LoginWithPasskey" asp-route-next="@Model.Next"
-           class="w-100 btn btn-outline theme-primary" style="display:none;">
+        <button type="button" id="passkey-signin" class="w-100 btn btn-outline theme-primary" style="display:none;">
             <i class="bi bi-fingerprint me-1"></i> Sign in with a passkey
-        </a>
+        </button>
+        <div class="fg-danger mt-3" role="alert" id="passkey-message" style="display:none;"></div>
+    </form>
+
+    @* Passkey sign-in runs here; the result is verified by LoginWithPasskey, which also shows
+       any error. The challenge is server-held: only its ceremony id travels with the form. *@
+    <form id="passkey-form" method="post" asp-page="./LoginWithPasskey">
+        <input type="hidden" name="Next" value="@Model.Next" />
+        <input type="hidden" name="CeremonyId" value="@Model.PasskeyCeremonyId" />
+        <input type="hidden" name="Input.Response" id="passkey-response" />
     </form>
 </section>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/passkey.js" asp-append-version="true"></script>
     <script>
-        // Show the passkey option only where the WebAuthn API is available.
-        if (window.PublicKeyCredential) {
-            document.getElementById('passkey-signin').style.display = '';
-        }
+        (function () {
+            'use strict';
+
+            const passkey = window.blogArrayPasskey;
+
+            if (!passkey || !passkey.isSupported) {
+                return;
+            }
+
+            const options = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PasskeyOptions ?? string.Empty));
+            const button = document.getElementById('passkey-signin');
+            const message = document.getElementById('passkey-message');
+
+            // The email field's autofill request, cancelled when the button starts the modal one.
+            let autofill = null;
+
+            function submit(response) {
+                document.getElementById('passkey-response').value = response;
+                document.getElementById('passkey-form').submit();
+            }
+
+            button.style.display = '';
+
+            button.addEventListener('click', async function () {
+                message.style.display = 'none';
+
+                if (autofill) {
+                    autofill.abort();
+                    autofill = null;
+                }
+
+                try {
+                    submit(await passkey.getAssertion(options));
+                } catch (error) {
+                    if (!passkey.isCancellation(error)) {
+                        message.textContent = 'The passkey could not be used: ' + error.message;
+                        message.style.display = '';
+                    }
+                }
+            });
+
+            // Offer saved passkeys in the email field's autofill where the browser supports it:
+            // choosing one signs in straight away. Dismissing it does nothing.
+            passkey.isConditionalMediationAvailable().then(async function (available) {
+                if (!available || !options) {
+                    return;
+                }
+
+                autofill = new AbortController();
+
+                try {
+                    submit(await passkey.getAssertion(options, 'conditional', autofill.signal));
+                } catch (error) {
+                    // Cancelled by the button, or not completed: the page stays as it is.
+                }
+            });
+        })();
     </script>
 }

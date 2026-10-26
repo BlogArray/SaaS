@@ -22,6 +22,7 @@ public class EnableAuthenticatorModel(
     IStepUpService stepUp,
     IUserStore<ApplicationUser> userStore,
     IAuditEventLogger auditLogger,
+    ISecurityNotificationService securityNotifications,
     ILogger<EnableAuthenticatorModel> logger,
     UrlEncoder urlEncoder) : PageModel
 {
@@ -158,6 +159,7 @@ public class EnableAuthenticatorModel(
         string userId = await userManager.GetUserIdAsync(user);
         logger.LogInformation("User with ID '{UserId}' has enabled 2FA with an authenticator app.", userId);
         await auditLogger.LogAsync(new AuditEventRecord(userId, AuditTrigger.User, AuditEventTypes.MfaEnabled));
+        securityNotifications.ChangeMade(user, "Two-factor authentication was turned on");
 
         StatusMessage = "Your authenticator app has been verified.";
 

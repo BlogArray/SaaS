@@ -33,6 +33,7 @@ public class MfaEnrollmentModel(
     UserManager<ApplicationUser> userManager,
     IUserStore<ApplicationUser> userStore,
     IAuditEventLogger auditLogger,
+    ISecurityNotificationService securityNotifications,
     ISignInEventLogger signInEventLogger,
     UrlEncoder urlEncoder) : PageModel
 {
@@ -167,6 +168,8 @@ public class MfaEnrollmentModel(
             user.Id, AuditTrigger.User, AuditEventTypes.MfaEnabled,
             TargetUserId: user.Id,
             Reason: "completed enforced multi-factor enrollment"));
+
+        securityNotifications.ChangeMade(user, "Two-factor authentication was turned on");
 
         // The enrollment state is consumed: issue the full application session and clear the
         // restricted cookie, then surface the recovery codes on the shared page.

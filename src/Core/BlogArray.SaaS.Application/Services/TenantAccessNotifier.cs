@@ -18,6 +18,12 @@ public interface ITenantAccessNotifier
     /// returns false when the email could not be sent.
     /// </summary>
     Task<bool> NotifyAssignedAsync(string userId, OpenIdApplication application, string? invitedBy);
+
+    /// <summary>
+    /// Emails a user that their access to a tenant was removed. Never throws (the access is
+    /// already gone); returns false when the email could not be sent.
+    /// </summary>
+    Task<bool> NotifyRemovedAsync(string userId, OpenIdApplication application);
 }
 
 public class TenantAccessNotifier(UserManager<ApplicationUser> userManager,
@@ -25,6 +31,30 @@ public class TenantAccessNotifier(UserManager<ApplicationUser> userManager,
     IConfiguration configuration,
     ILogger<TenantAccessNotifier> logger) : ITenantAccessNotifier
 {
+    public async Task<bool> NotifyRemovedAsync(string userId, OpenIdApplication application)
+    {
+        try
+        {
+            ApplicationUser? user = await userManager.FindByIdAsync(userId);
+
+            if (user is null || string.IsNullOrEmpty(user.Email))
+            {
+                return false;
+            }
+
+            string organisation = application.Legalname ?? application.DisplayName ?? application.ClientId ?? string.Empty;
+
+            emailTemplate.RemovedFromTenantNotice(user.Email, user.DisplayName ?? user.Email, organisation);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Could not send the tenant removal email for user {UserId}.", userId);
+            return false;
+        }
+    }
+
     public async Task<bool> NotifyAssignedAsync(string userId, OpenIdApplication application, string? invitedBy)
     {
         try

@@ -402,7 +402,7 @@ public class UsersController(OpenIdDbContext context,
 
     [HttpPost, ActionName("EditRoles")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditRolesConfirm(UserRolesViewModel assignViewModel)
+    public async Task<IActionResult> EditRolesConfirm(UserRolesViewModel assignViewModel, bool notify = true)
     {
         if (string.IsNullOrEmpty(assignViewModel.UserId))
         {
@@ -491,9 +491,27 @@ public class UsersController(OpenIdDbContext context,
             NewValueJson: newValueJson,
             Reason: newRoles.Count > 0 ? $"roles set to [{string.Join(", ", newRoles)}]" : "all roles removed"));
 
+        // A role change is a change of what the account can do (e.g. gaining Superuser): the
+        // owner hears about it, like the other administrator actions.
+        List<string> changes = [];
+
+        if (rolesToAdd.Count > 0)
+        {
+            changes.Add($"added: {string.Join(", ", rolesToAdd)}");
+        }
+
+        if (rolesToRemove.Count > 0)
+        {
+            changes.Add($"removed: {string.Join(", ", rolesToRemove)}");
+        }
+
+        NotifyOutcome notified = await NotifyUserAsync(user, notify,
+            $"Your roles were changed ({string.Join("; ", changes)}).",
+            "If you were not expecting this change, please contact your administrator.");
+
         return newRoles.Count > 0
-            ? JsonSuccess($"Successfully assigned {newRoles.Count} role(s) to the user.")
-            : JsonSuccess($"Successfully unassigned {previousRoles.Count} role(s) from the user.");
+            ? JsonSuccess($"Successfully assigned {newRoles.Count} role(s) to the user.{DescribeForAdmin(notified)}")
+            : JsonSuccess($"Successfully unassigned {previousRoles.Count} role(s) from the user.{DescribeForAdmin(notified)}");
     }
 
     #region Security
@@ -1275,7 +1293,7 @@ public class UsersController(OpenIdDbContext context,
 
     [HttpPost, ActionName("Unassign")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UnassignConfirm(UnAssignTenantRequestViewModel unAssignViewModel)
+    public async Task<IActionResult> UnassignConfirm(UnAssignTenantRequestViewModel unAssignViewModel, bool notify = true)
     {
         if (string.IsNullOrEmpty(unAssignViewModel.UserId))
         {
@@ -1313,6 +1331,11 @@ public class UsersController(OpenIdDbContext context,
         foreach (OpenIdApplication application in unassigned)
         {
             await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRemovedFromTenant, TargetUserId: user.Id, ClientId: application.ClientId, Reason: "tenant unassigned by administrator"));
+
+            if (notify)
+            {
+                await tenantAccessNotifier.NotifyRemovedAsync(user.Id, application);
+            }
         }
 
         string successMessage = $"{unassigned.Count} tenant(s) have been successfully unassigned from the user.";

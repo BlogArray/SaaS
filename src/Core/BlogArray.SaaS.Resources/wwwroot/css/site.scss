@@ -420,6 +420,20 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
     overflow-wrap: break-word;
 }
 
+// Bootstrap 6 keeps a closed .dialog at `display: flex` (hidden only with visibility and
+// opacity, so the open/close transitions can run), which overrides the browser's
+// `dialog:not([open]) { display: none }`. A closed dialog therefore keeps its UA
+// `position: absolute` box in the page and leaves an empty area (e.g. #globalErrorModal at
+// the end of every layout). Take closed dialogs out of the page flow instead of hiding them
+// with display, so the transitions still work. Open modal dialogs are fixed in the top layer
+// anyway, so nothing jumps when the dialog opens or finishes closing. Drawers are already
+// position: fixed.
+.dialog:not([open]) {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+}
+
 // The toast container and the loader are raised into the top layer as manual popovers so
 // they show above open dialogs and drawers (TopLayer in site.js). Undo the browser's default
 // popover box (centred, bordered, opaque) so they keep their normal placement and look.

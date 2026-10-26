@@ -18,6 +18,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class LoginWith2faModel(
     SignInManagerExtension<ApplicationUser> signInManager,
     ISignInEventLogger signInEventLogger,
+    ISecurityNotificationService securityNotifications,
     ILogger<LoginWith2faModel> logger) : PageModel
 {
 
@@ -127,6 +128,11 @@ public class LoginWith2faModel(
         {
             logger.LogWarning("User with ID '{UserId}' account locked out.", user.Id);
             await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, wasLockedOut ? SignInEventTypes.LoginBlockedLockedOut : SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Mfa, SignInResultType.Failure, "mfa via authenticator"));
+
+            if (!wasLockedOut)
+            {
+                securityNotifications.AccountLocked(user);
+            }
             return RedirectToPage("./Lockout");
         }
         else

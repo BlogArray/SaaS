@@ -17,6 +17,7 @@ public class Disable2faModel(
     UserManager<ApplicationUser> userManager,
     IStepUpService stepUp,
     IAuditEventLogger auditLogger,
+    ISecurityNotificationService securityNotifications,
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<Disable2faModel> logger) : PageModel
 {
@@ -77,6 +78,7 @@ public class Disable2faModel(
 
         logger.LogInformation("User with ID '{UserId}' has disabled 2fa.", userManager.GetUserId(User));
         await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.MfaDisabled));
+        securityNotifications.ChangeMade(user, "Two-factor authentication was turned off");
         StatusMessage = "2fa has been disabled. You can reenable 2fa when you setup an authenticator app";
         return RedirectToPage("./TwoFactorAuthentication");
     }

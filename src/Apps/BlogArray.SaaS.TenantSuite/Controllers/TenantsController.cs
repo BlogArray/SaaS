@@ -823,7 +823,7 @@ public class TenantsController(OpenIdDbContext context,
 
     [HttpPost, ActionName("Unassign")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UnassignConfirm(UnAssignViewModelRequest unAssignViewModel)
+    public async Task<IActionResult> UnassignConfirm(UnAssignViewModelRequest unAssignViewModel, bool notify = true)
     {
         if (string.IsNullOrEmpty(unAssignViewModel.ApplicationId))
         {
@@ -853,6 +853,11 @@ public class TenantsController(OpenIdDbContext context,
         foreach (string userId in unassigned)
         {
             await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserRemovedFromTenant, TargetUserId: userId, ClientId: openIdApplication.ClientId, Reason: "user unassigned by administrator"));
+
+            if (notify)
+            {
+                await tenantAccessNotifier.NotifyRemovedAsync(userId, openIdApplication);
+            }
         }
 
         string successMessage = $"{unassigned.Count} user(s) have been successfully unassigned from the tenant.";

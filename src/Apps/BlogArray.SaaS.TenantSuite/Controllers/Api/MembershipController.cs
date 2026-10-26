@@ -177,6 +177,9 @@ public class MembershipController(OpenIdDbContext context,
 
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.System, AuditEventTypes.UserRemovedFromTenant, TargetUserId: entity.Id, ClientId: openIdApplication.ClientId));
 
+        // Removal through the tenant app's API tells the user, like removal from TenantSuite.
+        await accessNotifier.NotifyRemovedAsync(entity.Id, openIdApplication);
+
         // Uniform response: known and unknown emails get the same reply (no enumeration).
         return JsonSuccess("The request has been processed.");
     }

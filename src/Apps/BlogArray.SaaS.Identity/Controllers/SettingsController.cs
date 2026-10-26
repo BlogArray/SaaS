@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Identity.Infrastructure;
 using BlogArray.SaaS.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -51,6 +52,14 @@ public class SettingsController(
 
         ApplicationUser? appUser = await db.Users.SingleOrDefaultAsync(e => e.Id == LoggedInUserID);
 
+        if (appUser == null)
+        {
+            return NotFound();
+        }
+
+        // Same shape as TenantSuite's admin edit, so both appear alike in the audit log.
+        var profileBefore = new { appUser.FirstName, appUser.LastName, appUser.DisplayName, appUser.Gender, appUser.TimeZone, appUser.LocaleCode };
+
         appUser.FirstName = user.FirstName;
         appUser.LastName = user.LastName;
         appUser.DisplayName = user.DisplayName;
@@ -61,6 +70,15 @@ public class SettingsController(
         appUser.UpdatedById = LoggedInUserID;
 
         await db.SaveChangesAsync();
+
+        var profileAfter = new { appUser.FirstName, appUser.LastName, appUser.DisplayName, appUser.Gender, appUser.TimeZone, appUser.LocaleCode };
+        (string? oldValueJson, string? newValueJson) = AuditDiff.Changed(profileBefore, profileAfter);
+
+        // Saving an unchanged form is not a change worth recording.
+        if (oldValueJson is not null)
+        {
+            await auditLogger.LogAsync(new AuditEventRecord(appUser.Id, AuditTrigger.User, AuditEventTypes.UserUpdated, TargetUserId: appUser.Id, Reason: "profile updated", OldValueJson: oldValueJson, NewValueJson: newValueJson));
+        }
 
         await signInManager.RefreshSignInAsync(appUser);
 
@@ -93,9 +111,15 @@ public class SettingsController(
             return NotFound();
         }
 
+        string? previousImage = user.ProfileImage;
+
         user.ProfileImage = result.Result;
 
         await db.SaveChangesAsync();
+
+        (string? oldImageJson, string? newImageJson) = AuditDiff.Changed(nameof(ApplicationUser.ProfileImage), previousImage, result.Result);
+
+        await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.UserUpdated, TargetUserId: user.Id, Reason: "profile picture changed", OldValueJson: oldImageJson, NewValueJson: newImageJson));
 
         await signInManager.RefreshSignInAsync(user);
 
@@ -197,7 +221,7 @@ public class SettingsController(
 
             await signInManager.RefreshSignInAsync(user);
             EmailSending.TrySend(logger, () => emailTemplate.PasswordChangeSuccessed(user.Email, user.DisplayName), "password changed notice");
-            await auditLogger.LogAsync(new BlogArray.SaaS.Domain.Events.AuditEventRecord(user.Id, BlogArray.SaaS.Domain.Events.AuditTrigger.User, BlogArray.SaaS.Domain.Events.AuditEventTypes.PasswordChanged));
+            await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.PasswordChanged));
             return JsonSuccess("You have successfully updated your password.");
         }
         else

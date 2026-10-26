@@ -17,6 +17,7 @@ public class LinkedAccountsModel(
     UserManager<ApplicationUser> userManager,
     IStepUpService stepUp,
     IAuditEventLogger auditLogger,
+    ISecurityNotificationService securityNotifications,
     SignInManagerExtension<ApplicationUser> signInManager,
     IUserStore<ApplicationUser> userStore) : PageModel
 {
@@ -95,6 +96,7 @@ public class LinkedAccountsModel(
 
         await signInManager.RefreshSignInAsync(user);
         await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.ExternalLoginRemoved, Reason: loginProvider));
+        securityNotifications.ChangeMade(user, $"Sign-in with {loginProvider} was disconnected");
         StatusMessage = "The external login was removed.";
         return RedirectToPage();
     }
@@ -144,6 +146,7 @@ public class LinkedAccountsModel(
         await signInManager.RefreshSignInAsync(user);
 
         await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.ExternalLoginAdded, Reason: info.LoginProvider));
+        securityNotifications.ChangeMade(user, $"Sign-in with {info.ProviderDisplayName ?? info.LoginProvider} was connected");
 
         StatusMessage = "The external login was added.";
         return RedirectToPage();

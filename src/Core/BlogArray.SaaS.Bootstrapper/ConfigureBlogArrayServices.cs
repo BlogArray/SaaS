@@ -94,6 +94,7 @@ public static class ConfigureBlogArrayServices
             string? incomingSessionId = context.Principal?.FindFirst("session_id")?.Value;
 
             UserSession? session = null;
+            bool newDevice = false;
 
             if (!string.IsNullOrEmpty(incomingSessionId))
             {
@@ -136,6 +137,23 @@ public static class ConfigureBlogArrayServices
 
                 if (session is null)
                 {
+                    // A new-device alert, on the identity server only (where users actually sign
+                    // in; the other apps attach to its session): this user has signed in before,
+                    // but never with this browser on this operating system. Versions are ignored,
+                    // or every browser update would look like a new device. The very first
+                    // sign-in is not "new".
+                    if (membershipClientId is null)
+                    {
+                        List<string> previousUserAgents = await dbContext.UserSessions
+                            .Where(tracked => tracked.UserId == userId)
+                            .Select(tracked => tracked.UserAgent)
+                            .Distinct()
+                            .ToListAsync();
+
+                        newDevice = previousUserAgents.Count > 0
+                            && !previousUserAgents.Any(previous => SameDeviceFamily(UserAgentParser.Parse(previous), uaInfo));
+                    }
+
                     session = new UserSession
                     {
                         UserId = userId,
@@ -160,6 +178,11 @@ public static class ConfigureBlogArrayServices
             // re-saved the same failing change. Live rows are no longer recycled, so concurrent
             // logins on one device each get their own row.)
             await dbContext.SaveChangesAsync();
+
+            if (newDevice && await dbContext.Users.FindAsync(userId) is ApplicationUser signedInUser)
+            {
+                context.HttpContext.RequestServices.GetRequiredService<ISecurityNotificationService>().NewSignIn(signedInUser);
+            }
 
             foreach (ClaimsIdentity identity in context.Principal!.Identities)
             {
@@ -294,6 +317,15 @@ public static class ConfigureBlogArrayServices
         {
             AbsoluteExpirationRelativeToNow = TenantMembershipCacheDuration
         });
+    }
+
+    /// <summary>
+    /// Same browser and operating system, whatever their versions.
+    /// </summary>
+    private static bool SameDeviceFamily(UserAgentParser.UserAgentInfo a, UserAgentParser.UserAgentInfo b)
+    {
+        return string.Equals(a.Browser, b.Browser, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(a.OS, b.OS, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string[] SplitList(string? value)
@@ -454,6 +486,7 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddScoped<IUserManagementService, UserManagementService>();
         builder.Services.AddScoped<IUserAccessRevocationService, UserAccessRevocationService>();
         builder.Services.AddScoped<IStepUpService, StepUpService>();
+        builder.Services.AddScoped<ISecurityNotificationService, SecurityNotificationService>();
         builder.Services.AddScoped<ITenantAccessNotifier, TenantAccessNotifier>();
         builder.Services.AddScoped<ApiKeyAuthorizationFilter>();
 

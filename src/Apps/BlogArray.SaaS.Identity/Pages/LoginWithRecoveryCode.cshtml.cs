@@ -18,6 +18,7 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class LoginWithRecoveryCodeModel(
     SignInManagerExtension<ApplicationUser> signInManager,
     ISignInEventLogger signInEventLogger,
+    ISecurityNotificationService securityNotifications,
     ICaptchaService captcha,
     ILogger<LoginWithRecoveryCodeModel> logger) : PageModel
 {
@@ -121,6 +122,11 @@ public class LoginWithRecoveryCodeModel(
         {
             logger.LogInformation("User with ID '{UserId}' logged in with a recovery code.", user.Id);
             await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Mfa, SignInResultType.Success, "mfa via recovery code"));
+
+            // A recovery code is a last-resort credential: the owner hears when one is used
+            // (and how many remain), as it may mean someone has their password and codes.
+            securityNotifications.RecoveryCodeUsed(user, await signInManager.UserManager.CountRecoveryCodesAsync(user));
+
             return this.SafeLocalRedirect(next);
         }
         if (result.IsLockedOut)

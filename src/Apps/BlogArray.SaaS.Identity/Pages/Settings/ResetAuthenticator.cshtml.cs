@@ -17,6 +17,7 @@ public class ResetAuthenticatorModel(
     UserManager<ApplicationUser> userManager,
     IStepUpService stepUp,
     IAuditEventLogger auditLogger,
+    ISecurityNotificationService securityNotifications,
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<ResetAuthenticatorModel> logger) : PageModel
 {
@@ -60,6 +61,7 @@ public class ResetAuthenticatorModel(
 
         await userManager.SetTwoFactorEnabledAsync(user, false);
         await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.MfaDisabled));
+        securityNotifications.ChangeMade(user, "Your authenticator app was reset; two-factor authentication is off until it is set up again");
         await userManager.ResetAuthenticatorKeyAsync(user);
         //var userId = await _userManager.GetUserIdAsync(user);
         logger.LogInformation("User with ID '{UserId}' has reset their authentication app key.", user.Id);

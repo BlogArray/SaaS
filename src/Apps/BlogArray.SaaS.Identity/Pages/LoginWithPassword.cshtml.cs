@@ -25,6 +25,7 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
     ILogger<LoginWithPasswordModel> logger,
     UserManager<ApplicationUser> userManager,
     ISignInEventLogger signInEventLogger,
+    ISecurityNotificationService securityNotifications,
     IMfaEnrollmentService mfaEnrollmentService,
     OpenIddict.Core.OpenIddictApplicationManager<OpenIdApplication> appManager,
     ICaptchaService captcha) : PageModel
@@ -208,6 +209,11 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             {
                 logger.LogWarning("User account locked out.");
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, wasLockedOut ? SignInEventTypes.LoginBlockedLockedOut : SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
+
+                if (!wasLockedOut)
+                {
+                    securityNotifications.AccountLocked(user);
+                }
                 return RedirectToPage("./Lockout");
             }
 

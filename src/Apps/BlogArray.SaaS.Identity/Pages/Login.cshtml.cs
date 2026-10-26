@@ -19,8 +19,17 @@ namespace BlogArray.SaaS.Identity.Pages;
 public class LoginModel(
     UserManager<ApplicationUser> userManager,
     OpenIddictApplicationManager<OpenIdApplication> appManager,
-    OpenIdDbContext context) : PageModel
+    OpenIdDbContext context,
+    PasskeyService passkeyService) : PageModel
 {
+    /// <summary>
+    ///     Assertion options for signing in with a passkey right from this page (the button or
+    ///     the email field's autofill). The server keeps the challenge; the form posts back only
+    ///     <see cref="PasskeyCeremonyId"/> with the authenticator's response to LoginWithPasskey.
+    /// </summary>
+    public string PasskeyOptions { get; set; }
+
+    public string PasskeyCeremonyId { get; set; }
 
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -89,6 +98,8 @@ public class LoginModel(
 
         Next = next;
 
+        await LoadPasskeyCeremonyAsync();
+
         return Page();
     }
 
@@ -98,6 +109,11 @@ public class LoginModel(
 
         if (!ModelState.IsValid)
         {
+            // The re-rendered form keeps the return URL and the passkey option.
+            Next = next;
+
+            await LoadPasskeyCeremonyAsync();
+
             return Page();
         }
 
@@ -132,5 +148,14 @@ public class LoginModel(
         TempData[LoginWithPasswordModel.EmailTempDataKey] = Input.Email;
 
         return RedirectToPage("./LoginWithPassword", new { next });
+    }
+
+    /// <summary>
+    /// Issues a single-use passkey challenge for this page view (usernameless: the browser offers
+    /// every passkey saved for this site).
+    /// </summary>
+    private async Task LoadPasskeyCeremonyAsync()
+    {
+        (PasskeyCeremonyId, PasskeyOptions) = await passkeyService.CreatePasswordlessAssertionOptionsJsonAsync();
     }
 }

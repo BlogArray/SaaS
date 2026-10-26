@@ -47,6 +47,33 @@ public interface IEmailTemplate
 
     void ApiKeyRotated(string toEmail, string tenantName, string apiKey, string rotatedBy);
 
+    /// <summary>
+    /// Tells the user a sign-in method or protection on their account changed (passkey or
+    /// social login added/removed, two-factor turned on/off, recovery codes regenerated).
+    /// <paramref name="device"/> and <paramref name="ipAddress"/> describe where it was done.
+    /// </summary>
+    void SecurityChangeNotice(string toEmail, string name, string change, string? device, string? ipAddress);
+
+    /// <summary>
+    /// Tells the user their account was signed in to from a device or browser not seen before.
+    /// </summary>
+    void NewSignInNotice(string toEmail, string name, string? device, string? ipAddress);
+
+    /// <summary>
+    /// Tells the user their account was temporarily locked after repeated failed sign-in attempts.
+    /// </summary>
+    void AccountLockedNotice(string toEmail, string name, int lockoutMinutes, string? ipAddress);
+
+    /// <summary>
+    /// Tells the user a recovery code was used to sign in, and how many unused codes remain.
+    /// </summary>
+    void RecoveryCodeUsedNotice(string toEmail, string name, int codesLeft, string? device, string? ipAddress);
+
+    /// <summary>
+    /// Tells the user they no longer have access to a tenant.
+    /// </summary>
+    void RemovedFromTenantNotice(string toEmail, string name, string org);
+
     void ClientSecretRotated(string toEmail, string tenantName, string clientSecret, string rotatedBy);
 }
 
@@ -260,6 +287,93 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         Send(toEmail, $"The client secret for {tenantName} has been rotated - App", body);
     }
 
+
+    public void SecurityChangeNotice(string toEmail, string name, string change, string? device, string? ipAddress)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"The following change was made to your App account on {Now()}{Where(device, ipAddress)}:{newLine}" +
+            $"<strong>{Encode(change)}</strong>{newLine}" +
+            $"If you made this change, no action is needed.{newLine}" +
+            $"If you did not, someone else may have access to your account. {MakeLink(IdentityUrl("forgotpassword"), "Reset your password")} now, " +
+            $"then review your sign-in methods and {MakeLink(IdentityUrl("settings/usersessions"), "where you're signed in")}.{newLine}" +
+            $"Thank you for choosing App.";
+
+        Send(toEmail, $"Security alert: {change} - App", GenerateEmail(name, template));
+    }
+
+    public void NewSignInNotice(string toEmail, string name, string? device, string? ipAddress)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"Your App account was just signed in to from a device or browser it has not been used on before:{newLine}" +
+            $"<strong>{Encode(device ?? "Unknown device")}</strong>{(string.IsNullOrEmpty(ipAddress) ? string.Empty : $" (IP address {Encode(ipAddress)})")} on {Now()}.{newLine}" +
+            $"If this was you, no action is needed.{newLine}" +
+            $"If it was not, {MakeLink(IdentityUrl("settings/usersessions"), "sign that device out")} and {MakeLink(IdentityUrl("forgotpassword"), "reset your password")} now.{newLine}" +
+            $"Thank you for choosing App.";
+
+        Send(toEmail, "New sign-in to your App account", GenerateEmail(name, template));
+    }
+
+    public void AccountLockedNotice(string toEmail, string name, int lockoutMinutes, string? ipAddress)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"Your App account was locked for about {lockoutMinutes} minutes on {Now()} after too many failed sign-in attempts" +
+            $"{(string.IsNullOrEmpty(ipAddress) ? string.Empty : $" (the last one from IP address {Encode(ipAddress)})")}.{newLine}" +
+            $"If these attempts were yours, you can sign in again once the lock ends. If you have forgotten your password, {MakeLink(IdentityUrl("forgotpassword"), "reset it")}.{newLine}" +
+            $"If they were not, someone may be trying to guess your password: consider changing it to a long, unique one and turning on two-factor authentication.{newLine}" +
+            $"Thank you for choosing App.";
+
+        Send(toEmail, "Your App account was temporarily locked", GenerateEmail(name, template));
+    }
+
+    public void RecoveryCodeUsedNotice(string toEmail, string name, int codesLeft, string? device, string? ipAddress)
+    {
+        string remaining = codesLeft switch
+        {
+            0 => "You have no recovery codes left: generate new ones now, or you could be locked out if you lose your authenticator.",
+            1 => "You have 1 recovery code left. Generate new ones soon.",
+            <= 3 => $"You have {codesLeft} recovery codes left. Consider generating new ones.",
+            _ => $"You have {codesLeft} recovery codes left."
+        };
+
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"A recovery code was used to sign in to your App account on {Now()}{Where(device, ipAddress)}. Each code works only once.{newLine}" +
+            $"{Encode(remaining)} You can {MakeLink(IdentityUrl("settings/generaterecoverycodes"), "generate new recovery codes")} at any time; doing so replaces all of the old ones.{newLine}" +
+            $"If you lost access to your authenticator app, you can set it up again from your security settings.{newLine}" +
+            $"If this sign-in was not you, someone has your password and one of your recovery codes: {MakeLink(IdentityUrl("forgotpassword"), "reset your password")}, " +
+            $"generate new recovery codes, and {MakeLink(IdentityUrl("settings/usersessions"), "sign out devices you don't recognise")} now.{newLine}" +
+            $"Thank you for choosing App.";
+
+        Send(toEmail, "A recovery code was used to sign in to your App account", GenerateEmail(name, template));
+    }
+
+    public void RemovedFromTenantNotice(string toEmail, string name, string org)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"Your access to {Encode(org)} on App was removed on {Now()}. You are signed out of it, and it no longer appears in your account.{newLine}" +
+            $"Your App account itself is unaffected, as is your access to any other organization.{newLine}" +
+            $"If you think this is a mistake, please contact the administrator of {Encode(org)}.{newLine}" +
+            $"Thank you for choosing App.";
+
+        Send(toEmail, $"Your access to {org} has been removed - App", GenerateEmail(name, template));
+    }
+
+    /// <summary>
+    /// " from Chrome on Windows (IP address 203.0.113.7)" for an email sentence, or nothing when
+    /// neither is known.
+    /// </summary>
+    private static string Where(string? device, string? ipAddress)
+    {
+        if (string.IsNullOrEmpty(device) && string.IsNullOrEmpty(ipAddress))
+        {
+            return string.Empty;
+        }
+
+        string where = string.IsNullOrEmpty(device) ? "an unknown device" : Encode(device);
+
+        return string.IsNullOrEmpty(ipAddress) ? $" from {where}" : $" from {where} (IP address {Encode(ipAddress)})";
+    }
+
+    private string IdentityUrl(string path) => StringExtensions.MakeUrl(configuration["Links:Identity"] ?? string.Empty, path);
 
     private static string MakeSecretBox(string secret)
     {

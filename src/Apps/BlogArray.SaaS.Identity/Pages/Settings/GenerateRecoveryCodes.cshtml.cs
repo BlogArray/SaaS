@@ -17,6 +17,7 @@ public class GenerateRecoveryCodesModel(
     UserManager<ApplicationUser> userManager,
     IStepUpService stepUp,
     IAuditEventLogger auditLogger,
+    ISecurityNotificationService securityNotifications,
     SignInManagerExtension<ApplicationUser> signInManager,
     ILogger<GenerateRecoveryCodesModel> logger) : PageModel
 {
@@ -82,6 +83,7 @@ public class GenerateRecoveryCodesModel(
 
         IEnumerable<string> recoveryCodes = await userManager.GenerateNewTwoFactorRecoveryCodesAsync(user, 10);
         await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.RecoveryCodesGenerated));
+        securityNotifications.ChangeMade(user, "New two-factor recovery codes were generated; the previous codes no longer work");
         RecoveryCodes = recoveryCodes.ToArray();
 
         logger.LogInformation("User with ID '{UserId}' has generated new 2FA recovery codes.", userId);

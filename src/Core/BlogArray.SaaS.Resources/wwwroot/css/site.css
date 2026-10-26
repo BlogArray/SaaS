@@ -19158,6 +19158,12 @@ h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
   overflow-wrap: break-word;
 }
 
+.dialog:not([open]) {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
 #toastContainer[popover],
 .global-loader[popover] {
   margin: 0;

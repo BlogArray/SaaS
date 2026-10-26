@@ -19,6 +19,7 @@ public class PasskeysModel(
     UserManager<ApplicationUser> userManager,
     IStepUpService stepUp,
     IAuditEventLogger auditLogger,
+    ISecurityNotificationService securityNotifications,
     PasskeyService passkeyService,
     ILogger<PasskeysModel> logger) : PageModel
 {
@@ -89,6 +90,7 @@ public class PasskeysModel(
             // not enable traditional 2FA, and disabling 2FA does not remove passkeys.
 
             await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.PasskeyRegistered, Reason: credential.Name));
+            securityNotifications.ChangeMade(user, $"A passkey ({credential.Name}) was added");
 
             return new JsonResult(new { succeeded = true });
         }
@@ -129,6 +131,7 @@ public class PasskeysModel(
         if (credential is not null)
         {
             await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.PasskeyRemoved, Reason: credential.Name));
+            securityNotifications.ChangeMade(user, $"A passkey ({credential.Name}) was removed");
         }
 
         StatusMessage = "The passkey has been removed.";

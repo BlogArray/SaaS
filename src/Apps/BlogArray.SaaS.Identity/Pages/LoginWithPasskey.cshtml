@@ -28,25 +28,12 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/passkey.js" asp-append-version="true"></script>
     <script>
         (function () {
             'use strict';
 
-            function base64UrlToArrayBuffer(value) {
-                const base64 = value.replace(/-/g, '+').replace(/_/g, '/');
-                const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
-                const raw = atob(padded);
-                const output = new Uint8Array(raw.length);
-                for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
-                return output.buffer;
-            }
-
-            function arrayBufferToBase64Url(buffer) {
-                const bytes = new Uint8Array(buffer);
-                let binary = '';
-                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-                return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-            }
+            const passkey = window.blogArrayPasskey;
 
             function showMessage(text) {
                 const message = document.getElementById('passkeyMessage');
@@ -55,44 +42,28 @@
             }
 
             async function runAssertion() {
-                const optionsField = document.querySelector('input[name="AssertionOptions"]');
-                const options = JSON.parse(optionsField.value);
-
-                // No allowCredentials: the browser/OS shows the account chooser with every
-                // saved passkey for this site. User verification (biometric/PIN) is required.
-                options.challenge = base64UrlToArrayBuffer(options.challenge);
-
-                const credential = await navigator.credentials.get({ publicKey: options });
-
-                document.getElementById('Input_Response').value = JSON.stringify({
-                    id: credential.id,
-                    rawId: arrayBufferToBase64Url(credential.rawId),
-                    type: credential.type,
-                    response: {
-                        authenticatorData: arrayBufferToBase64Url(credential.response.authenticatorData),
-                        clientDataJSON: arrayBufferToBase64Url(credential.response.clientDataJSON),
-                        signature: arrayBufferToBase64Url(credential.response.signature),
-                        userHandle: credential.response.userHandle ? arrayBufferToBase64Url(credential.response.userHandle) : null
-                    }
-                });
+                // No allowCredentials: the browser/OS shows the account chooser with every saved
+                // passkey for this site.
+                document.getElementById('Input_Response').value =
+                    await passkey.getAssertion(document.querySelector('input[name="AssertionOptions"]').value);
 
                 document.getElementById('passkey-form').submit();
             }
 
-            document.getElementById('usePasskey').addEventListener('click', async function () {
-                try {
-                    await runAssertion();
-                } catch (error) {
-                    showMessage('The passkey could not be used: ' + error.message);
-                }
-            });
+            function run() {
+                runAssertion().catch(function (error) {
+                    if (!passkey.isCancellation(error)) {
+                        showMessage('The passkey could not be used: ' + error.message);
+                    }
+                });
+            }
+
+            document.getElementById('usePasskey').addEventListener('click', run);
 
             // Offer the ceremony automatically on page load.
             window.addEventListener('load', function () {
-                if (window.PublicKeyCredential) {
-                    runAssertion().catch(function (error) {
-                        showMessage('The passkey could not be used: ' + error.message);
-                    });
+                if (passkey && passkey.isSupported) {
+                    run();
                 }
             });
         })();
