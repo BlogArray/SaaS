@@ -4,8 +4,8 @@
 }
 
 <div class="d-flex justify-content-between align-items-start mb-3">
-    <h6 class="mb-0">Active sessions (@Model.Count(s => !s.Revoked))</h6>
-    @if (userId is not null && Model.Count(s => !s.Revoked) > 0)
+    <h6 class="mb-0">Active sessions (@Model.Count(s => s.IsActive))</h6>
+    @if (userId is not null && Model.Count(s => s.IsActive) > 0)
     {
         @* Same dialog as the toolbar's Revoke sessions (its own key: both can be on the page). *@
         UserActionDialogViewModel revokeAllDialog = new(userId, "RevokeAllSessions", "Revoke all sessions",
@@ -37,15 +37,21 @@ else
             <tbody>
                 @foreach (UserSession session in Model)
                 {
-                    <tr class="@(session.Revoked ? "fg-secondary" : "")">
+                    <tr class="@(session.IsActive ? "" : "fg-secondary")">
                         <td class="text-truncate" style="max-width:180px" title="@session.UserAgent">@session.DeviceName</td>
                         <td class="fg-secondary small">@session.IpAddress</td>
                         <td class="fg-secondary small">@(DateTime.SpecifyKind(session.CreatedOn, DateTimeKind.Utc).ToString("dd'-'MM'-'yyyy HH':'mm", System.Globalization.CultureInfo.InvariantCulture)) UTC</td>
                         <td class="fg-secondary small">@(DateTime.SpecifyKind(session.LastSeenOn, DateTimeKind.Utc).ToString("dd'-'MM'-'yyyy HH':'mm", System.Globalization.CultureInfo.InvariantCulture)) UTC</td>
                         <td>
+                            @* Revoked = ended by the user or an administrator; Expired = unused for
+                               longer than the session lifetime. *@
                             @if (session.Revoked)
                             {
-                                <span class="badge badge-subtle rounded-pill theme-secondary">Revoked</span>
+                                <span class="badge badge-subtle rounded-pill theme-danger">Revoked</span>
+                            }
+                            else if (session.IsExpired)
+                            {
+                                <span class="badge badge-subtle rounded-pill theme-secondary" title="Unused for more than @((int)UserSession.InactivityLifetime.TotalDays) days">Expired</span>
                             }
                             else
                             {
@@ -53,7 +59,7 @@ else
                             }
                         </td>
                         <td class="text-end">
-                            @if (!session.Revoked)
+                            @if (session.IsActive)
                             {
                                 UserActionDialogViewModel revokeSessionDialog = new(session.UserId, "RevokeSession", "Revoke session",
                                     $"The session on '{session.DeviceName}' ({session.IpAddress}) will be signed out. The user can sign in again on that device.", Destructive: true,

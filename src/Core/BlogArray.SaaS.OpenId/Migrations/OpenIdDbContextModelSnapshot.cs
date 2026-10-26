@@ -698,6 +698,9 @@ namespace BlogArray.SaaS.OpenId.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<DateTime?>("ExpiredOn")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("IpAddress")
                         .IsRequired()
                         .HasMaxLength(64)

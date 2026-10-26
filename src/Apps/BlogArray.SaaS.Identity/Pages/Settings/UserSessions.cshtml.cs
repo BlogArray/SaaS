@@ -52,10 +52,10 @@ public class UserSessionsModel(
 
         // Rows unseen for longer than the sliding cookie lifetime (7 days) have no cookie left:
         // they are not places the user is signed in.
-        DateTime liveSince = DateTime.UtcNow.AddDays(-7);
+        DateTime liveSince = DateTime.UtcNow - UserSession.InactivityLifetime;
 
         Sessions = await context.UserSessions
-            .Where(session => session.UserId == user.Id && !session.Revoked && session.LastSeenOn >= liveSince)
+            .Where(session => session.UserId == user.Id && !session.Revoked && session.ExpiredOn == null && session.LastSeenOn >= liveSince)
             .OrderByDescending(session => session.LastSeenOn)
             .Select(session => new SessionEntry
             {
@@ -121,6 +121,8 @@ public class UserSessionsModel(
         List<UserSession> others = await context.UserSessions
             .Where(session => session.UserId == user.Id
                 && !session.Revoked
+                && session.ExpiredOn == null
+                && session.LastSeenOn >= DateTime.UtcNow - UserSession.InactivityLifetime
                 && session.SessionId != currentSessionId)
             .ToListAsync();
 

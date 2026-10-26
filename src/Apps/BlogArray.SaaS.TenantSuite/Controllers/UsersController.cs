@@ -667,6 +667,11 @@ public class UsersController(OpenIdDbContext context,
             return JsonError("Session not found.");
         }
 
+        if (!session.IsActive)
+        {
+            return JsonError(session.Revoked ? "This session has already been revoked." : "This session has already expired.");
+        }
+
         session.Revoked = true;
         await context.SaveChangesAsync();
 

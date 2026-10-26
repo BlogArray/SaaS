@@ -37,7 +37,7 @@ public class DashboardController(OpenIdDbContext context) : Controller
         int prevNewUsers = await context.Users.CountAsync(u => u.CreatedOn >= previousPeriodStart && u.CreatedOn < currentPeriodStart);
 
         int activeSessions = await context.UserSessions
-            .CountAsync(s => !s.Revoked && s.LastSeenOn >= activeCutoff);
+            .CountAsync(s => !s.Revoked && s.ExpiredOn == null && s.LastSeenOn >= activeCutoff);
 
         int successfulSignIns = await context.SignInEvents
             .CountAsync(e => e.Result == "Success" && e.CreatedOn >= last7Days);

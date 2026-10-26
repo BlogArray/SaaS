@@ -35,6 +35,16 @@
                 @if (Model.Is2faEnabled)
                 {
                     <h6 id="password" class="mt-6">
+                        Disable Two-factor Authentication (2FA)
+                    </h6>
+                    <p>
+                        By disabling Two-factor Authentication (2FA), your account will be no longer protected by a second login step.
+                    </p>
+                    <a asp-page="./Disable2fa" class="btn btn-solid theme-primary">Disable 2FA</a>
+
+                    <hr class="my-6">
+
+                    <h6>
                         Generate emergency recovery code
                     </h6>
                     <p>
@@ -70,7 +80,7 @@
                     <a asp-page="./GenerateRecoveryCodes" class="btn btn-solid theme-primary">Generate recovery codes</a>
 
                     <hr class="my-6">
-                    <h6 id="trusted-browsers" class="mb-7">
+                    <h6 id="trusted-browsers">
                         Trusted browsers
                     </h6>
                     @if (Model.IsMachineRemembered)
@@ -107,14 +117,6 @@
                         <button type="submit" class="btn btn-subtle theme-danger">Revoke all trusted browsers</button>
                     </form>
 
-                    <hr class="my-6">
-                    <h6 id="password" class="mb-7">
-                        Disable Two-factor Authentication (2FA)
-                    </h6>
-                    <p>
-                        By disabling Two-factor Authentication (2FA), your account will be no longer protected by a second login step.
-                    </p>
-                    <a asp-page="./Disable2fa" class="btn btn-solid theme-primary">Disable 2FA</a>
                 }
                 else
                 {

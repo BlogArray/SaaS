@@ -7,6 +7,7 @@
 // https://github.com/BlogArray/SaaS
 //
 
+using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.OpenId;
 using Microsoft.EntityFrameworkCore;
 using OpenIddict.Abstractions;
@@ -29,9 +30,15 @@ public class UserAccessRevocationService(OpenIdDbContext context, IOpenIddictTok
 {
     public async Task<int> RevokeAsync(string userId, string? keepSessionId = null)
     {
+        // Only live sessions are revoked: one unused past its lifetime has already expired and
+        // keeps that status.
+        DateTime liveSince = DateTime.UtcNow - UserSession.InactivityLifetime;
+
         int sessionCount = await context.UserSessions
             .Where(session => session.UserId == userId
                 && !session.Revoked
+                && session.ExpiredOn == null
+                && session.LastSeenOn >= liveSince
                 && (keepSessionId == null || session.SessionId != keepSessionId))
             .ExecuteUpdateAsync(setters => setters.SetProperty(session => session.Revoked, true));
 

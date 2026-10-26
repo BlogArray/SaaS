@@ -84,7 +84,7 @@ public class TenantInputValidatorTests
     [Fact]
     public void IsValidX509Certificate_AcceptsBase64AndPem_RejectsGarbage()
     {
-        using RSA rsa = RSA.Create(2048);
+        using var rsa = RSA.Create(2048);
         CertificateRequest request = new("CN=Test IdP", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
         using X509Certificate2 certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1));
 

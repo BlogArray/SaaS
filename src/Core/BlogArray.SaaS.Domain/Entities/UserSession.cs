@@ -8,6 +8,7 @@
 //
 
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace BlogArray.SaaS.Domain.Entities;
 
@@ -47,5 +48,29 @@ public class UserSession
 
     public DateTime LastSeenOn { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Ended deliberately: the user signed out or revoked it, or an administrator revoked it.
+    /// </summary>
     public bool Revoked { get; set; }
+
+    /// <summary>
+    /// Set when the session ended on its own: unused for longer than <see cref="InactivityLifetime"/>.
+    /// Never set together with <see cref="Revoked"/> by the system.
+    /// </summary>
+    public DateTime? ExpiredOn { get; set; }
+
+    /// <summary>
+    /// How long a session may go unused before it expires (the sliding cookie lifetime).
+    /// </summary>
+    public static readonly TimeSpan InactivityLifetime = TimeSpan.FromDays(7);
+
+    /// <summary>
+    /// The session can no longer be used because it went unused for too long, whether or not
+    /// that has been recorded yet (<see cref="ExpiredOn"/> is set at the user's next sign-in).
+    /// </summary>
+    [NotMapped]
+    public bool IsExpired => !Revoked && (ExpiredOn != null || LastSeenOn < DateTime.UtcNow - InactivityLifetime);
+
+    [NotMapped]
+    public bool IsActive => !Revoked && !IsExpired;
 }

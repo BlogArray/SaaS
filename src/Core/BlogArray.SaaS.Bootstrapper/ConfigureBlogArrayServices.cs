@@ -51,7 +51,7 @@ public static class ConfigureBlogArrayServices
     /// </param>
     public static CookieAuthenticationOptions AddBlogArrayCookieAuthenticationOptions(this CookieAuthenticationOptions options, Func<HttpContext, string?>? membershipClientId = null)
     {
-        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        options.ExpireTimeSpan = UserSession.InactivityLifetime;
         options.SlidingExpiration = true;
 
         TimeSpan sessionLifetime = options.ExpireTimeSpan;
@@ -63,6 +63,11 @@ public static class ConfigureBlogArrayServices
         // Strict breaks the OIDC redirect-back from the identity server (top-level
         // cross-site navigation). Lax is correct for an auth cookie in an SSO flow.
         options.Cookie.SameSite = SameSiteMode.Lax;
+
+        // Forbidden requests (signed in, but missing a required role) go to the shared
+        // ErrorController.AccessDenied page that every app registers. Without this, the cookie
+        // handler falls back to /Account/AccessDenied, which no app implements (404).
+        options.AccessDeniedPath = "/error/accessdenied";
 
         options.Events.OnSigningIn = async context =>
         {
@@ -131,6 +136,7 @@ public static class ConfigureBlogArrayServices
 
                 session = await dbContext.UserSessions
                     .Where(tracked => !tracked.Revoked
+                        && tracked.ExpiredOn == null
                         && tracked.UserId == userId
                         && tracked.UserAgent == userAgent
                         && tracked.LastSeenOn < staleBefore)
@@ -176,6 +182,7 @@ public static class ConfigureBlogArrayServices
 
                     expiredSessions = await dbContext.UserSessions
                         .Where(tracked => !tracked.Revoked
+                            && tracked.ExpiredOn == null
                             && tracked.UserId == userId
                             && tracked.LastSeenOn < staleBefore
                             && tracked.Id != current.Id)
@@ -185,7 +192,8 @@ public static class ConfigureBlogArrayServices
 
                     foreach (UserSession expired in expiredSessions)
                     {
-                        expired.Revoked = true;
+                        // Expired, not revoked: nobody ended it, it went unused.
+                        expired.ExpiredOn = DateTime.UtcNow;
                     }
                 }
             }
@@ -297,7 +305,7 @@ public static class ConfigureBlogArrayServices
             return;
         }
 
-        if (session.Revoked || session.UserId != userId)
+        if (session.Revoked || session.ExpiredOn != null || session.UserId != userId)
         {
             context.RejectPrincipal();
             return;
