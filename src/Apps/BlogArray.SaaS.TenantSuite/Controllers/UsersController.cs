@@ -192,9 +192,14 @@ public class UsersController(OpenIdDbContext context,
 
         NotifyOutcome sent = await TrySendToAsync(recipient, user.Id, email =>
         {
-            emailTemplate.ForgotPassword(email, user.DisplayName, callbackUrl);
+            emailTemplate.AccountSetupInvite(email, user.DisplayName, callbackUrl, LoggedInUserEmail ?? "An administrator");
             return Task.CompletedTask;
         });
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.UserCreated, TargetUserId: user.Id,
+            Reason: sent != NotifyOutcome.Sent
+                ? "created by administrator; setup link could not be emailed"
+                : toAdmin ? "created by administrator; setup link sent to the administrator" : "created by administrator; setup link sent to the user"));
 
         if (sent != NotifyOutcome.Sent)
         {
@@ -882,9 +887,14 @@ public class UsersController(OpenIdDbContext context,
                 return Task.CompletedTask;
             });
 
-            return sent == NotifyOutcome.Sent
-                ? JsonSuccess($"The password setup link has been sent to {entity.Email}. Please ask them to check their email.")
-                : JsonError("The password setup link could not be emailed. Please try again later.");
+            if (sent != NotifyOutcome.Sent)
+            {
+                return JsonError("The password setup link could not be emailed. Please try again later.");
+            }
+
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.PasswordResetLinkSent, TargetUserId: entity.Id, Reason: "password setup link emailed by administrator"));
+
+            return JsonSuccess($"The password setup link has been sent to {entity.Email}. Please ask them to check their email.");
         }
     }
 

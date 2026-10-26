@@ -78,6 +78,19 @@ public class EmailTemplateTests
     }
 
     [Fact]
+    public void AccountSetupInvite_NamesTheAdministratorAndLinksToCreatePassword()
+    {
+        (EmailTemplate template, CapturingEmailHelper sent) = Create();
+
+        template.AccountSetupInvite("new@example.com", "New User", "https://id.example.com/resetpassword?code=x", "admin@example.com");
+
+        Assert.Equal("Set up your App account", sent.Subject);
+        Assert.Contains("admin@example.com created an App account for you", sent.Body);
+        Assert.Contains("https://id.example.com/resetpassword?code=x", sent.Body);
+        Assert.Contains("Create password", sent.Body);
+    }
+
+    [Fact]
     public void SecurityChangeNotice_SaysWhatChangedAndWhere()
     {
         (EmailTemplate template, CapturingEmailHelper sent) = Create();

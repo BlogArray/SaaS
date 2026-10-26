@@ -34,6 +34,12 @@ public interface IEmailTemplate
 
     void Invite(string toEmail, string name, string org, string orgUrl, string invitedBy);
 
+    /// <summary>
+    /// Tells a user an administrator created an account for them, with the link to create their
+    /// password. (Not tied to a tenant: tenant access sends <see cref="InviteWithPasswordLink"/>.)
+    /// </summary>
+    void AccountSetupInvite(string toEmail, string name, string callbackUrl, string invitedBy);
+
     void TenantWelcome(string toEmail, string tenantName, string tenantUrl, string clientSecret, string apiKey);
 
     /// <summary>
@@ -217,6 +223,18 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         Send(toEmail, $"You're Invited to Join {org} on App", body);
     }
 
+
+    public void AccountSetupInvite(string toEmail, string name, string callbackUrl, string invitedBy)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"{Encode(Inviter(invitedBy))} created an App account for you. To get started, create your password using the link below:" +
+            $"{MakeLinkButton(callbackUrl, "Create password")}" +
+            $"The link works once and expires after a while; if it no longer works, ask your administrator for a new one.{newLine}" +
+            $"If you weren't expecting this email, you can ignore it.{newLine}" +
+            $"Thank you for choosing App.";
+
+        Send(toEmail, "Set up your App account", GenerateEmail(name, template));
+    }
 
     public void TenantWelcome(string toEmail, string tenantName, string tenantUrl, string clientSecret, string apiKey)
     {

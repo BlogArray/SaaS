@@ -12,6 +12,8 @@ The platform consists of three main applications:
 
 > **Note:** The project is currently in Proof of Concept (PoC) mode, so there may be occasional mistakes. Contributions and feedback are welcome.
 
+**Documentation:** see [docs/README.md](docs/README.md) for the Identity sign-in flows and account settings, TenantSuite administration, the Membership API, when emails are sent, the security event catalogue, and configuration.
+
 ---
 
 ## Key Features

@@ -77,7 +77,8 @@ public static class SignInEventTypes
     public const string LoginBlockedLockedOut = "LoginBlockedLockedOut";
 
     /// <summary>
-    /// Reserved for a future conditional-access / risk engine; not produced yet.
+    /// A sign-in refused by policy or account state: a disabled, locked or unconfirmed account, a
+    /// user who is not a member of the SAML tenant, or a tenant's SSO or social-login policy.
     /// </summary>
     public const string ConditionalAccessBlocked = "ConditionalAccessBlocked";
 
@@ -146,6 +147,12 @@ public static class AuditEventTypes
     public const string ResendInvite = "ResendInvite";
 
     /// <summary>
+    /// An administrator emailed the user a password setup/reset link (TenantSuite > Reset
+    /// password > send link). Nothing else changed until the user uses it.
+    /// </summary>
+    public const string PasswordResetLinkSent = "PasswordResetLinkSent";
+
+    /// <summary>
     /// An administrator withdrew a pending invitation: its password setup links stop working.
     /// </summary>
     public const string InviteRevoked = "InviteRevoked";
@@ -157,7 +164,7 @@ public static class AuditEventTypes
     public const string InviteExpired = "InviteExpired";
 
     /// <summary>
-    /// Not produced yet: there is no self-service email change flow.
+    /// The account's email address was changed (old and new values).
     /// </summary>
     public const string EmailChanged = "EmailChanged";
 
@@ -172,7 +179,7 @@ public static class AuditEventTypes
     public const string UserRolesChanged = "UserRolesChanged";
 
     /// <summary>
-    /// Not produced yet: reserved for granular scope/permission changes.
+    /// A role or OAuth scope was created, edited or deleted in TenantSuite.
     /// </summary>
     public const string PermissionsChanged = "PermissionsChanged";
 

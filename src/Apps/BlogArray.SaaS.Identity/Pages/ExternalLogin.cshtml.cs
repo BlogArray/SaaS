@@ -30,6 +30,7 @@ public class ExternalLoginModel : PageModel
     private readonly ISignInEventLogger _auditLogger;
     private readonly IMfaEnrollmentService _mfaEnrollmentService;
     private readonly PendingExternalLoginProtector _pendingLoginProtector;
+    private readonly IAuditEventLogger _accountAuditLogger;
     private readonly ILogger<ExternalLoginModel> _logger;
 
     public ExternalLoginModel(
@@ -40,6 +41,7 @@ public class ExternalLoginModel : PageModel
         ISignInEventLogger auditLogger,
         IMfaEnrollmentService mfaEnrollmentService,
         PendingExternalLoginProtector pendingLoginProtector,
+        IAuditEventLogger accountAuditLogger,
         ILogger<ExternalLoginModel> logger)
     {
         _signInManager = signInManager;
@@ -50,6 +52,7 @@ public class ExternalLoginModel : PageModel
         _auditLogger = auditLogger;
         _mfaEnrollmentService = mfaEnrollmentService;
         _pendingLoginProtector = pendingLoginProtector;
+        _accountAuditLogger = accountAuditLogger;
         _logger = logger;
     }
 
@@ -254,6 +257,9 @@ public class ExternalLoginModel : PageModel
             IdentityResult result = await _userManager.CreateAsync(user);
             if (result.Succeeded)
             {
+                await _accountAuditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.UserCreated, TargetUserId: user.Id,
+                    Reason: $"self sign-up with {info.ProviderDisplayName ?? info.LoginProvider}"));
+
                 // Without required confirmation there is nothing to protect: attach and sign in.
                 if (!_userManager.Options.SignIn.RequireConfirmedAccount)
                 {
