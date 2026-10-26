@@ -186,14 +186,22 @@ public class SettingsController(
 
     #region Security
 
+    /// <summary>
+    /// The former combined password + 2FA page: two-factor authentication now has its own page
+    /// (as the navigation says) and the password its own. Kept so existing links still work.
+    /// </summary>
     public IActionResult Security()
     {
-        return View();
+        return RedirectToPage("/Settings/TwoFactorAuthentication");
     }
 
+    /// <summary>
+    /// The change-password page, or just its form when the page reloads it after a successful
+    /// change (an AJAX request).
+    /// </summary>
     public IActionResult Password()
     {
-        return PartialView();
+        return Request.Headers.XRequestedWith == "XMLHttpRequest" ? PartialView() : View("ChangePassword");
     }
 
     [HttpPost]

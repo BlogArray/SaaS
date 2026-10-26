@@ -68,9 +68,13 @@
                     Email
                 </a>
                 *@
-                <a class="menu-item gap-3 py-3 px-5 lh-sm  @ManageNavPages.TwoFactorAuthenticationNavClass(ViewContext)" active-route asp-controller="Settings" asp-action="Security">
+                <a class="menu-item gap-3 py-3 px-5 lh-sm" active-route asp-controller="Settings" asp-action="Password">
+                    <i class="bi bi-asterisk"></i>
+                    Password
+                </a>
+                <a class="menu-item gap-3 py-3 px-5 lh-sm @ManageNavPages.TwoFactorAuthenticationNavClass(ViewContext)" asp-page="/settings/twofactorauthentication">
                     <i class="bi bi-shield-check"></i>
-                    Security
+                    Two-factor authentication
                 </a>
                 <hr class="menu-divider">
                 <a class="menu-item gap-3 py-3 px-5 lh-sm" asp-page="/Logout">

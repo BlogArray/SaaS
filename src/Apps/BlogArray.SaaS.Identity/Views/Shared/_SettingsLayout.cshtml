@@ -25,7 +25,13 @@
                 <strong class="app-nav-heading" data-color="green"><i class="bi bi-shield-fill-check" aria-hidden="true"></i>Security</strong>
                 <ul class="nav flex-column">
                     <li>
-                        <a active-route asp-controller="Settings" asp-action="Security" class="nav-link @ManageNavPages.TwoFactorAuthenticationNavClass(ViewContext)" title="Two-factor authentication">
+                        <a active-route asp-controller="Settings" asp-action="Password" class="nav-link" title="Password">
+                            <i class="bi bi-asterisk" aria-hidden="true"></i>
+                            <span class="sidenav-label">Password</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a asp-page="/settings/twofactorauthentication" class="nav-link @ManageNavPages.TwoFactorAuthenticationNavClass(ViewContext)" title="Two-factor authentication">
                             <i class="bi bi-shield-check" aria-hidden="true"></i>
                             <span class="sidenav-label">Two-factor authentication</span>
                         </a>
