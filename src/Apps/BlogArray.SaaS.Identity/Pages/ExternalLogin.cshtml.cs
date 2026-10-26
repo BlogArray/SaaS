@@ -120,7 +120,11 @@ public class ExternalLoginModel : PageModel
         next ??= Url.Content("~/");
         if (remoteError != null)
         {
-            ErrorMessage = $"Error from external provider: {remoteError}";
+            // remoteError comes from the query string: logged, never shown (it could carry any
+            // text an attacker puts in a link).
+            _logger.LogWarning("External sign-in returned an error: {RemoteError}", remoteError);
+
+            ErrorMessage = "Sign-in with the external provider didn't complete. Please try again.";
             return RedirectToPage("./Login", new { next });
         }
         ExternalLoginInfo info = await _signInManager.GetExternalLoginInfoAsync();
@@ -231,12 +235,27 @@ public class ExternalLoginModel : PageModel
             ModelState.Remove("Input.Email");
         }
 
-        // An address that already has an account cannot be signed up again: say how to connect
-        // the provider instead of showing the raw "email is already taken" validation error
-        // (which disclosed exactly the same thing).
-        if (ModelState.IsValid && await _userManager.FindByEmailAsync(Input.Email) is not null)
+        string providerLabel = info.ProviderDisplayName ?? info.LoginProvider;
+
+        if (ModelState.IsValid && await _userManager.FindByEmailAsync(Input.Email) is ApplicationUser existingUser)
         {
-            ModelState.AddModelError(string.Empty, $"An account already uses this email address. Sign in with your password or passkey, then connect {info.ProviderDisplayName ?? info.LoginProvider} from Linked accounts in your settings.");
+            if (!string.IsNullOrEmpty(providerEmail))
+            {
+                // The provider vouches for this address, so only its owner sees this: say how to
+                // connect the provider instead.
+                ModelState.AddModelError(string.Empty, $"An account already uses this email address. Sign in with your password or passkey, then connect {providerLabel} from Linked accounts in your settings.");
+            }
+            else
+            {
+                // A typed address: answering "already in use" would tell anyone which emails have
+                // accounts. Reply exactly as for a new sign-up and tell the real owner instead.
+                EmailSending.TrySend(_logger, () => _emailTemplate.SignUpAttemptNotice(existingUser.Email, existingUser.DisplayName ?? existingUser.Email, providerLabel), "sign-up attempt notice");
+
+                await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
+
+                TempData["ErrorMessage"] = SignUpEmailSentMessage;
+                return RedirectToPage("./Login", new { next });
+            }
         }
 
         if (ModelState.IsValid)
@@ -297,9 +316,10 @@ public class ExternalLoginModel : PageModel
 
                     // The account exists either way: a failed send must not end in an error page
                     // (signing up again would then fail with "email already in use").
-                    TempData["ErrorMessage"] = EmailSending.TrySend(_logger, () => _emailTemplate.ConfirmEmail(Input.Email, user.DisplayName ?? Input.Email, callbackUrl), "email confirmation")
-                        ? "Account created. A verification link has been sent to your email address; confirm it before signing in."
-                        : "Account created, but the verification email could not be sent. Use \"Resend email confirmation\" to get a new link.";
+                    // The same reply as for an address that already has an account (see above).
+                    EmailSending.TrySend(_logger, () => _emailTemplate.ConfirmEmail(Input.Email, user.DisplayName ?? Input.Email, callbackUrl), "email confirmation");
+
+                    TempData["ErrorMessage"] = SignUpEmailSentMessage;
                     return RedirectToPage("./Login", new { next });
                 }
             }
@@ -313,6 +333,11 @@ public class ExternalLoginModel : PageModel
         Next = next;
         return Page();
     }
+
+    /// <summary>
+    /// The reply to a social sign-up, whether or not the address already had an account.
+    /// </summary>
+    private const string SignUpEmailSentMessage = "Check your email: we've sent a link to the address you entered. Open it to finish signing up. If it doesn't arrive, use \"Resend email confirmation\".";
 
     private ApplicationUser CreateUser()
     {

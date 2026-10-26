@@ -43,6 +43,14 @@ public class ApplicationUser : IdentityUser
     /// </summary>
     public bool MustChangePassword { get; set; } = false;
 
+    /// <summary>
+    /// End of a lock set by an administrator (TenantSuite > Lock user); null when none. Failed
+    /// sign-in attempts lock through <c>LockoutEnd</c> alone, so the two can be told apart: an
+    /// administrator lock blocks every sign-in method, a failed-attempts lock only password-based
+    /// ones (a password-guessing attacker can't lock the owner out of passkeys or SSO).
+    /// </summary>
+    public DateTimeOffset? AdminLockoutEnd { get; set; }
+
     public DateTime CreatedOn { get; set; }
 
     public string? CreatedById { get; set; }

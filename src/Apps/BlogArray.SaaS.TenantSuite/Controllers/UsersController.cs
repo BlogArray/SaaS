@@ -1134,6 +1134,9 @@ public class UsersController(OpenIdDbContext context,
 
         entity.LockoutEnabled = true;
         entity.LockoutEnd = lockoutEnd;
+        // Marks it as an administrator lock: it blocks every sign-in method (failed-attempt locks
+        // only block password-based ones).
+        entity.AdminLockoutEnd = lockoutEnd;
         entity.UpdatedOn = DateTime.UtcNow;
         entity.UpdatedById = LoggedInUserID;
 
@@ -1174,6 +1177,7 @@ public class UsersController(OpenIdDbContext context,
         // disabled repeated-failure lockout for the user from then on.
         entity.LockoutEnabled = true;
         entity.LockoutEnd = null;
+        entity.AdminLockoutEnd = null;
         // Start the failed-attempt count afresh, so an unlocked user isn't locked again by the
         // failures that led to the lock.
         entity.AccessFailedCount = 0;

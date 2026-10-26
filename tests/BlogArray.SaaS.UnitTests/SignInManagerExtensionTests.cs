@@ -67,17 +67,37 @@ public class SignInManagerExtensionTests
     }
 
     [Fact]
-    public async Task CanUserSignIn_LockedUser_IsRefused()
+    public async Task CanUserSignIn_AdminLockedUser_IsRefused()
     {
         SignInManagerExtension<ApplicationUser> signInManager = CreateSignInManager();
         ApplicationUser user = CreateUser();
         user.LockoutEnabled = true;
         user.LockoutEnd = DateTimeOffset.MaxValue;
+        user.AdminLockoutEnd = DateTimeOffset.MaxValue;
 
-        // Lockout is reported separately by PreSignInCheck, so CanSignInAsync stays true and
-        // only the combined gate refuses.
-        Assert.True(await signInManager.CanSignInAsync(user));
         Assert.False(await signInManager.CanUserSignInAsync(user));
+    }
+
+    [Fact]
+    public async Task CanUserSignIn_FailedAttemptsLock_IsAllowed()
+    {
+        // Password-guessing locks only block password-based checks (PreSignInCheck): an attacker
+        // must not be able to lock the owner out of passkeys and SSO, or end their sessions.
+        SignInManagerExtension<ApplicationUser> signInManager = CreateSignInManager();
+        ApplicationUser user = CreateUser();
+        user.LockoutEnabled = true;
+        user.LockoutEnd = DateTimeOffset.UtcNow.AddMinutes(15);
+
+        Assert.True(await signInManager.CanUserSignInAsync(user));
+    }
+
+    [Fact]
+    public void IsLockedByAdmin_ExpiredAdminLock_IsFalse()
+    {
+        ApplicationUser user = CreateUser();
+        user.AdminLockoutEnd = DateTimeOffset.UtcNow.AddMinutes(-1);
+
+        Assert.False(SignInManagerExtension<ApplicationUser>.IsLockedByAdmin(user));
     }
 
     [Fact]

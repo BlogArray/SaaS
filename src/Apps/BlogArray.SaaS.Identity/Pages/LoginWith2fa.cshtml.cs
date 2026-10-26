@@ -131,7 +131,7 @@ public class LoginWith2faModel(
 
             if (!wasLockedOut)
             {
-                securityNotifications.AccountLocked(user);
+                await securityNotifications.AccountLockedAsync(user);
             }
             return RedirectToPage("./Lockout");
         }

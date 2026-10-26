@@ -8,7 +8,6 @@
 //
 
 using System.Security.Claims;
-using System.Threading.RateLimiting;
 using AspNetCore.Unobtrusive.Ajax;
 using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Application.Services;
@@ -551,7 +550,8 @@ public static class ConfigureBlogArrayServices
 
         builder.Services.AddSingleton<IDataProtector>(services =>
             services.GetRequiredService<IDataProtectionProvider>().CreateProtector("BlogArray.TenantApiKeys"));
-        builder.Services.AddSingleton<IEmailHelper, EmailHelper>();
+        builder.Services.AddSingleton<ISmtpEmailSender, EmailHelper>();
+        builder.Services.AddSingleton<IEmailHelper>(services => services.GetRequiredService<ISmtpEmailSender>());
         builder.Services.AddSingleton<IAzureStorageService, AzureStorageService>();
         builder.Services.AddSingleton<ICacheService, CacheService>();
 
@@ -593,39 +593,37 @@ public static class ConfigureBlogArrayServices
         // Rate limiting for authentication- and mail-related endpoints. Policies are applied
         // via [EnableRateLimiting] attributes; the middleware itself is added in
         // AddBlogArrayApplication.
+        // Credential checks and email sends are limited per IP; page loads are not (see
+        // RateLimitPolicies). RateLimits:* overrides the per-minute limits.
+        int authPerMinute = builder.Configuration.GetValue("RateLimits:AuthPerMinute", 20);
+        int emailPerMinute = builder.Configuration.GetValue("RateLimits:EmailPerMinute", 5);
+        int apiPerMinute = builder.Configuration.GetValue("RateLimits:ApiPerMinute", 60);
+
         builder.Services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            options.AddPolicy("auth", httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 10,
-                        Window = TimeSpan.FromMinutes(1)
-                    }));
-
-            options.AddPolicy("email", httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 5,
-                        Window = TimeSpan.FromMinutes(1)
-                    }));
-
-            options.AddPolicy("api", httpContext =>
-                RateLimitPartition.GetFixedWindowLimiter(
-                    partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-                    factory: _ => new FixedWindowRateLimiterOptions
-                    {
-                        PermitLimit = 60,
-                        Window = TimeSpan.FromMinutes(1)
-                    }));
+            options.AddPolicy("auth", httpContext => RateLimitPolicies.PostsPerIp(httpContext, authPerMinute));
+            options.AddPolicy("email", httpContext => RateLimitPolicies.PostsPerIp(httpContext, emailPerMinute));
+            options.AddPolicy("api", httpContext => RateLimitPolicies.PerIp(httpContext, apiPerMinute));
         });
 
         builder.Services.Configure<SmtpConfiguration>(builder.Configuration.GetSection("SMTP"));
+
+        return builder;
+    }
+
+    /// <summary>
+    /// Sends email from a background queue instead of during the request (see
+    /// <see cref="BackgroundEmailHelper"/>). For apps whose callers don't need to know at once
+    /// whether a send succeeded: the identity server. TenantSuite keeps synchronous sending so
+    /// its dialogs can report which recipients failed.
+    /// </summary>
+    public static IHostApplicationBuilder AddBackgroundEmailDelivery(this IHostApplicationBuilder builder)
+    {
+        builder.Services.AddSingleton<EmailQueue>();
+        builder.Services.AddSingleton<IEmailHelper, BackgroundEmailHelper>();
+        builder.Services.AddHostedService<EmailDispatcherService>();
 
         return builder;
     }

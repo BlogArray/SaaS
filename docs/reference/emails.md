@@ -2,7 +2,9 @@
 
 Every email the platform sends, what triggers it, and who receives it. Templates are in
 `src/Core/BlogArray.SaaS.Infrastructure/Services/EmailTemplate.cs`; mail goes out over SMTP
-(`SMTP` settings).
+(`SMTP` settings). In the Identity app emails are queued and sent by a background service (one
+retry after 10 seconds, then logged); mail still queued when the app stops is lost (logged as a
+warning). TenantSuite sends synchronously so its dialogs can report failures.
 
 **Delivery rules**
 
@@ -20,7 +22,8 @@ Every email the platform sends, what triggers it, and who receives it. Templates
 | Email (subject) | Sent when | Notes |
 |---|---|---|
 | **New sign-in to your App account** | A sign-in at Identity whose **browser + OS** or **IP address** hasn't been seen on the account in the last 30 days, including the account's first sign-in | Browser/OS versions are ignored. History: successful sign-in events and active sessions. Not sent for refreshes or when other apps join the session. |
-| **Your App account was temporarily locked** | The failed password or authenticator attempt that locks the account | Once per lock (attempts on an already-locked account don't email). States the lock duration and the last attempt's IP. |
+| **Your App account was temporarily locked** | The failed password or authenticator attempt that locks the account | At most once per 24 hours per account (attempts on an already-locked account don't email). States the lock duration and the last attempt's IP. |
+| **Someone tried to sign up with your email - App** | A social sign-up where the user typed an email that already has an account | Names the provider; says how to connect it from Linked accounts if it was the owner. |
 | **A recovery code was used to sign in to your App account** | Every successful recovery-code sign-in | Says how many codes are left, with stronger advice at 3, 1 and 0 left. |
 
 ## Account owner: changes they made (security alerts)
@@ -42,6 +45,7 @@ Subject: **Security alert: {change} - App**. Sent from Identity settings (all of
 | Email (subject) | Sent when | Recipient |
 |---|---|---|
 | **Change your App Account password** (reset link) | Forgot password (active, confirmed accounts only); TenantSuite "Reset password → send link" | The account |
+| **Your App verification code** | Enforced MFA enrollment after a password (or passkey without user verification) sign-in; "Send a new code" (at most every 90 s) | The account |
 | **Set up your App account** ("Create password" link) | TenantSuite "Create user" | The new user, or the administrator to pass on ("Email me the password setup link") |
 | **Your App Account password has been changed** | Password changed in Settings → Password, or a reset completed at `/resetpassword` | The account |
 | **Welcome to App - please verify your email address** | Social sign-up (the link can also connect the social login); Resend email confirmation | The new address |

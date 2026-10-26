@@ -13,7 +13,8 @@ environment variables or user secrets. Defaults apply when a key is absent.
 | `Identity:TokenLifespanHours` | `24` | Lifetime of emailed links: invitations, password reset, email confirmation |
 | `Passwords:BlockBreachedPasswords` | `true` | Reject passwords found in breach lists |
 | `Passwords:HistorySize` | `5` | Previous passwords that can't be reused |
-| `Captcha:SiteKey`, `Captcha:SecretKey` | empty (off) | Cloudflare Turnstile on password sign-in, forgot/reset password, resend confirmation and recovery codes |
+| `Captcha:SiteKey`, `Captcha:SecretKey` | empty (off) | Cloudflare Turnstile on forgot/reset password and resend confirmation (always), and on password sign-in and recovery codes (adaptive). The widget mode (Managed) is set in Cloudflare. |
+| `Captcha:RequiredAfterFailures` | `3` | Failed password/recovery-code attempts (per IP or per email, 15-minute window) before the CAPTCHA is required. `0` = always. |
 | `Authentication:{Google,Microsoft,GitHub,Apple}:Enabled`, `:ClientId`, `:ClientSecret` | off | Social sign-in providers (tenants can still turn social sign-in off) |
 | `Fido2:Origins` | the issuer origin | Extra origins (semicolon-separated) allowed for passkey ceremonies, e.g. local IIS bindings. The relying-party id is the `Links:Issuer` host. |
 
@@ -42,8 +43,13 @@ required.
 | `ForwardedHeaders:KnownProxies` / `KnownNetworks` | empty (loopback only) | Proxies trusted for `X-Forwarded-For`/`-Proto`. Set this behind a load balancer, or client IPs and the scheme are the proxy's. |
 | `Cors:AllowedOrigins` | empty (none) | Origins allowed for cross-origin requests |
 
-Rate limits (fixed in code, per IP): sign-in pages 10/min, email-sending pages 5/min, Membership
-API 60/min.
+| Key | Default | Effect |
+|---|---|---|
+| `RateLimits:AuthPerMinute` | `20` | Form posts per IP per minute on sign-in pages and step-up |
+| `RateLimits:EmailPerMinute` | `5` | Form posts per IP per minute on email-sending pages |
+| `RateLimits:ApiPerMinute` | `60` | Membership API requests per IP per minute |
+
+Page loads (GET) on sign-in and email pages aren't counted.
 
 ## Keys, cache and mail
 

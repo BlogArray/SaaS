@@ -40,6 +40,17 @@ public interface IEmailTemplate
     /// </summary>
     void AccountSetupInvite(string toEmail, string name, string callbackUrl, string invitedBy);
 
+    /// <summary>
+    /// Tells the owner of an existing account that someone tried to sign up with their email
+    /// address through a social provider (nothing was created).
+    /// </summary>
+    void SignUpAttemptNotice(string toEmail, string name, string provider);
+
+    /// <summary>
+    /// The one-time code that confirms mailbox ownership during enforced MFA enrollment.
+    /// </summary>
+    void EnrollmentVerificationCode(string toEmail, string name, string code);
+
     void TenantWelcome(string toEmail, string tenantName, string tenantUrl, string clientSecret, string apiKey);
 
     /// <summary>
@@ -234,6 +245,29 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
             $"Thank you for choosing App.";
 
         Send(toEmail, "Set up your App account", GenerateEmail(name, template));
+    }
+
+    public void EnrollmentVerificationCode(string toEmail, string name, string code)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"Use this code to continue setting up two-factor authentication for your App account:{newLine}" +
+            $"<div style=\"font-size:26px;font-weight:700;letter-spacing:8px;text-align:center;padding:14px;background-color:#f5f5f5;\">{Encode(code)}</div>{newLine}" +
+            $"The code expires in a few minutes and works once.{newLine}" +
+            $"If you didn't just sign in, someone has your password: {MakeLink(IdentityUrl("forgotpassword"), "reset your password")} now. Without this code they can't finish setting up the account.{newLine}" +
+            $"Thank you for choosing App.";
+
+        Send(toEmail, "Your App verification code", GenerateEmail(name, template));
+    }
+
+    public void SignUpAttemptNotice(string toEmail, string name, string provider)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"Someone tried to create a new App account with this email address using {Encode(provider)} on {Now()}. You already have an account, so nothing was created.{newLine}" +
+            $"If it was you, {MakeLink(IdentityUrl("login"), "sign in")} and connect {Encode(provider)} from Linked accounts in your settings.{newLine}" +
+            $"If it wasn't you, you can ignore this email: no one can use your account through it.{newLine}" +
+            $"Thank you for choosing App.";
+
+        Send(toEmail, "Someone tried to sign up with your email - App", GenerateEmail(name, template));
     }
 
     public void TenantWelcome(string toEmail, string tenantName, string tenantUrl, string clientSecret, string apiKey)

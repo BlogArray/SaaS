@@ -139,10 +139,23 @@ public class AuthorizationController(
                 SignInEventTypes.LoginFailedMfaRequired, SignInAuthMethod.Password,
                 SignInResultType.Failure, "mfa enrollment required by application policy"));
 
+            // Silent requests can't show the setup page.
+            if (request.HasPromptValue(PromptValues.None))
+            {
+                return Forbid(
+                    authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+                    properties: new AuthenticationProperties(new Dictionary<string, string?>
+                    {
+                        [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.InteractionRequired,
+                        [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "The application requires multi-factor authentication."
+                    }));
+            }
+
             TempData["StatusMessage"] = "This application requires multi-factor authentication. Set up your authenticator app to continue.";
 
+            // GetAuthorizeRequestUrl keeps POSTed (form_post) requests too, which have no query string.
             return Redirect(Url.Page("/Settings/EnableAuthenticator",
-                new { returnUrl = Request.PathBase + Request.Path + Request.QueryString }) ?? "/");
+                new { returnUrl = GetAuthorizeRequestUrl() }) ?? "/");
         }
 
         // Retrieve the permanent authorizations associated with the user and the calling client application.
@@ -151,18 +164,25 @@ public class AuthorizationController(
             client: await applicationManager.GetIdAsync(application),
             status: Statuses.Valid,
             type: AuthorizationTypes.Permanent,
-            scopes: request.GetScopes()).ToListAsync();
+            // Membership is the permanent authorization itself, whatever scopes this request asks
+            // for: filtering by the requested scopes denied members whose app asked for any scope
+            // beyond the ones granted at invite (e.g. offline_access).
+            scopes: null).ToListAsync();
 
         if (authorizations.Count is 0)
         {
-            //return Forbid(
-            //    authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
-            //    properties: new AuthenticationProperties(new Dictionary<string, string>
-            //    {
-            //        [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.ConsentRequired,
-            //        [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] =
-            //            "The logged in user is not allowed to access this client application."
-            //    }));
+            // Not a member of this tenant. Silent requests get the OIDC error; interactive ones the
+            // access-denied page.
+            if (request.HasPromptValue(PromptValues.None))
+            {
+                return Forbid(
+                    authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
+                    properties: new AuthenticationProperties(new Dictionary<string, string?>
+                    {
+                        [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.AccessDenied,
+                        [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "The user is not a member of this application."
+                    }));
+            }
 
             return RedirectToAction("accessdenied", "error");
         }
@@ -236,6 +256,8 @@ public class AuthorizationController(
     {
         string? violation = null;
         string? redirectUrl = null;
+        bool requiresLocalSignIn = false;
+        string? sessionSamlTenant = principal.FindFirst("saml_tenant")?.Value;
 
         if (application.Security.IsSsoEnabled)
         {
@@ -246,6 +268,16 @@ public class AuthorizationController(
                 violation = "session not established through the tenant's SSO identity provider";
                 redirectUrl = $"/saml/{Uri.EscapeDataString(application.ClientId!)}/login?next={Uri.EscapeDataString(GetAuthorizeRequestUrl())}";
             }
+        }
+        else if (!string.IsNullOrEmpty(sessionSamlTenant)
+            && !string.Equals(sessionSamlTenant, application.ClientId, StringComparison.OrdinalIgnoreCase))
+        {
+            // A SAML session proves identity only to the tenant whose IdP issued it: accepting it
+            // here would let one tenant's IdP (whoever administers it) assert the email of a user
+            // who also belongs to this tenant and sign in as them. This tenant needs its own
+            // sign-in.
+            violation = $"SAML session of tenant {sessionSamlTenant} not accepted for this tenant";
+            requiresLocalSignIn = true;
         }
         else if (!application.Security.IsSocialAuthEnabled)
         {
@@ -265,7 +297,7 @@ public class AuthorizationController(
 
         await signInEventLogger.LogAsync(new SignInEventRecord(
             user.Id, request.ClientId, SignInEventTypes.ConditionalAccessBlocked,
-            application.Security.IsSsoEnabled ? SignInAuthMethod.Saml : SignInAuthMethod.External,
+            application.Security.IsSsoEnabled || requiresLocalSignIn ? SignInAuthMethod.Saml : SignInAuthMethod.External,
             SignInResultType.Failure, violation));
 
         if (request.HasPromptValue(PromptValues.None))
@@ -277,6 +309,14 @@ public class AuthorizationController(
                     [OpenIddictServerAspNetCoreConstants.Properties.Error] = Errors.LoginRequired,
                     [OpenIddictServerAspNetCoreConstants.Properties.ErrorDescription] = "The application requires a different sign-in method."
                 }));
+        }
+
+        if (requiresLocalSignIn)
+        {
+            // Same as prompt=login: end the local session, then sign in again for this request.
+            await signInManager.SignOutAsync();
+
+            return Challenge(new AuthenticationProperties { RedirectUri = GetAuthorizeRequestUrl() });
         }
 
         return redirectUrl is not null

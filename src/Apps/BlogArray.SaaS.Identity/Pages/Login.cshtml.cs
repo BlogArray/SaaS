@@ -22,14 +22,6 @@ public class LoginModel(
     OpenIdDbContext context,
     PasskeyService passkeyService) : PageModel
 {
-    /// <summary>
-    ///     Assertion options for signing in with a passkey right from this page (the button or
-    ///     the email field's autofill). The server keeps the challenge; the form posts back only
-    ///     <see cref="PasskeyCeremonyId"/> with the authenticator's response to LoginWithPasskey.
-    /// </summary>
-    public string PasskeyOptions { get; set; }
-
-    public string PasskeyCeremonyId { get; set; }
 
     /// <summary>
     ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
@@ -98,8 +90,6 @@ public class LoginModel(
 
         Next = next;
 
-        await LoadPasskeyCeremonyAsync();
-
         return Page();
     }
 
@@ -109,10 +99,8 @@ public class LoginModel(
 
         if (!ModelState.IsValid)
         {
-            // The re-rendered form keeps the return URL and the passkey option.
+            // The re-rendered form keeps the return URL.
             Next = next;
-
-            await LoadPasskeyCeremonyAsync();
 
             return Page();
         }
@@ -151,11 +139,16 @@ public class LoginModel(
     }
 
     /// <summary>
-    /// Issues a single-use passkey challenge for this page view (usernameless: the browser offers
-    /// every passkey saved for this site).
+    /// Issues a single-use passkey challenge (usernameless: the browser offers every passkey saved
+    /// for this site) when the page actually needs one: the user chose the passkey option, or the
+    /// browser can offer passkeys in the email field's autofill. Issuing one on every page load
+    /// wrote a cache entry per anonymous visit. A POST, so the sign-in rate limit applies. The
+    /// assertion is posted to LoginWithPasskey with the returned ceremony id.
     /// </summary>
-    private async Task LoadPasskeyCeremonyAsync()
+    public async Task<IActionResult> OnPostPasskeyOptionsAsync()
     {
-        (PasskeyCeremonyId, PasskeyOptions) = await passkeyService.CreatePasswordlessAssertionOptionsJsonAsync();
+        (string ceremonyId, string options) = await passkeyService.CreatePasswordlessAssertionOptionsJsonAsync();
+
+        return new JsonResult(new { ceremonyId, options });
     }
 }

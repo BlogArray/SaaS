@@ -19,7 +19,14 @@ public interface IEmailHelper
     void SendEmail(string toEmail, string subject, string body, string bccEMails = "", byte[]? attachment = null, string fileName = "", string fileType = "", bool clearToBeforeSend = false);
 }
 
-public class EmailHelper(IOptions<SmtpConfiguration> options) : IEmailHelper
+/// <summary>
+/// Sends over SMTP right away (as opposed to <see cref="BackgroundEmailHelper"/>, which queues).
+/// </summary>
+public interface ISmtpEmailSender : IEmailHelper
+{
+}
+
+public class EmailHelper(IOptions<SmtpConfiguration> options) : ISmtpEmailSender
 {
     private readonly SmtpConfiguration Smtp = options.Value;
 

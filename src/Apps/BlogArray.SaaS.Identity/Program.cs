@@ -26,6 +26,10 @@ builder.AddBlogArrayServices();
 
 builder.AddBlogArrayCacheServices();
 
+// Email goes out from a background queue: responses don't wait on SMTP (or reveal through their
+// timing which addresses have accounts).
+builder.AddBackgroundEmailDelivery();
+
 string? connectionString = Configuration.GetConnectionString("IdentityContext");
 
 if (string.IsNullOrEmpty(connectionString))
@@ -71,6 +75,9 @@ builder.Services.AddFido2(options =>
 
 builder.Services.AddScoped<BlogArray.SaaS.Identity.Infrastructure.PasskeyService>();
 builder.Services.AddScoped<BlogArray.SaaS.Identity.Infrastructure.PendingExternalLoginProtector>();
+
+// Identity only: ICaptchaService (Turnstile) is registered by the Identity OpenId setup, not in TenantSuite or App.
+builder.Services.AddScoped<BlogArray.SaaS.Application.Services.ICaptchaChallengePolicy, BlogArray.SaaS.Application.Services.CaptchaChallengePolicy>();
 
 // Razor runtime compilation is added in Development only (AddBlogArrayServices).
 builder.Services.AddRazorPages(options =>

@@ -34,12 +34,17 @@ optional Google, Microsoft, GitHub and Apple sign-in.
 
 ## Protections at a glance
 
-- **Rate limits** per IP: `auth` 10/minute (all login pages, step-up), `email` 5/minute (forgot
-  password, resend confirmation), `api` 60/minute (Membership API).
-- **Lockout**: 10 failed attempts (password or authenticator code) lock the account for
-  15 minutes (`Identity:Lockout`). Administrator locks use the same mechanism.
-- **Optional CAPTCHA** (Cloudflare Turnstile) on password sign-in, forgot/reset password, resend
-  confirmation and recovery codes, when `Captcha:SiteKey`/`SecretKey` are set.
+- **Rate limits** per IP, counted on form posts only (page loads are free): `auth` 20/minute (all
+  login pages, step-up), `email` 5/minute (forgot password, resend confirmation), `api` 60/minute
+  (Membership API, all requests). Configurable under `RateLimits`.
+- **Lockout**: 10 failed attempts (password or authenticator code) lock password-based sign-in for
+  15 minutes (`Identity:Lockout`); passkey, social and SAML sign-in keep working. Administrator
+  locks (TenantSuite) block every method.
+- **Optional CAPTCHA** (Cloudflare Turnstile) when `Captcha:SiteKey`/`SecretKey` are set: always on
+  forgot/reset password and resend confirmation; on password sign-in and recovery codes only after
+  repeated failures (adaptive).
+- **Background email** in Identity: emails are queued and sent by a background service, so
+  responses don't depend on SMTP (and don't reveal whether an email was sent).
 - **Password policy**: 8+ characters with upper, lower, digit and symbol; checked against
   breached-password lists and the last passwords used (history).
 - **Antiforgery** on every form post; cookies are `Secure`, `HttpOnly`, `SameSite=Lax`.

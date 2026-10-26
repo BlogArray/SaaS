@@ -20,6 +20,7 @@ public class LoginWithRecoveryCodeModel(
     ISignInEventLogger signInEventLogger,
     ISecurityNotificationService securityNotifications,
     ICaptchaService captcha,
+    ICaptchaChallengePolicy captchaPolicy,
     ILogger<LoginWithRecoveryCodeModel> logger) : PageModel
 {
 
@@ -31,9 +32,10 @@ public class LoginWithRecoveryCodeModel(
     public InputModel Input { get; set; }
 
     /// <summary>
-    ///     True when the Cloudflare Turnstile challenge is configured.
+    ///     True when this attempt must pass the Turnstile challenge (adaptive: after recent
+    ///     failed attempts from this IP or for this account).
     /// </summary>
-    public bool CaptchaEnabled => captcha.IsEnabled;
+    public bool CaptchaEnabled { get; set; }
 
     /// <summary>
     ///     The Turnstile site key for rendering the widget (empty when disabled).
@@ -80,6 +82,8 @@ public class LoginWithRecoveryCodeModel(
 
         Next = next;
 
+        CaptchaEnabled = await captchaPolicy.IsRequiredAsync(user.Email);
+
         return Page();
     }
 
@@ -101,7 +105,9 @@ public class LoginWithRecoveryCodeModel(
         }
 
         // CAPTCHA step-up: protects recovery-code guessing during the two-factor step.
-        if (captcha.IsEnabled && !await captcha.VerifyAsync(Input?.CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
+        CaptchaEnabled = await captchaPolicy.IsRequiredAsync(user.Email);
+
+        if (CaptchaEnabled && !await captcha.VerifyAsync(Input?.CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
         {
             ModelState.AddModelError("Input.CaptchaToken", "Please complete the verification.");
             return Page();
@@ -120,6 +126,8 @@ public class LoginWithRecoveryCodeModel(
 
         if (result.Succeeded)
         {
+            await captchaPolicy.ResetAccountAsync(user.Email);
+
             logger.LogInformation("User with ID '{UserId}' logged in with a recovery code.", user.Id);
             await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginSucceeded, SignInAuthMethod.Mfa, SignInResultType.Success, "mfa via recovery code"));
 
@@ -140,6 +148,10 @@ public class LoginWithRecoveryCodeModel(
             logger.LogWarning("Invalid recovery code entered for user with ID '{UserId}' ", user.Id);
             await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedMfaInvalid, SignInAuthMethod.Mfa, SignInResultType.Failure, "mfa via recovery code"));
             ModelState.AddModelError(string.Empty, "You entered an incorrect recovery code.");
+
+            // Recovery codes aren't counted towards lockout; the adaptive CAPTCHA slows guessing.
+            await captchaPolicy.RecordFailureAsync(user.Email);
+            CaptchaEnabled = await captchaPolicy.IsRequiredAsync(user.Email);
             return Page();
         }
     }

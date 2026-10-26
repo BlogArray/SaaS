@@ -25,7 +25,7 @@ session hook in `src/Core/BlogArray.SaaS.Bootstrapper/ConfigureBlogArrayServices
 
 After the first factor is verified, in this order:
 
-1. **Account state**: `signInManager.CanUserSignInAsync(user)` (active, confirmed, not locked).
+1. **Account state**: `signInManager.CanUserSignInAsync(user)` (active, confirmed, not locked by an admin via `AdminLockoutEnd`; failed-attempt locks are enforced only by password-based checks).
    Paths built on `PreSignInCheck` (password check, authenticator, recovery code) get this already.
    On refusal log `ConditionalAccessBlocked` (or `LoginBlockedLockedOut` / lockout redirect).
 2. **Temporary password** (password path only): `user.MustChangePassword` → restricted cookie

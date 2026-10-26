@@ -105,7 +105,7 @@ public class LoginWithPasskeyModel(
             {
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(Next), SignInEventTypes.LoginFailedMfaRequired, SignInAuthMethod.Passkey, SignInResultType.Failure, "passkey without user verification; multi-factor enrollment required"));
 
-                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, next, customClaims));
+                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, next, customClaims, requireEmailVerification: true));
 
                 return RedirectToPage("/MfaEnrollment");
             }

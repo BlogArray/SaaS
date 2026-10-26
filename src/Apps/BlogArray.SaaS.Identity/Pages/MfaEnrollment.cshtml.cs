@@ -1,4 +1,4 @@
-//
+﻿//
 // Copyright (c) BlogArray and Contributors.
 //
 // This software may be modified and distributed under the terms
@@ -13,11 +13,13 @@ using System.Text;
 using System.Text.Encodings.Web;
 using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Identity.Infrastructure;
+using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace BlogArray.SaaS.Identity.Pages;
 
@@ -35,8 +37,33 @@ public class MfaEnrollmentModel(
     IAuditEventLogger auditLogger,
     ISecurityNotificationService securityNotifications,
     ISignInEventLogger signInEventLogger,
+    IEmailTemplate emailTemplate,
+    IDistributedCache cache,
+    ILogger<MfaEnrollmentModel> logger,
     UrlEncoder urlEncoder) : PageModel
 {
+    /// <summary>
+    /// Minimum time between two emailed enrollment codes.
+    /// </summary>
+    private static readonly TimeSpan EmailCodeResendInterval = TimeSpan.FromSeconds(90);
+
+    /// <summary>
+    /// True while the user must first enter the code emailed to them (the first factor was only a
+    /// password): the authenticator step is not shown until then.
+    /// </summary>
+    public bool EmailStep { get; set; }
+
+    /// <summary>
+    /// The address the code was sent to, partly hidden (j***e@example.com).
+    /// </summary>
+    public string MaskedEmail { get; set; }
+
+    /// <summary>
+    /// The code from the email (email step only).
+    /// </summary>
+    [BindProperty]
+    public string EmailCode { get; set; }
+
     private const string AuthenticatorUriFormat = "otpauth://totp/{0}:{1}?secret={2}&issuer={0}&digits=6";
 
     public string SharedKey { get; set; }
@@ -118,6 +145,12 @@ public class MfaEnrollmentModel(
             return RedirectToPage("/Login", new { next = returnUrl });
         }
 
+        if (MfaEnrollmentDefaults.NeedsEmailVerification(_enrollmentPrincipal))
+        {
+            await SendEmailCodeAsync(user);
+            return EmailStepPage(user);
+        }
+
         // A fresh key for every setup page load while 2FA is off: a key someone saw earlier
         // must never become the user's second factor. A reload means rescanning the QR code;
         // a POST that re-renders after a wrong code keeps the current key.
@@ -128,6 +161,125 @@ public class MfaEnrollmentModel(
         return Page();
     }
 
+    /// <summary>
+    /// Checks the emailed code. Wrong codes count towards lockout like any second-factor guess.
+    /// </summary>
+    public async Task<IActionResult> OnPostVerifyEmailAsync()
+    {
+        ApplicationUser user = await ResolveUserAsync();
+
+        if (user == null)
+        {
+            return RedirectToPage("/Login");
+        }
+
+        if (!MfaEnrollmentDefaults.NeedsEmailVerification(_enrollmentPrincipal))
+        {
+            return RedirectToPage();
+        }
+
+        // The authenticator field belongs to the next step.
+        ModelState.Remove("Input.Code");
+
+        if (await userManager.IsLockedOutAsync(user))
+        {
+            await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
+            return RedirectToPage("/Lockout");
+        }
+
+        string code = (EmailCode ?? string.Empty).Replace(" ", string.Empty).Replace("-", string.Empty);
+
+        if (!string.IsNullOrEmpty(code) && await userManager.VerifyTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider, code))
+        {
+            await userManager.ResetAccessFailedCountAsync(user);
+
+            // The same restricted session, now allowed on to the authenticator step.
+            await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.WithEmailVerified(_enrollmentPrincipal));
+
+            return RedirectToPage();
+        }
+
+        await userManager.AccessFailedAsync(user);
+
+        await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, SecurityEventUrls.GetTenantClientIdFromUrl(GetReturnUrl()), SignInEventTypes.LoginFailedMfaInvalid, SignInAuthMethod.Mfa, SignInResultType.Failure, "enrollment email code"));
+
+        if (await userManager.IsLockedOutAsync(user))
+        {
+            await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
+            return RedirectToPage("/Lockout");
+        }
+
+        ModelState.AddModelError(nameof(EmailCode), "That code is not right, or it has expired. Check the latest email or send a new code.");
+        ModelState.SetModelValue(nameof(EmailCode), null, null);
+        EmailCode = null;
+
+        return EmailStepPage(user);
+    }
+
+    /// <summary>
+    /// Sends a new emailed code (at most once every 90 seconds).
+    /// </summary>
+    public async Task<IActionResult> OnPostResendEmailCodeAsync()
+    {
+        ApplicationUser user = await ResolveUserAsync();
+
+        if (user == null)
+        {
+            return RedirectToPage("/Login");
+        }
+
+        if (!MfaEnrollmentDefaults.NeedsEmailVerification(_enrollmentPrincipal))
+        {
+            return RedirectToPage();
+        }
+
+        StatusMessage = await SendEmailCodeAsync(user)
+            ? "A new code is on its way."
+            : "A code was sent less than a minute and a half ago. Check your inbox (and spam folder), or try again shortly.";
+
+        return RedirectToPage();
+    }
+
+    /// <summary>
+    /// Emails a code unless one went out within the resend interval (so reloading the page
+    /// doesn't send another). Returns false when throttled.
+    /// </summary>
+    private async Task<bool> SendEmailCodeAsync(ApplicationUser user)
+    {
+        string key = $"enrollmentcode:{user.Id}";
+
+        if (await cache.GetAsync(key) is not null)
+        {
+            return false;
+        }
+
+        string code = await userManager.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
+
+        EmailSending.TrySend(logger, () => emailTemplate.EnrollmentVerificationCode(user.Email, user.DisplayName ?? user.Email, code), "enrollment code");
+
+        await cache.SetStringAsync(key, DateTime.UtcNow.ToString("O"), new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = EmailCodeResendInterval
+        });
+
+        return true;
+    }
+
+    private PageResult EmailStepPage(ApplicationUser user)
+    {
+        EmailStep = true;
+        MaskedEmail = MaskEmail(user.Email);
+
+        return Page();
+    }
+
+    private static string MaskEmail(string email)
+    {
+        int at = email?.IndexOf('@') ?? -1;
+
+        return at <= 1 ? email : $"{email[0]}***{email[(at - 1)..]}";
+    }
+
     public async Task<IActionResult> OnPostVerifyCodeAsync()
     {
         ApplicationUser user = await ResolveUserAsync();
@@ -135,6 +287,12 @@ public class MfaEnrollmentModel(
         if (user == null)
         {
             return RedirectToPage("/Login");
+        }
+
+        // No authenticator can be bound before the emailed code was entered.
+        if (MfaEnrollmentDefaults.NeedsEmailVerification(_enrollmentPrincipal))
+        {
+            return RedirectToPage();
         }
 
         if (!ModelState.IsValid)

@@ -91,6 +91,28 @@ public class EmailTemplateTests
     }
 
     [Fact]
+    public void EnrollmentVerificationCode_ShowsTheCode()
+    {
+        (EmailTemplate template, CapturingEmailHelper sent) = Create();
+
+        template.EnrollmentVerificationCode("user@example.com", "User", "482913");
+
+        Assert.Equal("Your App verification code", sent.Subject);
+        Assert.Contains("482913", sent.Body);
+    }
+
+    [Fact]
+    public void SignUpAttemptNotice_NamesTheProvider()
+    {
+        (EmailTemplate template, CapturingEmailHelper sent) = Create();
+
+        template.SignUpAttemptNotice("user@example.com", "User", "GitHub");
+
+        Assert.Equal("Someone tried to sign up with your email - App", sent.Subject);
+        Assert.Contains("GitHub", sent.Body);
+    }
+
+    [Fact]
     public void SecurityChangeNotice_SaysWhatChangedAndWhere()
     {
         (EmailTemplate template, CapturingEmailHelper sent) = Create();
@@ -128,7 +150,7 @@ public class EmailTemplateTests
     }
 
     [Fact]
-    public void SecurityNotifications_NeverThrow_WhenSendingFails()
+    public async Task SecurityNotifications_NeverThrow_WhenSendingFails()
     {
         // The change an alert reports has already happened: a mail failure must not fail it.
         IConfiguration configuration = new ConfigurationBuilder()
@@ -138,12 +160,13 @@ public class EmailTemplateTests
             new EmailTemplate(new ThrowingEmailHelper(), configuration),
             new HttpContextAccessor { HttpContext = new DefaultHttpContext() },
             Options.Create(new IdentityOptions()),
+            new Microsoft.Extensions.Caching.Distributed.MemoryDistributedCache(Options.Create(new Microsoft.Extensions.Caching.Memory.MemoryDistributedCacheOptions())),
             NullLogger<SecurityNotificationService>.Instance);
         ApplicationUser user = new() { Id = "user-1", Email = "user@example.com", DisplayName = "User" };
 
         service.ChangeMade(user, "Two-factor authentication was turned off");
         service.NewSignIn(user);
-        service.AccountLocked(user);
+        await service.AccountLockedAsync(user);
         service.RecoveryCodeUsed(user, 3);
     }
 

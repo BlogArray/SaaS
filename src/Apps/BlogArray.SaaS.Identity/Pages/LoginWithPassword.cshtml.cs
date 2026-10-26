@@ -28,7 +28,8 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
     ISecurityNotificationService securityNotifications,
     IMfaEnrollmentService mfaEnrollmentService,
     OpenIddict.Core.OpenIddictApplicationManager<OpenIdApplication> appManager,
-    ICaptchaService captcha) : PageModel
+    ICaptchaService captcha,
+    ICaptchaChallengePolicy captchaPolicy) : PageModel
 {
     /// <summary>
     ///     TempData key the email step hands the address over with, so it never appears in the
@@ -43,10 +44,12 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
     public bool EmailNotConfirmed { get; set; }
 
     /// <summary>
-    ///     True when the Cloudflare Turnstile challenge is configured (Captcha:SiteKey and
-    ///     Captcha:SecretKey). When false the widget is not rendered and tokens are not checked.
+    ///     True when this attempt must pass the Cloudflare Turnstile challenge: Turnstile is
+    ///     configured and there were recent failed attempts from this IP or for this account
+    ///     (adaptive, see <see cref="ICaptchaChallengePolicy"/>). When false the widget is not
+    ///     rendered and no token is checked.
     /// </summary>
-    public bool CaptchaEnabled => captcha.IsEnabled;
+    public bool CaptchaEnabled { get; set; }
 
     /// <summary>
     ///     The Turnstile site key for rendering the widget (empty when disabled).
@@ -110,8 +113,8 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
         /// <summary>
         ///     Turnstile widget response token (bound from the widget's response field). Not
-        ///     [Required]: the widget is only rendered when Turnstile is configured, and
-        ///     OnPostAsync verifies the token exactly when captcha.IsEnabled.
+        ///     [Required]: the widget is only rendered when the attempt needs it, and OnPostAsync
+        ///     verifies the token exactly then.
         /// </summary>
         public string CaptchaToken { get; set; }
     }
@@ -146,6 +149,8 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             Email = email
         };
 
+        CaptchaEnabled = await captchaPolicy.IsRequiredAsync(email);
+
         return Page();
     }
 
@@ -161,11 +166,13 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
 
         await LoadExternalLoginsAsync(next);
 
+        CaptchaEnabled = await captchaPolicy.IsRequiredAsync(Input?.Email);
+
         if (ModelState.IsValid)
         {
-            // CAPTCHA step-up: when Turnstile is configured, the widget token is verified with
-            // Cloudflare before the password is evaluated.
-            if (captcha.IsEnabled && !await captcha.VerifyAsync(Input.CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
+            // Adaptive CAPTCHA: after recent failures (from this IP or for this account) the
+            // Turnstile token is verified with Cloudflare before the password is evaluated.
+            if (CaptchaEnabled && !await captcha.VerifyAsync(Input.CaptchaToken, HttpContext.Connection.RemoteIpAddress?.ToString()))
             {
                 ModelState.AddModelError("Input.CaptchaToken", "Please complete the verification.");
                 return Page();
@@ -180,7 +187,8 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
                 VerifyAgainstDummyHash(Input.Password);
 
                 await signInEventLogger.LogAsync(new SignInEventRecord(Input.Email, tenantClientId, SignInEventTypes.LoginFailedUserNotFound, SignInAuthMethod.Password, SignInResultType.Failure, "no account for the attempted email"));
-                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                ModelState.AddModelError(string.Empty, InvalidLoginMessage);
+                await RegisterFailedAttemptAsync();
                 return Page();
             }
 
@@ -189,7 +197,8 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
                 VerifyAgainstDummyHash(Input.Password);
 
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.ConditionalAccessBlocked, SignInAuthMethod.Password, SignInResultType.Failure, "account disabled"));
-                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                ModelState.AddModelError(string.Empty, InvalidLoginMessage);
+                await RegisterFailedAttemptAsync();
                 return Page();
             }
 
@@ -210,11 +219,23 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
                 logger.LogWarning("User account locked out.");
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, wasLockedOut ? SignInEventTypes.LoginBlockedLockedOut : SignInEventTypes.AccountLockedRepeatedFailures, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
 
-                if (!wasLockedOut)
+                if (wasLockedOut)
                 {
-                    securityNotifications.AccountLocked(user);
+                    // An already-locked account is refused before the password is hashed: do the
+                    // same work so its response time matches the other failures.
+                    VerifyAgainstDummyHash(Input.Password);
                 }
-                return RedirectToPage("./Lockout");
+                else
+                {
+                    await securityNotifications.AccountLockedAsync(user);
+                }
+
+                // The same answer as an unknown account or a wrong password: a distinct "locked"
+                // page told anyone guessing that the email has an account. The message's hint
+                // tells a real user what's going on (and the owner was emailed).
+                ModelState.AddModelError(string.Empty, InvalidLoginMessage);
+                await RegisterFailedAttemptAsync();
+                return Page();
             }
 
             // NotAllowed (email not confirmed; disabled accounts were answered above) is returned
@@ -238,9 +259,13 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             if (!result.Succeeded)
             {
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedInvalidPassword, SignInAuthMethod.Password, SignInResultType.Failure, "password"));
-                ModelState.AddModelError(string.Empty, "Invalid login attempt.");
+                ModelState.AddModelError(string.Empty, InvalidLoginMessage);
+                await RegisterFailedAttemptAsync();
                 return Page();
             }
+
+            // The password was right: the account's failure count starts over.
+            await captchaPolicy.ResetAccountAsync(Input.Email);
 
             // A temporary password (assigned by an administrator or bootstrap) never yields a
             // session: only a restricted cookie that reaches the reset-password page. This runs
@@ -257,7 +282,7 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             {
                 await signInEventLogger.LogAsync(new SignInEventRecord(user.Id, tenantClientId, SignInEventTypes.LoginFailedMfaRequired, SignInAuthMethod.Password, SignInResultType.Failure, "password correct; multi-factor enrollment required"));
 
-                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, next));
+                await HttpContext.SignInAsync(MfaEnrollmentDefaults.Scheme, MfaEnrollmentDefaults.CreateEnrollmentPrincipal(user.Id, next, requireEmailVerification: true));
 
                 return RedirectToPage("/MfaEnrollment");
             }
@@ -283,6 +308,17 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
     }
 
     /// <summary>
+    /// Counts a failed attempt for the adaptive CAPTCHA, and shows the widget on the re-rendered
+    /// page if that crossed the threshold.
+    /// </summary>
+    private async Task RegisterFailedAttemptAsync()
+    {
+        await captchaPolicy.RecordFailureAsync(Input.Email);
+
+        CaptchaEnabled = await captchaPolicy.IsRequiredAsync(Input.Email);
+    }
+
+    /// <summary>
     /// The configured social providers, unless the application being signed into turned social
     /// login off: the authorize endpoint would refuse such a session, so the buttons only led
     /// to an error after signing in.
@@ -300,6 +336,12 @@ public class LoginWithPasswordModel(SignInManagerExtension<ApplicationUser> sign
             ExternalLogins = [];
         }
     }
+
+    /// <summary>
+    /// The one answer to every failed password sign-in (unknown account, wrong password, locked
+    /// account), so the page doesn't reveal which emails have accounts.
+    /// </summary>
+    private const string InvalidLoginMessage = "Invalid login attempt. After several failed attempts sign-in is paused for a few minutes; if you've forgotten your password, reset it.";
 
     /// <summary>
     /// A password hash of a random value, for constant-time responses to unknown or disabled

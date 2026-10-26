@@ -63,7 +63,7 @@ These were each the fix for a real bug. Check them whenever touching auth code.
   `Url.IsLocalUrl` checks elsewhere.
 - **Claims**: build sign-in claims with `SignInManagerExtension.BuildProfileClaims` (or
   `BuildTwoFactorSignInClaimsAsync` after a second factor). A `Claim` value can never be null.
-- **Every sign-in path** checks `CanUserSignInAsync` (active, confirmed, not locked), then
+- **Every sign-in path** checks `CanUserSignInAsync` (active, confirmed, not admin-locked; failed-attempt locks only block password checks via `PreSignInCheck`), then
   `IMfaEnrollmentService.IsRequiredAsync` (restricted enrollment cookie), then
   `SignInWithPendingTwoFactorAsync` (2FA). See the `sign-in-flow` skill.
 - **Security stamp**: `SecurityStampValidator` runs on the Identity cookie (the shared cookie

@@ -37,7 +37,7 @@ stamp, which signs out every other Identity session and refreshes roles and clai
 | Endpoint | Notes |
 |---|---|
 | `/connect/authorize` | Authorization code flow with PKCE (required). See [the authorize checks](sign-in-flows.md#the-authorize-endpoints-checks). |
-| `/connect/token` | Code and refresh-token exchange. Refused (and recorded as `TokenRequestDenied`) when the account is disabled, locked or deleted, or its security stamp changed since the token was issued. |
+| `/connect/token` | Code and refresh-token exchange. Refused (and recorded as `TokenRequestDenied`) when the account is disabled, locked by an administrator or deleted, or its security stamp changed since the token was issued. |
 | `/connect/userinfo` | Profile, email, roles for the granted scopes. |
 | `/connect/logout` | End session (with front-channel single sign-out). |
 

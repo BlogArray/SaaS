@@ -39,7 +39,7 @@
        any error. The challenge is server-held: only its ceremony id travels with the form. *@
     <form id="passkey-form" method="post" asp-page="./LoginWithPasskey">
         <input type="hidden" name="Next" value="@Model.Next" />
-        <input type="hidden" name="CeremonyId" value="@Model.PasskeyCeremonyId" />
+        <input type="hidden" name="CeremonyId" id="passkey-ceremony" />
         <input type="hidden" name="Input.Response" id="passkey-response" />
     </form>
 </section>
@@ -57,14 +57,35 @@
                 return;
             }
 
-            const options = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.PasskeyOptions ?? string.Empty));
             const button = document.getElementById('passkey-signin');
             const message = document.getElementById('passkey-message');
 
             // The email field's autofill request, cancelled when the button starts the modal one.
             let autofill = null;
 
+            // One server-held challenge per page, fetched only when a passkey is actually offered
+            // (the button, or autofill). It stays usable until a sign-in consumes it.
+            let ceremony = null;
+
+            async function getCeremony() {
+                if (!ceremony) {
+                    const response = await fetch('@Url.Page("./Login", "PasskeyOptions")', {
+                        method: 'POST',
+                        headers: { 'RequestVerificationToken': document.querySelector('#account input[name="__RequestVerificationToken"]').value }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(response.status === 429 ? 'Too many attempts. Please wait a minute and try again.' : 'The passkey option is unavailable right now.');
+                    }
+
+                    ceremony = await response.json();
+                }
+
+                return ceremony;
+            }
+
             function submit(response) {
+                document.getElementById('passkey-ceremony').value = ceremony.ceremonyId;
                 document.getElementById('passkey-response').value = response;
                 document.getElementById('passkey-form').submit();
             }
@@ -80,6 +101,7 @@
                 }
 
                 try {
+                    const { options } = await getCeremony();
                     submit(await passkey.getAssertion(options));
                 } catch (error) {
                     if (!passkey.isCancellation(error)) {
@@ -92,13 +114,14 @@
             // Offer saved passkeys in the email field's autofill where the browser supports it:
             // choosing one signs in straight away. Dismissing it does nothing.
             passkey.isConditionalMediationAvailable().then(async function (available) {
-                if (!available || !options) {
+                if (!available) {
                     return;
                 }
 
                 autofill = new AbortController();
 
                 try {
+                    const { options } = await getCeremony();
                     submit(await passkey.getAssertion(options, 'conditional', autofill.signal));
                 } catch (error) {
                     // Cancelled by the button, or not completed: the page stays as it is.

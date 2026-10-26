@@ -67,13 +67,26 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
     }
 
     /// <summary>
-    /// True when the user may hold a session or receive tokens right now: active, confirmed
-    /// and not locked out. Used by paths that bypass PreSignInCheck (passkeys, SAML, the
-    /// authorize and token endpoints).
+    /// True when the user may hold a session or receive tokens right now: active, confirmed and
+    /// not locked by an administrator. Used by paths that bypass PreSignInCheck (passkeys, SAML,
+    /// social sign-in, the authorize and token endpoints).
+    ///
+    /// A lock caused by failed password/code attempts is deliberately not checked here: password
+    /// and code checks enforce it themselves (PreSignInCheck), and refusing it here let anyone who
+    /// knows an email lock its owner out of passkey and SSO sign-in, and end their live sessions,
+    /// just by guessing passwords.
     /// </summary>
     public virtual async Task<bool> CanUserSignInAsync(ApplicationUser user)
     {
-        return await CanSignInAsync(user) && !await IsLockedOut(user);
+        return await CanSignInAsync(user) && !IsLockedByAdmin(user);
+    }
+
+    /// <summary>
+    /// True while an administrator lock is in force.
+    /// </summary>
+    public static bool IsLockedByAdmin(ApplicationUser user)
+    {
+        return user.AdminLockoutEnd is DateTimeOffset end && end > DateTimeOffset.UtcNow;
     }
 
     /// <summary>
@@ -169,10 +182,17 @@ public class SignInManagerExtension<TUser> : SignInManager<ApplicationUser> wher
             return SignInResult.Failed;
         }
 
-        SignInResult? error = await PreSignInCheck(user);
-        if (error != null)
+        // The provider authenticated the user, so a lock from failed password attempts doesn't
+        // apply here (see CanUserSignInAsync); an administrator lock does. A second factor, if
+        // required, is still checked against every lock.
+        if (!await CanSignInAsync(user))
         {
-            return error;
+            return SignInResult.NotAllowed;
+        }
+
+        if (IsLockedByAdmin(user))
+        {
+            return await LockedOut(user);
         }
 
         return await SignInOrTwoFactorAsync(user, isPersistent, BuildProfileClaims(user), loginProvider, bypassTwoFactor);

@@ -12,6 +12,7 @@ using BlogArray.SaaS.Infrastructure.Services;
 using BlogArray.SaaS.OpenId.Helpers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -37,9 +38,11 @@ public interface ISecurityNotificationService
     void NewSignIn(ApplicationUser user);
 
     /// <summary>
-    /// The account was just locked after repeated failed sign-in attempts.
+    /// The account was just locked after repeated failed sign-in attempts. Sent at most once per
+    /// <see cref="SecurityNotificationService.LockAlertInterval"/> per account, so a sustained
+    /// attack (a new lock every few minutes) doesn't flood the owner's inbox.
     /// </summary>
-    void AccountLocked(ApplicationUser user);
+    Task AccountLockedAsync(ApplicationUser user);
 
     /// <summary>
     /// A recovery code was used to sign in; <paramref name="codesLeft"/> unused codes remain.
@@ -51,8 +54,14 @@ public class SecurityNotificationService(
     IEmailTemplate emailTemplate,
     IHttpContextAccessor httpContextAccessor,
     IOptions<IdentityOptions> identityOptions,
+    IDistributedCache cache,
     ILogger<SecurityNotificationService> logger) : ISecurityNotificationService
 {
+    /// <summary>
+    /// Minimum time between two account-locked alerts for the same account.
+    /// </summary>
+    public static readonly TimeSpan LockAlertInterval = TimeSpan.FromHours(24);
+
     public void ChangeMade(ApplicationUser user, string change)
     {
         Send(user, "security change", email => emailTemplate.SecurityChangeNotice(email, Name(user), change, Device(), IpAddress()));
@@ -63,8 +72,28 @@ public class SecurityNotificationService(
         Send(user, "new sign-in", email => emailTemplate.NewSignInNotice(email, Name(user), Device(), IpAddress()));
     }
 
-    public void AccountLocked(ApplicationUser user)
+    public async Task AccountLockedAsync(ApplicationUser user)
     {
+        string key = $"lockalert:{user.Id}";
+
+        try
+        {
+            if (await cache.GetAsync(key) is not null)
+            {
+                return;
+            }
+
+            await cache.SetStringAsync(key, DateTime.UtcNow.ToString("O"), new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = LockAlertInterval
+            });
+        }
+        catch (Exception ex)
+        {
+            // Without the cache the alert is still sent (better twice than never).
+            logger.LogWarning(ex, "Could not check the lock-alert interval for user {UserId}.", user.Id);
+        }
+
         int minutes = (int)Math.Ceiling(identityOptions.Value.Lockout.DefaultLockoutTimeSpan.TotalMinutes);
 
         Send(user, "account locked", email => emailTemplate.AccountLockedNotice(email, Name(user), minutes, IpAddress()));

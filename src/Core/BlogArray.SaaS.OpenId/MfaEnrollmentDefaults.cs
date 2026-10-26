@@ -71,13 +71,18 @@ public static class MfaEnrollmentDefaults
     /// <summary>
     /// Builds the restricted principal for a pending MFA enrollment.
     /// </summary>
-    public static ClaimsPrincipal CreateEnrollmentPrincipal(string userId, string? returnUrl, IEnumerable<Claim>? flowClaims = null)
+    public static ClaimsPrincipal CreateEnrollmentPrincipal(string userId, string? returnUrl, IEnumerable<Claim>? flowClaims = null, bool requireEmailVerification = false)
     {
         List<Claim> claims =
         [
             new Claim(ClaimTypes.NameIdentifier, userId),
             new Claim(EnrollmentRequiredClaimType, EnrollmentRequiredClaimValue),
         ];
+
+        if (requireEmailVerification)
+        {
+            claims.Add(new Claim(EmailVerificationClaimType, EmailVerificationRequired));
+        }
 
         if (!string.IsNullOrEmpty(returnUrl))
         {
@@ -88,6 +93,40 @@ public static class MfaEnrollmentDefaults
         {
             claims.AddRange(flowClaims.Where(claim => FlowClaimTypes.Contains(claim.Type)));
         }
+
+        return new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme));
+    }
+
+    /// <summary>
+    /// Claim on an enrollment principal whose first factor was only a password (or a passkey
+    /// without user verification): before an authenticator can be bound to the account, the user
+    /// must also prove they own its mailbox. Otherwise anyone holding just the password of a
+    /// not-yet-enrolled account could enroll their own authenticator and keep the account.
+    /// </summary>
+    public const string EmailVerificationClaimType = "enrollment_email_verification";
+
+    public const string EmailVerificationRequired = "required";
+
+    public const string EmailVerificationCompleted = "verified";
+
+    /// <summary>
+    /// True while the enrollment still waits for the emailed code.
+    /// </summary>
+    public static bool NeedsEmailVerification(ClaimsPrincipal principal)
+    {
+        return principal.HasClaim(EmailVerificationClaimType, EmailVerificationRequired);
+    }
+
+    /// <summary>
+    /// The same enrollment principal with the email step marked as completed.
+    /// </summary>
+    public static ClaimsPrincipal WithEmailVerified(ClaimsPrincipal principal)
+    {
+        List<Claim> claims = [.. principal.Claims
+            .Where(claim => claim.Type != EmailVerificationClaimType)
+            .Select(claim => new Claim(claim.Type, claim.Value))];
+
+        claims.Add(new Claim(EmailVerificationClaimType, EmailVerificationCompleted));
 
         return new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme));
     }

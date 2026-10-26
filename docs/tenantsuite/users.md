@@ -16,7 +16,7 @@ email from an administrator describing the change (`SecurityActionByAdminNotice`
 | Confirm email/phone | Marks the email (and phone, if any) confirmed | Notify | `UserUpdated` |
 | **Enable user** | The account can sign in again | Notify | `AccountEnabled` |
 | **Disable user** | The account can't sign in; all sessions and tokens revoked | Notify: "…disabled… signed out of all devices" | `AccountDisabled` |
-| **Lock user** | Until a date/time or indefinitely; all sessions and tokens revoked | Notify (says until when) | `AccountLockedByAdmin` |
+| **Lock user** | Until a date/time or indefinitely; blocks every sign-in method (password, passkey, social, SAML, tokens); all sessions and tokens revoked | Notify (says until when) | `AccountLockedByAdmin` |
 | **Unlock user** | Clears the lock (failed-attempt locks too) | Notify | `AccountUnlocked` |
 
 Granting **Superuser** or **TenantAdmin** also alerts every other Superuser ("{role} role granted").
