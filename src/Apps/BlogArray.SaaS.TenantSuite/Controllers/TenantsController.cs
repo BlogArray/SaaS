@@ -221,6 +221,7 @@ public class TenantsController(OpenIdDbContext context,
         {
             Id = id,
             UsersCount = await context.Authorizations.CountAsync(a => a.Application.Id == id),
+            HasApiKey = !string.IsNullOrEmpty(openIdApplication.APIKeyHash),
             IsTenantSuite = IsTenantSuite(openIdApplication)
         });
     }
@@ -765,6 +766,48 @@ public class TenantsController(OpenIdDbContext context,
             [], LoggedInUserID);
 
         return PartialView("_RotateKeys", rotateKeys);
+    }
+
+    /// <summary>
+    /// Revokes the tenant's API key without issuing a new one (e.g. it leaked): every call with
+    /// it is rejected from now on. "Rotate API key" issues a new key later.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeApiKey(string id)
+    {
+        OpenIdApplication? openIdApplication = string.IsNullOrEmpty(id) ? null : await context.Applications.FindAsync(id);
+
+        if (openIdApplication is null)
+        {
+            return NotFound();
+        }
+
+        if (string.IsNullOrEmpty(openIdApplication.APIKeyHash))
+        {
+            return JsonError("This tenant has no API key to revoke.");
+        }
+
+        string? previousPrefix = openIdApplication.APIKeyPrefix;
+
+        openIdApplication.APIKeyHash = null;
+        openIdApplication.APIKeyProtected = null;
+        openIdApplication.APIKeyPrefix = null;
+        openIdApplication.UpdatedOn = DateTime.UtcNow;
+        openIdApplication.UpdatedById = LoggedInUserID;
+
+        await manager.UpdateAsync(openIdApplication);
+
+        await InvalidateTenantCacheAsync(openIdApplication);
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.ApiKeyRevoked, ClientId: openIdApplication.ClientId,
+            Reason: $"API key {(string.IsNullOrEmpty(previousPrefix) ? string.Empty : $"'{previousPrefix}...' ")}revoked for {openIdApplication.DisplayName}"));
+
+        await adminAlerts.NotifySuperusersAsync("tenant API key revoked",
+            $"The API key of tenant {openIdApplication.DisplayName} ({openIdApplication.ClientId}) was revoked. Calls with it are rejected until a new key is issued.",
+            [], LoggedInUserID);
+
+        return JsonSuccess("The API key has been revoked. Calls with it are now rejected; use Rotate API key to issue a new one.");
     }
 
     [HttpGet]

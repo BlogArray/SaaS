@@ -119,7 +119,8 @@ public static class AuditEventTypes
     public const string SessionRevoked = "SessionRevoked";
 
     /// <summary>
-    /// Not produced yet: sessions do not expire automatically.
+    /// A device session went unused for longer than the session lifetime; recorded (and the
+    /// session closed) the next time the user signs in.
     /// </summary>
     public const string SessionExpired = "SessionExpired";
 
@@ -138,19 +139,20 @@ public static class AuditEventTypes
     public const string ClientSecretRotated = "ClientSecretRotated";
 
     /// <summary>
-    /// Not produced yet: API keys cannot be revoked today, only rotated.
+    /// A tenant's API key was revoked without a replacement (TenantSuite > tenant > Revoke API key).
     /// </summary>
     public const string ApiKeyRevoked = "ApiKeyRevoked";
 
     public const string ResendInvite = "ResendInvite";
 
     /// <summary>
-    /// Not produced yet: invites cannot be revoked today.
+    /// An administrator withdrew a pending invitation: its password setup links stop working.
     /// </summary>
     public const string InviteRevoked = "InviteRevoked";
 
     /// <summary>
-    /// Not produced yet: invite setup links follow the password-reset token lifetime.
+    /// A user who has not set a password yet tried an invitation setup link that no longer
+    /// works (expired, or withdrawn/superseded).
     /// </summary>
     public const string InviteExpired = "InviteExpired";
 
@@ -158,11 +160,6 @@ public static class AuditEventTypes
     /// Not produced yet: there is no self-service email change flow.
     /// </summary>
     public const string EmailChanged = "EmailChanged";
-
-    /// <summary>
-    /// Not produced yet: there is no phone number flow.
-    /// </summary>
-    public const string PhoneNumberChanged = "PhoneNumberChanged";
 
     public const string AccountLockedByAdmin = "AccountLockedByAdmin";
     public const string AccountUnlocked = "AccountUnlocked";
@@ -182,11 +179,6 @@ public static class AuditEventTypes
     public const string UserUpdated = "UserUpdated";
     public const string TenantCreated = "TenantCreated";
     public const string TenantSettingsChanged = "TenantSettingsChanged";
-
-    /// <summary>
-    /// Not produced yet: tenants cannot be deleted today.
-    /// </summary>
-    public const string TenantDeleted = "TenantDeleted";
 
     /// <summary>
     /// An administrator revoked all of the target user's sessions and rotated their security

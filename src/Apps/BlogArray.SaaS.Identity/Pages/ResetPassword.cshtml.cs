@@ -222,6 +222,16 @@ public class ResetPasswordModel(UserManager<ApplicationUser> userManager,
             return RedirectToPage("./ResetPasswordConfirmation");
         }
 
+        // A user who never set a password is using an invitation link: when it no longer works
+        // (expired, or withdrawn by an administrator) it is recorded, so stalled onboarding is
+        // visible in the audit log.
+        if (result.Errors.Any(error => error.Code == nameof(IdentityErrorDescriber.InvalidToken))
+            && !await userManager.HasPasswordAsync(user))
+        {
+            await auditLogger.LogAsync(new AuditEventRecord(user.Id, AuditTrigger.User, AuditEventTypes.InviteExpired, TargetUserId: user.Id,
+                Reason: "invitation setup link no longer valid (expired or withdrawn)", Result: "Failure"));
+        }
+
         foreach (IdentityError error in result.Errors)
         {
             ModelState.AddModelError(string.Empty, error.Description);

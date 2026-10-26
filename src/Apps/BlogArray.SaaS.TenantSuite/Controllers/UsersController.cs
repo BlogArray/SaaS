@@ -894,6 +894,39 @@ public class UsersController(OpenIdDbContext context,
             && !await context.WebAuthnCredentials.AnyAsync(credential => credential.UserId == user.Id);
     }
 
+    /// <summary>
+    /// Withdraws a pending invitation: rotating the security stamp invalidates every password
+    /// setup link sent so far. Tenant access is unchanged (unassign tenants separately); the
+    /// invite can be sent again with Resend invite.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeInvite(string id, bool notify = true)
+    {
+        ApplicationUser? entity = string.IsNullOrEmpty(id) ? null : await userManager.FindByIdAsync(id);
+
+        if (entity is null)
+        {
+            return JsonError("User not found.");
+        }
+
+        if (!await IsPendingAsync(entity))
+        {
+            return JsonError("This user has already completed onboarding, so there is no invitation to revoke.");
+        }
+
+        await userManager.UpdateSecurityStampAsync(entity);
+
+        NotifyOutcome notified = await NotifyUserAsync(entity, notify,
+            "Your invitation to set up your account has been withdrawn by an administrator. The setup link you received no longer works.",
+            "If you think this is a mistake, please contact your administrator.");
+
+        await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.InviteRevoked, TargetUserId: entity.Id,
+            Reason: $"invitation withdrawn; setup links invalidated; {DescribeForAudit(notified)}"));
+
+        return JsonSuccess($"The invitation has been revoked: setup links already sent no longer work.{DescribeForAdmin(notified)}");
+    }
+
     public async Task<IActionResult> ResendInvite(string id)
     {
         if (id == null)

@@ -14,6 +14,7 @@ using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Application.Services;
 using BlogArray.SaaS.Domain.Constants;
 using BlogArray.SaaS.Domain.DTOs;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Data;
 using BlogArray.SaaS.Infrastructure.Services;
@@ -95,6 +96,7 @@ public static class ConfigureBlogArrayServices
 
             UserSession? session = null;
             bool newDevice = false;
+            List<UserSession> expiredSessions = [];
 
             if (!string.IsNullOrEmpty(incomingSessionId))
             {
@@ -164,6 +166,28 @@ public static class ConfigureBlogArrayServices
                 }
 
                 sessionId = Guid.NewGuid().ToString();
+
+                // On the identity server, a fresh sign-in also closes the user's other sessions
+                // that went unused for longer than the session lifetime: no cookie can still use
+                // them, so they are expired (and recorded) instead of lingering as "active".
+                if (membershipClientId is null)
+                {
+                    UserSession current = session;
+
+                    expiredSessions = await dbContext.UserSessions
+                        .Where(tracked => !tracked.Revoked
+                            && tracked.UserId == userId
+                            && tracked.LastSeenOn < staleBefore
+                            && tracked.Id != current.Id)
+                        .OrderBy(tracked => tracked.LastSeenOn)
+                        .Take(50)
+                        .ToListAsync();
+
+                    foreach (UserSession expired in expiredSessions)
+                    {
+                        expired.Revoked = true;
+                    }
+                }
             }
 
             session.SessionId = sessionId;
@@ -178,6 +202,19 @@ public static class ConfigureBlogArrayServices
             // re-saved the same failing change. Live rows are no longer recycled, so concurrent
             // logins on one device each get their own row.)
             await dbContext.SaveChangesAsync();
+
+            // Recorded after the save, so the audit write never flushes a half-built session row.
+            if (expiredSessions.Count > 0)
+            {
+                IAuditEventLogger auditLogger = context.HttpContext.RequestServices.GetRequiredService<IAuditEventLogger>();
+
+                foreach (UserSession expired in expiredSessions)
+                {
+                    await auditLogger.LogAsync(new AuditEventRecord(userId, AuditTrigger.System, AuditEventTypes.SessionExpired,
+                        TargetUserId: userId,
+                        Reason: $"session on '{expired.DeviceName}' expired: unused since {expired.LastSeenOn:yyyy-MM-dd} UTC"));
+                }
+            }
 
             if (newDevice && await dbContext.Users.FindAsync(userId) is ApplicationUser signedInUser)
             {

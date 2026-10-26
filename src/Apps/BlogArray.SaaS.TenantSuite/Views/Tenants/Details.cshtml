@@ -71,6 +71,11 @@
         Toast.success(e.message);
     }
 
+    function onApiKeyRevoked(e) {
+        DynamicContentLoader.load('toolbar');
+        Toast.success(e.message);
+    }
+
     function onKeysGenerateSuccess() {
         newKeysModal = new bootstrap.Dialog(document.getElementById('keysModal'));
         newKeysModal.show();

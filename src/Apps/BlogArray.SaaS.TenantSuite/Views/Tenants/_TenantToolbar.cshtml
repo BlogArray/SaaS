@@ -17,7 +17,18 @@
        UpdateTargetId = "changeTenantInfo",
        OnSuccess = "rotatePromptLoaded"
    }, new { @class = "btn btn-subtle theme-secondary", title = "Rotate api key" })
+        @if (Model.HasApiKey)
+        {
+            @* Submits the hidden form below, so the button stays a direct child of .btn-group. *@
+            <button type="submit" form="revoke-api-key-form-@Model.Id" class="btn btn-subtle theme-secondary" title="Revoke the API key without issuing a new one">Revoke api key</button>
+        }
     </div>
+    @if (Model.HasApiKey)
+    {
+        <form id="revoke-api-key-form-@Model.Id" asp-controller="Tenants" asp-action="RevokeApiKey" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Revoke this tenant's API key? Every call with it is rejected immediately, including the tenant app's own (e.g. inviting users), until you rotate to a new key." data-ajax-success="onApiKeyRevoked" hidden>
+            <input type="hidden" name="id" value="@Model.Id" />
+        </form>
+    }
     <div class="btn-group btn-group-sm btn-group-divider" role="group" aria-label="Users">
         @Html.AjaxActionLink($"Users ({Model.UsersCount})", "Unassign", new { id = Model.Id }, new AjaxOptions
    {

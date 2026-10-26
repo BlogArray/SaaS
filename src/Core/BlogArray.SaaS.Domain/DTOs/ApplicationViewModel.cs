@@ -261,5 +261,10 @@ public class TenantToolbar
     /// </summary>
     public bool IsTenantSuite { get; set; }
 
+    /// <summary>
+    /// The tenant has an API key (one can be revoked).
+    /// </summary>
+    public bool HasApiKey { get; set; }
+
     public bool IsActive { get; set; }
 }

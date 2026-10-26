@@ -20,6 +20,8 @@
         "Untick this when responding to a suspected account compromise.", AskLockoutEnd: true);
     UserActionDialogViewModel confirmDialog = new(Model.Id, "ConfirmEmailPhone", "Confirm email",
         "The user's email address (and phone number, if one is set) will be marked as confirmed, so they can sign in without the confirmation link.", Destructive: false);
+    UserActionDialogViewModel revokeInviteDialog = new(Model.Id, "RevokeInvite", "Revoke invite",
+        "Password setup links already sent to this user stop working. Their tenant access is unchanged, and you can send a new invite later.", Destructive: true);
     UserActionDialogViewModel revokeDialog = new(Model.Id, "RevokeAllSessions", "Revoke sessions",
         "The user will be signed out of every device and app, and any password-reset links they hold stop working. They can sign in again straight away.", Destructive: true,
         "Untick this when responding to a suspected account compromise.");
@@ -70,6 +72,7 @@
            UpdateTargetId = "changeUserInfo",
            OnSuccess = "userEditFormLoaded"
        }, new { @class = "btn btn-subtle theme-secondary", title = "Re-send the onboarding invite email" })
+                <button type="button" data-bs-toggle="dialog" data-bs-target="#@revokeInviteDialog.DialogId" class="btn btn-subtle theme-secondary" title="Invalidate the setup links already sent">Revoke invite</button>
             }
             @* Revoking applies to every account; only "Resend invite" is limited to users who
                have not set a password yet. *@
@@ -117,6 +120,10 @@
         <partial name="_UserActionDialog" model="confirmDialog" />
     }
     <partial name="_UserActionDialog" model="revokeDialog" />
+    if (!Model.HasPassword)
+    {
+        <partial name="_UserActionDialog" model="revokeInviteDialog" />
+    }
 }
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
