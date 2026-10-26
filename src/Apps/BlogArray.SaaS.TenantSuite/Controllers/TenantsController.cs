@@ -37,6 +37,7 @@ public class TenantsController(OpenIdDbContext context,
     IEmailTemplate emailTemplate,
     IAuditEventLogger auditLogger,
     ITenantAccessNotifier tenantAccessNotifier,
+    IAdminAlertService adminAlerts,
     ILogger<TenantsController> logger) : BaseController
 {
     private readonly int _apiKeyPrefixLength = configuration.GetValue("ApiKey:PrefixLength", 8);
@@ -174,6 +175,12 @@ public class TenantsController(OpenIdDbContext context,
             TempData["EmailFailed"] = $"The credentials could not be emailed to: {string.Join(", ", failures)}. Copy them from the dialog now - they will not be shown again.";
         }
 
+        // Platform-level change: every other Superuser hears about it.
+        await adminAlerts.NotifySuperusersAsync("new tenant created",
+            $"A new tenant, {entity.DisplayName} ({entity.ClientId}), was created.",
+            [$"Tenant URL: {entity.TenantUrl ?? "-"}", $"Admin emails: {string.Join(", ", recipients)}"],
+            LoggedInUserID);
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -288,6 +295,7 @@ public class TenantsController(OpenIdDbContext context,
         }
 
         var infoBefore = new { entity.DisplayName, entity.Legalname, entity.Website, entity.Description, entity.TenantUrl };
+        List<string> previousAdmins = DeserializeEmailList(DeserializeEmails(entity.AdminEmail));
 
         MapProperties(openIdApplication, entity);
 
@@ -311,6 +319,22 @@ public class TenantsController(OpenIdDbContext context,
         await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "basic information updated", OldValueJson: infoOldValueJson, NewValueJson: infoNewValueJson));
 
         await InvalidateTenantCacheAsync(entity);
+
+        // Rotated credentials are emailed to the admin list: when it changes, the previous
+        // admins are told, so the list can't be silently redirected to someone else.
+        List<string> currentAdmins = DeserializeEmailList(DeserializeEmails(entity.AdminEmail));
+
+        if (!new HashSet<string>(previousAdmins, StringComparer.OrdinalIgnoreCase).SetEquals(currentAdmins))
+        {
+            await auditLogger.LogAsync(new AuditEventRecord(LoggedInUserID ?? "system", AuditTrigger.Admin, AuditEventTypes.TenantSettingsChanged, ClientId: entity.ClientId, Reason: "admin emails changed",
+                OldValueJson: System.Text.Json.JsonSerializer.Serialize(new { AdminEmail = previousAdmins }),
+                NewValueJson: System.Text.Json.JsonSerializer.Serialize(new { AdminEmail = currentAdmins })));
+
+            adminAlerts.NotifyAddresses(previousAdmins,
+                $"admin emails changed for {entity.DisplayName}",
+                $"The administrator email addresses of tenant {entity.DisplayName} ({entity.ClientId}) were changed. New client secrets and API keys are sent to these addresses.",
+                [$"Previous: {string.Join(", ", previousAdmins)}", $"New: {string.Join(", ", currentAdmins)}"]);
+        }
 
         return JsonSuccess("Tenant information updated successfuly");
     }
@@ -506,6 +530,43 @@ public class TenantsController(OpenIdDbContext context,
 
         await InvalidateTenantCacheAsync(entity);
 
+        // How the tenant's users sign in changed (e.g. MFA turned off, SSO pointed at another
+        // identity provider): the tenant's admins are told, so a malicious or mistaken change
+        // can't go unnoticed. The certificate itself is not included, only that it changed.
+        List<string> securityChanges = DescribeSecurityChanges(securityBefore.IsMfaEnforced, securityAfter.IsMfaEnforced, "Multi-factor authentication enforced")
+            .Concat(DescribeSecurityChanges(securityBefore.IsSsoEnabled, securityAfter.IsSsoEnabled, "SAML single sign-on"))
+            .Concat(DescribeSecurityChanges(securityBefore.IsSocialAuthEnabled, securityAfter.IsSocialAuthEnabled, "Social login"))
+            .Concat(DescribeSecurityChanges(securityBefore.IsSingleSignOutEnabled, securityAfter.IsSingleSignOutEnabled, "Single sign-out"))
+            .ToList();
+
+        if (securityBefore.SsoSignInUrl != securityAfter.SsoSignInUrl)
+        {
+            securityChanges.Add($"SAML sign-in URL changed to {securityAfter.SsoSignInUrl ?? "(none)"}");
+        }
+
+        if (securityBefore.SsoSignOutUrl != securityAfter.SsoSignOutUrl)
+        {
+            securityChanges.Add($"SAML sign-out URL changed to {securityAfter.SsoSignOutUrl ?? "(none)"}");
+        }
+
+        if (securityBefore.SsoEntityId != securityAfter.SsoEntityId)
+        {
+            securityChanges.Add($"SAML entity ID changed to {securityAfter.SsoEntityId ?? "(none)"}");
+        }
+
+        if (securityBefore.SsoX509Certificate != securityAfter.SsoX509Certificate)
+        {
+            securityChanges.Add("SAML signing certificate replaced");
+        }
+
+        if (securityChanges.Count > 0)
+        {
+            adminAlerts.NotifyAddresses(DeserializeEmailList(DeserializeEmails(entity.AdminEmail)),
+                $"sign-in settings changed for {entity.DisplayName}",
+                $"The sign-in security settings of your tenant {entity.DisplayName} ({entity.ClientId}) were changed:",
+                securityChanges);
+        }
+
         return JsonSuccess("Tenant security information updated successfuly");
     }
 
@@ -698,6 +759,10 @@ public class TenantsController(OpenIdDbContext context,
         }
 
         await InvalidateTenantCacheAsync(openIdApplication);
+
+        await adminAlerts.NotifySuperusersAsync($"tenant {credential} rotated",
+            $"The {credential} of tenant {openIdApplication.DisplayName} ({openIdApplication.ClientId}) was rotated. The previous one no longer works.",
+            [], LoggedInUserID);
 
         return PartialView("_RotateKeys", rotateKeys);
     }
@@ -1153,6 +1218,17 @@ public class TenantsController(OpenIdDbContext context,
             [.. uris.Select(uri => uri.Trim()).Where(uri => uri.Length > 0)];
 
         return Normalize(submitted).SetEquals(Normalize(DeserializeUriList(storedJson)));
+    }
+
+    /// <summary>
+    /// "Setting: On -> Off" when a switch changed, nothing otherwise.
+    /// </summary>
+    private static IEnumerable<string> DescribeSecurityChanges(bool before, bool after, string setting)
+    {
+        if (before != after)
+        {
+            yield return $"{setting}: {(before ? "on" : "off")} -> {(after ? "on" : "off")}";
+        }
     }
 
     private static List<string> DeserializeUriList(string? json)

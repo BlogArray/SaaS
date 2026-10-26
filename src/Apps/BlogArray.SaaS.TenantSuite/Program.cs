@@ -9,6 +9,8 @@
 
 using BlogArray.SaaS.Application.Filters;
 using BlogArray.SaaS.Bootstrapper;
+using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -46,6 +48,23 @@ builder.Services.AddAuthentication(o =>
     // TenantSuite is itself an OIDC client: removing a user's access to it ends their session
     // here (their identity server session and other apps are unaffected).
     options.AddBlogArrayCookieAuthenticationOptions(_ => Configuration["OIDC:ClientId"]);
+
+    // A signed-in user reaching an administrative page without the role is recorded: it shows
+    // probing by low-privilege accounts. The default handling (redirect, or 403 for AJAX) is kept.
+    Func<RedirectContext<CookieAuthenticationOptions>, Task> redirectToAccessDenied = options.Events.OnRedirectToAccessDenied;
+
+    options.Events.OnRedirectToAccessDenied = async context =>
+    {
+        string? userId = context.HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        await context.HttpContext.RequestServices.GetRequiredService<IAuditEventLogger>().LogAsync(new AuditEventRecord(
+            userId ?? "anonymous", AuditTrigger.User, AuditEventTypes.AdminAccessDenied,
+            TargetUserId: userId,
+            Reason: $"access denied: {context.Request.Method} {context.Request.Path}",
+            Result: "Failure"));
+
+        await redirectToAccessDenied(context);
+    };
 }).AddOpenIdConnect(options =>
 {
     options.ClientId = Configuration["OIDC:ClientId"];

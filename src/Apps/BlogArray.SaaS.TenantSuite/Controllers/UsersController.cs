@@ -33,6 +33,7 @@ public class UsersController(OpenIdDbContext context,
     IAuditEventLogger auditLogger,
     IUserAccessRevocationService accessRevocation,
     ITenantAccessNotifier tenantAccessNotifier,
+    IAdminAlertService adminAlerts,
     ILogger<UsersController> logger) : BaseController
 {
     private readonly IUserEmailStore<ApplicationUser> emailStore = (IUserEmailStore<ApplicationUser>)userStore;
@@ -508,6 +509,17 @@ public class UsersController(OpenIdDbContext context,
         NotifyOutcome notified = await NotifyUserAsync(user, notify,
             $"Your roles were changed ({string.Join("; ", changes)}).",
             "If you were not expecting this change, please contact your administrator.");
+
+        // Privilege escalation is never silent: every other Superuser is alerted when someone
+        // gains an administrative role.
+        List<string> privilegedRolesAdded = [.. rolesToAdd.Where(role => role is SuperuserRole or "TenantAdmin")];
+
+        if (privilegedRolesAdded.Count > 0)
+        {
+            await adminAlerts.NotifySuperusersAsync($"{string.Join(" and ", privilegedRolesAdded)} role granted",
+                $"{user.DisplayName} ({user.Email}) was given the {string.Join(" and ", privilegedRolesAdded)} role.",
+                [], LoggedInUserID);
+        }
 
         return newRoles.Count > 0
             ? JsonSuccess($"Successfully assigned {newRoles.Count} role(s) to the user.{DescribeForAdmin(notified)}")

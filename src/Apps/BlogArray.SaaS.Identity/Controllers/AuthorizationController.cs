@@ -380,6 +380,12 @@ public class AuthorizationController(
         // after a successful authentication flow (e.g Google or Facebook).
         await signInManager.SignOutAsync();
 
+        if (!string.IsNullOrEmpty(userId))
+        {
+            await signInEventLogger.LogAsync(new SignInEventRecord(userId, HttpContext.GetOpenIddictServerRequest()?.ClientId, SignInEventTypes.SignedOut,
+                SignInAuthMethod.Session, SignInResultType.Success, "signed out"));
+        }
+
         // A sign-in still at the restricted step (MFA enrollment, temporary-password change)
         // holds its own cookie: logging out ends that too.
         await HttpContext.SignOutAsync(MfaEnrollmentDefaults.Scheme);
@@ -496,6 +502,18 @@ public class AuthorizationController(
             or "login");
     }
 
+    /// <summary>
+    /// Records a refused code or refresh-token exchange: a disabled, locked or deleted account
+    /// (or one whose credentials changed) still trying to use its tokens.
+    /// </summary>
+    private Task LogTokenDeniedAsync(string userId, OpenIddictRequest request, string reason)
+    {
+        string grant = request.IsRefreshTokenGrantType() ? "refresh token" : "authorization code";
+
+        return signInEventLogger.LogAsync(new SignInEventRecord(userId, request.ClientId, SignInEventTypes.TokenRequestDenied,
+            SignInAuthMethod.Token, SignInResultType.Failure, $"{grant} refused: {reason}"));
+    }
+
     private static string? DeserializeFirstUri(string? serializedUris)
     {
         if (string.IsNullOrWhiteSpace(serializedUris))
@@ -528,6 +546,8 @@ public class AuthorizationController(
             ApplicationUser? user = await userManager.FindByIdAsync(result.Principal.GetClaim(Claims.Subject));
             if (user is null)
             {
+                await LogTokenDeniedAsync(result.Principal.GetClaim(Claims.Subject) ?? "unknown", request, "account no longer exists");
+
                 return Forbid(
                     authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
                     properties: new AuthenticationProperties(new Dictionary<string, string?>
@@ -541,6 +561,8 @@ public class AuthorizationController(
             // refresh tokens must stop working once an account is disabled or locked.
             if (!await signInManager.CanUserSignInAsync(user))
             {
+                await LogTokenDeniedAsync(user.Id, request, "account disabled, locked or unconfirmed");
+
                 return Forbid(
                     authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
                     properties: new AuthenticationProperties(new Dictionary<string, string?>
@@ -557,6 +579,8 @@ public class AuthorizationController(
 
             if (tokenStamp is not null && !string.Equals(tokenStamp, await userManager.GetSecurityStampAsync(user), StringComparison.Ordinal))
             {
+                await LogTokenDeniedAsync(user.Id, request, "credentials changed since the token was issued");
+
                 return Forbid(
                     authenticationSchemes: OpenIddictServerAspNetCoreDefaults.AuthenticationScheme,
                     properties: new AuthenticationProperties(new Dictionary<string, string?>

@@ -8,6 +8,9 @@
 //
 
 using System.Net;
+using BlogArray.SaaS.Domain.Events;
+using BlogArray.SaaS.OpenId;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -29,17 +32,28 @@ public class ClientIpCheckActionFilter(string? safelist) : ActionFilterAttribute
     {
     }
 
-    public override void OnActionExecuting(ActionExecutingContext context)
+    public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        IPAddress? remoteIp = context?.HttpContext?.Connection?.RemoteIpAddress;
+        IPAddress? remoteIp = context.HttpContext.Connection.RemoteIpAddress;
 
         if (remoteIp is null || !IsAllowed(remoteIp))
         {
+            // A caller outside the allow-list (e.g. a leaked API key used from elsewhere) is
+            // recorded where an audit logger is available.
+            IAuditEventLogger? auditLogger = context.HttpContext.RequestServices.GetService<IAuditEventLogger>();
+
+            if (auditLogger is not null)
+            {
+                await auditLogger.LogAsync(new AuditEventRecord("api-client", AuditTrigger.System, AuditEventTypes.ApiRequestRejected,
+                    Reason: $"caller IP not in the allow-list: {context.HttpContext.Request.Method} {context.HttpContext.Request.Path}",
+                    Result: "Failure"));
+            }
+
             context.Result = new StatusCodeResult(StatusCodes.Status403Forbidden);
             return;
         }
 
-        base.OnActionExecuting(context);
+        await next();
     }
 
     private bool IsAllowed(IPAddress remoteIp)

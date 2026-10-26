@@ -488,6 +488,7 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddScoped<IStepUpService, StepUpService>();
         builder.Services.AddScoped<ISecurityNotificationService, SecurityNotificationService>();
         builder.Services.AddScoped<ITenantAccessNotifier, TenantAccessNotifier>();
+        builder.Services.AddScoped<IAdminAlertService, AdminAlertService>();
         builder.Services.AddScoped<ApiKeyAuthorizationFilter>();
 
         // CORS is restricted to the origins listed in the optional "Cors:AllowedOrigins"

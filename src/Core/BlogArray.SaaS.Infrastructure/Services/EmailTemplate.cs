@@ -75,6 +75,12 @@ public interface IEmailTemplate
     void RemovedFromTenantNotice(string toEmail, string name, string org);
 
     void ClientSecretRotated(string toEmail, string tenantName, string clientSecret, string rotatedBy);
+
+    /// <summary>
+    /// A security alert to an administrator about a change made by another administrator
+    /// (tenant security settings, admin addresses, privileged roles, credentials).
+    /// </summary>
+    void AdminSecurityAlert(string toEmail, string subject, string summary, IReadOnlyList<string> details, string changedBy);
 }
 
 public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuration) : IEmailTemplate
@@ -271,6 +277,19 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         string body = GenerateEmail(tenantName, template);
 
         Send(toEmail, $"The API key for {tenantName} has been rotated - App", body);
+    }
+
+    public void AdminSecurityAlert(string toEmail, string subject, string summary, IReadOnlyList<string> details, string changedBy)
+    {
+        string template = $"Hello,{newLine}" +
+            $"{Encode(summary)}{newLine}" +
+            $"Changed by {Encode(changedBy)} on {Now()}.{newLine}" +
+            (details.Count > 0 ? MakeList([.. details]) : string.Empty) +
+            $"If this change was not expected, review it in TenantSuite (Audit logs) and contact the administrator who made it.";
+
+        string body = GenerateEmail("Administrator", template);
+
+        Send(toEmail, $"Security alert: {subject} - App", body);
     }
 
     public void ClientSecretRotated(string toEmail, string tenantName, string clientSecret, string rotatedBy)

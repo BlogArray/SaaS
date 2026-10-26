@@ -27,7 +27,17 @@ public enum SignInAuthMethod
     Mfa,
     External,
     Saml,
-    Passkey
+    Passkey,
+
+    /// <summary>
+    /// Authorization code or refresh token exchanged at the token endpoint.
+    /// </summary>
+    Token,
+
+    /// <summary>
+    /// An existing session (e.g. signing out).
+    /// </summary>
+    Session
 }
 
 /// <summary>
@@ -75,6 +85,23 @@ public static class SignInEventTypes
     /// Reserved for a future risk engine; not produced yet.
     /// </summary>
     public const string RiskyLoginDetected = "RiskyLoginDetected";
+
+    /// <summary>
+    /// A SAML response was rejected (signature, audience, validity window, replay, or no
+    /// matching request): possible forged or replayed assertions.
+    /// </summary>
+    public const string LoginFailedSamlRejected = "LoginFailedSamlRejected";
+
+    /// <summary>
+    /// The token endpoint refused to exchange an authorization code or refresh token
+    /// (account disabled, locked or deleted, or credentials changed since it was issued).
+    /// </summary>
+    public const string TokenRequestDenied = "TokenRequestDenied";
+
+    /// <summary>
+    /// The user signed out of the identity server (ending their single sign-on session).
+    /// </summary>
+    public const string SignedOut = "SignedOut";
 }
 
 /// <summary>
@@ -166,6 +193,17 @@ public static class AuditEventTypes
     /// stamp (stopgap containment pending a full MFA/credential clear).
     /// </summary>
     public const string SessionsRevokedByAdmin = "SessionsRevokedByAdmin";
+
+    /// <summary>
+    /// A tenant API request was refused: missing or invalid X-API-Key, or a caller IP outside
+    /// the allow-list.
+    /// </summary>
+    public const string ApiRequestRejected = "ApiRequestRejected";
+
+    /// <summary>
+    /// A signed-in user was denied an administrative page they lack the role for.
+    /// </summary>
+    public const string AdminAccessDenied = "AdminAccessDenied";
 }
 
 /// <summary>

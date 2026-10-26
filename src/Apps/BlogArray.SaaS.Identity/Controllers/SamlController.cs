@@ -145,6 +145,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         // Validating with audience
         if (!samlResponse.IsValid(client.Security.SsoEntityId))
         {
+            await LogRejectedResponseAsync(client, "invalid signature or audience");
             return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
         }
 
@@ -161,8 +162,9 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
                 $"{Request.Scheme}://{Request.Host}/saml/{tenant}/acs",
                 expectedInResponseTo);
         }
-        catch (SamlValidationException)
+        catch (SamlValidationException ex)
         {
+            await LogRejectedResponseAsync(client, ex.Message);
             return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
         }
 
@@ -172,6 +174,7 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
         // any number of concurrent posts of the same assertion succeed, on any instance.
         if (!await TryConsumeAssertionAsync(tenant, assertionInfo))
         {
+            await LogRejectedResponseAsync(client, "assertion already used (replay)");
             return RedirectToAction("Index", "Error", new { message = "The SSO response could not be validated. Please try again or contact your system administrator if the problem persists." });
         }
 
@@ -424,6 +427,17 @@ public class SamlController(OpenIddictApplicationManager<OpenIdApplication> appM
             openIdDbContext.Entry(used).State = EntityState.Detached;
             return false;
         }
+    }
+
+    /// <summary>
+    /// Records a rejected SAML response: forged, replayed or misdirected assertions leave a
+    /// trace. The user is unknown - nothing in a rejected response can be trusted.
+    /// </summary>
+    private Task LogRejectedResponseAsync(OpenIdApplication client, string reason)
+    {
+        return signInEventLogger.LogAsync(new SignInEventRecord("unknown", client.ClientId,
+            SignInEventTypes.LoginFailedSamlRejected, SignInAuthMethod.Saml, SignInResultType.Failure,
+            $"saml response rejected: {reason}"));
     }
 
     private static string SamlLogoutCookieName(string tenant)

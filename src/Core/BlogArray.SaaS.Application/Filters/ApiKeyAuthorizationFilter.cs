@@ -1,4 +1,5 @@
 using BlogArray.SaaS.Domain.Entities;
+using BlogArray.SaaS.Domain.Events;
 using BlogArray.SaaS.Domain.Helpers;
 using BlogArray.SaaS.OpenId;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ using Microsoft.Extensions.Primitives;
 
 namespace BlogArray.SaaS.Application.Filters;
 
-public class ApiKeyAuthorizationFilter(OpenIdDbContext context) : IAsyncActionFilter
+public class ApiKeyAuthorizationFilter(OpenIdDbContext context, IAuditEventLogger auditLogger) : IAsyncActionFilter
 {
     private const string ApiKeyHeaderName = "X-API-Key";
 
@@ -23,6 +24,7 @@ public class ApiKeyAuthorizationFilter(OpenIdDbContext context) : IAsyncActionFi
         if (!actionContext.HttpContext.Request.Headers.TryGetValue(ApiKeyHeaderName, out StringValues apiKey)
             || string.IsNullOrWhiteSpace(apiKey))
         {
+            await LogRejectedAsync(actionContext, "missing API key");
             actionContext.Result = new UnauthorizedObjectResult("Missing API key.");
             return;
         }
@@ -35,6 +37,9 @@ public class ApiKeyAuthorizationFilter(OpenIdDbContext context) : IAsyncActionFi
 
         if (application is null)
         {
+            // Key guessing or a revoked/leaked key: recorded (never the key itself). The API's
+            // rate limit bounds how many of these one caller can produce.
+            await LogRejectedAsync(actionContext, "invalid API key");
             actionContext.Result = new UnauthorizedObjectResult("Invalid API key.");
             return;
         }
@@ -42,5 +47,12 @@ public class ApiKeyAuthorizationFilter(OpenIdDbContext context) : IAsyncActionFi
         actionContext.HttpContext.Items[TenantApplicationItemKey] = application;
 
         await next();
+    }
+
+    private Task LogRejectedAsync(ActionExecutingContext actionContext, string reason)
+    {
+        return auditLogger.LogAsync(new AuditEventRecord("api-client", AuditTrigger.System, AuditEventTypes.ApiRequestRejected,
+            Reason: $"{reason}: {actionContext.HttpContext.Request.Method} {actionContext.HttpContext.Request.Path}",
+            Result: "Failure"));
     }
 }
