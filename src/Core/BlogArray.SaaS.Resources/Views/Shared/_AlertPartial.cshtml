@@ -6,9 +6,9 @@
 @if (alertMessage != null)
 {
     <div class="pt-1">
-        <div class="alert theme-@alertType  fade show" role="alert">
-            @alertMessage
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="alert theme-@alertType" role="alert">
+            <p class="mb-0">@alertMessage</p>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     </div>
 }

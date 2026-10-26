@@ -69,7 +69,7 @@
         @if (!Model.HasPasskeys && !Model.HasPassword && !Model.HasAuthenticator && Model.ExternalProviders.Count == 0)
         {
             <div class="alert theme-warning" role="alert">
-                Your account has no sign-in method that can confirm your identity here. Set a password with <a asp-page="/ForgotPassword">Forgot password</a>, then try again.
+                <p class="mb-0">Your account has no sign-in method that can confirm your identity here. Set a password with <a asp-page="/ForgotPassword">Forgot password</a>, then try again.</p>
             </div>
         }
     </div>

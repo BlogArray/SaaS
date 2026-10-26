@@ -43,22 +43,28 @@
                     if (Model.RecoveryCodesLeft == 0)
                     {
                         <div class="alert theme-danger">
-                            <strong>You have no recovery codes left.</strong>
-                            <p class="mb-0">Before you can log in with a recovery code, it is recommended that you generate a new set of recovery codes.</p>
+                            <vstack>
+                                <strong>You have no recovery codes left.</strong>
+                                <p class="mb-0">Before you can log in with a recovery code, it is recommended that you generate a new set of recovery codes.</p>
+                            </vstack>
                         </div>
                     }
                     else if (Model.RecoveryCodesLeft <= 3)
                     {
                         <div class="alert theme-warning">
-                            <strong>You have @Model.RecoveryCodesLeft recovery codes left.</strong>
-                            <p class="mb-0">It is recommended that you generate a new set of recovery codes.</p>
+                            <vstack>
+                                <strong>You have @Model.RecoveryCodesLeft recovery codes left.</strong>
+                                <p class="mb-0">It is recommended that you generate a new set of recovery codes.</p>
+                            </vstack>
                         </div>
                     }
                     else
                     {
                         <div class="alert theme-success">
-                            <strong>You have @Model.RecoveryCodesLeft recovery codes left.</strong>
-                            <p class="mb-0">It is recommended that you regenerate a new set of recovery codes regularly. Regenerating the codes also helps to keep your account safer, as the old codes can be compromised.</p>
+                            <vstack>
+                                <strong>You have @Model.RecoveryCodesLeft recovery codes left.</strong>
+                                <p class="mb-0">It is recommended that you regenerate a new set of recovery codes regularly. Regenerating the codes also helps to keep your account safer, as the old codes can be compromised.</p>
+                            </vstack>
                         </div>
                     }
                     <a asp-page="./GenerateRecoveryCodes" class="btn btn-solid theme-primary">Generate recovery codes</a>
@@ -70,8 +76,10 @@
                     @if (Model.IsMachineRemembered)
                     {
                         <div class="alert theme-success">
-                            <strong>This browser is trusted.</strong>
-                            <p class="mb-0">You are not asked for a two-factor code when signing in from this browser.</p>
+                            <vstack>
+                                <strong>This browser is trusted.</strong>
+                                <p class="mb-0">You are not asked for a two-factor code when signing in from this browser.</p>
+                            </vstack>
                         </div>
                         <p>
                             If you click Forget this browser, you will be prompted for your two-factor authentication code when you login again from this browser.
@@ -83,8 +91,10 @@
                     else
                     {
                         <div class="alert theme-secondary">
-                            <strong>This browser is not trusted.</strong>
-                            <p class="mb-0">You are asked for a two-factor code at every sign-in from this browser.</p>
+                            <vstack>
+                                <strong>This browser is not trusted.</strong>
+                                <p class="mb-0">You are asked for a two-factor code at every sign-in from this browser.</p>
+                            </vstack>
                         </div>
                     }
                     <p class="mt-5 mb-3">
@@ -119,8 +129,10 @@
             else
             {
                 <div class="alert theme-danger">
-                    <strong>Privacy and cookie policy have not been accepted.</strong>
-                    <p>You must accept the policy before you can enable two factor authentication.</p>
+                    <vstack>
+                        <strong>Privacy and cookie policy have not been accepted.</strong>
+                        <p>You must accept the policy before you can enable two factor authentication.</p>
+                    </vstack>
                 </div>
             }
         }
