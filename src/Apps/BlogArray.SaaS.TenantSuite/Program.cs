@@ -35,6 +35,8 @@ if (string.IsNullOrEmpty(connectionString))
 
 builder.AddBlogArrayServices();
 
+builder.AddBlogArrayIdentityServices();
+
 builder.AddBlogArrayCacheServices();
 
 builder.AddOpenIdCore(connectionString);

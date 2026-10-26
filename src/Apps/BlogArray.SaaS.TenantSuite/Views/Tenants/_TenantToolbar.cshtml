@@ -35,11 +35,6 @@
        UpdateTargetId = "changeTenantInfo",
        OnSuccess = "tenantEditFormLoaded"
    }, new { @class = "btn btn-subtle theme-secondary", title = "View all users" })
-        @Html.AjaxActionLink("Add users", "Assign", new { id = Model.Id }, new AjaxOptions
-   {
-       UpdateTargetId = "changeTenantInfo",
-       OnSuccess = "tenantEditFormLoaded"
-   }, new { @class = "btn btn-subtle theme-secondary", title = "Give existing accounts access now" })
         @Html.AjaxActionLink("Invite users", "Invite", new { id = Model.Id }, new AjaxOptions
    {
        UpdateTargetId = "changeTenantInfo",

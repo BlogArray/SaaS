@@ -16,7 +16,7 @@ namespace BlogArray.SaaS.OpenId.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
-                    ApplicationId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
+                    ApplicationId = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: false),
                     UserId = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),
                     Email = table.Column<string>(type: "nvarchar(256)", maxLength: 256, nullable: false),
                     InvitedById = table.Column<string>(type: "nvarchar(400)", maxLength: 400, nullable: false),

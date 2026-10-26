@@ -679,8 +679,8 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
                     b.Property<string>("ApplicationId")
                         .IsRequired()
-                        .HasMaxLength(400)
-                        .HasColumnType("nvarchar(400)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");

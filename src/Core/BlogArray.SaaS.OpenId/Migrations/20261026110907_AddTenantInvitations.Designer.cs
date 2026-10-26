@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BlogArray.SaaS.OpenId.Migrations
 {
     [DbContext(typeof(OpenIdDbContext))]
-    [Migration("20261026100739_AddTenantInvitations")]
+    [Migration("20261026110907_AddTenantInvitations")]
     partial class AddTenantInvitations
     {
         /// <inheritdoc />
@@ -682,8 +682,8 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
                     b.Property<string>("ApplicationId")
                         .IsRequired()
-                        .HasMaxLength(400)
-                        .HasColumnType("nvarchar(400)");
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("CreatedOn")
                         .HasColumnType("datetime2");

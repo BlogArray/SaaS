@@ -562,10 +562,6 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddScoped<IUserAccessRevocationService, UserAccessRevocationService>();
         builder.Services.AddScoped<IStepUpService, StepUpService>();
         builder.Services.AddScoped<ISecurityNotificationService, SecurityNotificationService>();
-        builder.Services.AddScoped<ITenantAccessNotifier, TenantAccessNotifier>();
-        builder.Services.AddScoped<ITenantInviteService, TenantInviteService>();
-        builder.Services.AddScoped<IAdminAlertService, AdminAlertService>();
-        builder.Services.AddScoped<ApiKeyAuthorizationFilter>();
 
         // CORS is restricted to the origins listed in the optional "Cors:AllowedOrigins"
         // configuration key (semicolon-separated). When it is not configured, no cross-origin
@@ -620,6 +616,22 @@ public static class ConfigureBlogArrayServices
     /// whether a send succeeded: the identity server. TenantSuite keeps synchronous sending so
     /// its dialogs can report which recipients failed.
     /// </summary>
+    /// <summary>
+    /// Services that need ASP.NET Core Identity (UserManager) and the audit logger, which only
+    /// the identity server and TenantSuite register. Kept out of <see cref="AddBlogArrayServices"/>
+    /// so the tenant apps, which reach them through the Membership API, still start (service
+    /// validation fails on any registration it can't construct).
+    /// </summary>
+    public static IHostApplicationBuilder AddBlogArrayIdentityServices(this IHostApplicationBuilder builder)
+    {
+        builder.Services.AddScoped<ITenantAccessNotifier, TenantAccessNotifier>();
+        builder.Services.AddScoped<ITenantInviteService, TenantInviteService>();
+        builder.Services.AddScoped<IAdminAlertService, AdminAlertService>();
+        builder.Services.AddScoped<ApiKeyAuthorizationFilter>();
+
+        return builder;
+    }
+
     public static IHostApplicationBuilder AddBackgroundEmailDelivery(this IHostApplicationBuilder builder)
     {
         builder.Services.AddSingleton<EmailQueue>();

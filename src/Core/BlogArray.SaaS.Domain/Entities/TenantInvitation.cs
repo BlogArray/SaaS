@@ -33,9 +33,10 @@ public class TenantInvitation
     public string Id { get; set; } = Guid.NewGuid().ToString();
 
     /// <summary>
-    /// The tenant (<c>OpenIdApplication.Id</c>).
+    /// The tenant (<c>OpenIdApplication.Id</c>). 450 to match OpenIddict's application key:
+    /// SQL Server requires foreign key columns to be the same length as the key.
     /// </summary>
-    [StringLength(400)]
+    [StringLength(450)]
     public string ApplicationId { get; set; } = default!;
 
     [StringLength(400)]

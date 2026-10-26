@@ -24,6 +24,8 @@ ConfigurationManager Configuration = builder.Configuration;
 
 builder.AddBlogArrayServices();
 
+builder.AddBlogArrayIdentityServices();
+
 builder.AddBlogArrayCacheServices();
 
 // Email goes out from a background queue: responses don't wait on SMTP (or reveal through their
