@@ -94,17 +94,27 @@ public static class ConfigureOpenIdServices
                                   options.AddSigningCertificate(signingCertificate)
                                          .AddEncryptionCertificate(encryptionCertificate);
                               }
-                              else
+                              else if (builder.Configuration.GetValue("OpenIddict:AllowEphemeralKeys", false))
                               {
+                                  // Explicit, temporary opt-in only (e.g. a single-instance trial).
                                   options.AddEphemeralEncryptionKey()
                                     .AddEphemeralSigningKey()
                                     .DisableAccessTokenEncryption();
 
                                   Console.WriteLine(
-                                      "CRITICAL: OpenIddict signing/encryption certificates are not configured. " +
+                                      "CRITICAL: OpenIddict signing/encryption certificates are not configured and " +
+                                      "OpenIddict:AllowEphemeralKeys is set: tokens are invalidated on every restart and " +
+                                      "are not safe for multi-instance deployments.");
+                              }
+                              else
+                              {
+                                  // Fail fast: throwaway keys silently sign everyone out on every restart
+                                  // and break multi-instance deployments, while the service looks healthy.
+                                  throw new InvalidOperationException(
+                                      "OpenIddict signing/encryption certificates are not configured. " +
                                       "Set OpenIddict:SigningCertificate:Thumbprint or OpenIddict:SigningCertificate:Path " +
-                                      "(and the equivalent EncryptionCertificate keys). Falling back to ephemeral keys: " +
-                                      "tokens are invalidated on every restart and are not safe for multi-instance deployments.");
+                                      "(and the equivalent EncryptionCertificate keys). To run temporarily with throwaway keys " +
+                                      "anyway, set OpenIddict:AllowEphemeralKeys to true.");
                               }
                           }
                           else

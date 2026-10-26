@@ -166,14 +166,18 @@ public class TenantsController(OpenIdDbContext context,
 
         List<string> failures = SendEach(recipients, email => emailTemplate.TenantWelcome(email, entity.DisplayName, entity.TenantUrl ?? string.Empty, openIdApplication.ClientSecret!, openIdApplication.APIKey!));
 
-        TempData["CreatedTenantName"] = entity.DisplayName;
-        TempData["CreatedApiKey"] = openIdApplication.APIKey;
-        TempData["CreatedClientSecret"] = openIdApplication.ClientSecret;
-
-        if (failures.Count != 0)
+        // The one-time secrets are rendered by this response only: never carried to another
+        // request in TempData (a browser cookie), and never cached.
+        TenantCreatedViewModel created = new()
         {
-            TempData["EmailFailed"] = $"The credentials could not be emailed to: {string.Join(", ", failures)}. Copy them from the dialog now - they will not be shown again.";
-        }
+            Id = entity.Id!,
+            Name = entity.DisplayName ?? entity.ClientId!,
+            ClientSecret = openIdApplication.ClientSecret!,
+            ApiKey = openIdApplication.APIKey!,
+            EmailError = failures.Count != 0
+                ? $"The credentials could not be emailed to: {string.Join(", ", failures)}. Copy them now - they will not be shown again."
+                : null
+        };
 
         // Platform-level change: every other Superuser hears about it.
         await adminAlerts.NotifySuperusersAsync("new tenant created",
@@ -181,7 +185,9 @@ public class TenantsController(OpenIdDbContext context,
             [$"Tenant URL: {entity.TenantUrl ?? "-"}", $"Admin emails: {string.Join(", ", recipients)}"],
             LoggedInUserID);
 
-        return RedirectToAction(nameof(Index));
+        Response.Headers.CacheControl = "no-store";
+
+        return View("Created", created);
     }
 
     #endregion Create

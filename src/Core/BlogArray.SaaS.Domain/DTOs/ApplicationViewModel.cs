@@ -250,6 +250,26 @@ public class TenantSecurityViewModel
     public bool IsSingleSignOutEnabled { get; set; }
 }
 
+/// <summary>
+/// The one-time credentials of a tenant just created, shown once on the "Tenant created" page.
+/// Rendered directly by the create request: never carried in TempData (a browser cookie).
+/// </summary>
+public class TenantCreatedViewModel
+{
+    public string Id { get; set; } = default!;
+
+    public string Name { get; set; } = default!;
+
+    public string ClientSecret { get; set; } = default!;
+
+    public string ApiKey { get; set; } = default!;
+
+    /// <summary>
+    /// Set when the credentials could not be emailed to some administrators.
+    /// </summary>
+    public string? EmailError { get; set; }
+}
+
 public class TenantToolbar
 {
     public string Id { get; set; } = default!;

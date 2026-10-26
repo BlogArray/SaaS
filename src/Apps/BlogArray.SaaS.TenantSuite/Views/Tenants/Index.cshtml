@@ -95,59 +95,6 @@
     </div>
 }
 
-@if (TempData["CreatedApiKey"] is string createdApiKey)
-{
-    string? emailFailed = TempData["EmailFailed"] as string;
-
-    <dialog class="dialog dialog-scrollable" id="createdTenantModal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-labelledby="createdTenantModalLabel">
-        <div class="dialog-header">
-            <h1 class="dialog-title fs-lg" id="createdTenantModalLabel">Tenant @TempData["CreatedTenantName"] created</h1>
-        </div>
-        <div class="dialog-body">
-            @if (emailFailed != null)
-            {
-                <div class="alert theme-warning py-3">@emailFailed</div>
-            }
-            else
-            {
-                <div class="alert theme-success py-3">The credentials have been emailed to the tenant administrators.</div>
-            }
-            <div class="mb-5">
-                <label for="createdClientSecret" class="form-label">Client Secret</label>
-                <div class="input-group">
-                    <input type="text" id="createdClientSecret" class="form-control" value="@TempData["CreatedClientSecret"]" readonly>
-                    <button class="btn btn-subtle theme-secondary" type="button" onclick="copyCreated('createdClientSecret', 'The client secret has been copied to your clipboard!')">
-                        <i class="bi bi-copy"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="mb-5">
-                <label for="createdApiKey" class="form-label">API Key</label>
-                <div class="input-group">
-                    <input type="text" id="createdApiKey" class="form-control" value="@createdApiKey" readonly>
-                    <button class="btn btn-subtle theme-secondary" type="button" onclick="copyCreated('createdApiKey', 'The api key has been copied to your clipboard!')">
-                        <i class="bi bi-copy"></i>
-                    </button>
-                </div>
-            </div>
-            <small class="form-text fg-secondary">Please save these securely. They won’t be shown or emailed again.</small>
-        </div>
-        <div class="dialog-footer">
-            <button type="button" class="btn btn-solid theme-primary" data-bs-dismiss="dialog">I understand and copied the credentials</button>
-        </div>
-    </dialog>
-
-    <script>
-        $(document).ready(function () {
-            new bootstrap.Dialog(document.getElementById('createdTenantModal')).show();
-        });
-
-        function copyCreated(elementId, message) {
-            ClipboardModule.copyText(elementId, message, 'Failed to copy the value.');
-        }
-    </script>
-}
-
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }

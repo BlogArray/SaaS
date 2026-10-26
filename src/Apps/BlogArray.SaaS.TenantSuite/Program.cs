@@ -176,7 +176,7 @@ app.UseSerilogRequestLogging();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Dashboard}/{action=Index}/{id?}");
+    pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.AddBlogArrayApplication(app.Environment.IsDevelopment());
 

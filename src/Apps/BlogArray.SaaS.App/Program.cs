@@ -59,6 +59,12 @@ WebApplication app = builder.Build();
 
 app.UseSerilogRequestLogging();
 
+// First: everything after it must see the real client IP and scheme behind a proxy (the
+// ForwardedHeadersOptions are configured by AddBlogArrayServices).
+app.UseForwardedHeaders();
+
+app.UseBlogArraySecurityHeaders();
+
 app.UseCors("AllowedOrigins");
 
 app.UseCookiePolicy();

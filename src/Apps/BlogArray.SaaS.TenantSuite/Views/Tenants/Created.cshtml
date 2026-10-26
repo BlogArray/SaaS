@@ -1,0 +1,59 @@
+﻿@model TenantCreatedViewModel
+
+@{
+    ViewData["Title"] = "Tenant created";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-1">Tenant @Model.Name created</h3>
+        <nav aria-label="Breadcrumb">
+            <ol class="breadcrumb breadcrumb-flush">
+                <li class="breadcrumb-item">
+                    <a asp-action="Index" class="breadcrumb-link">
+                        All tenants
+                    </a>
+                </li>
+                <li class="breadcrumb-divider" aria-hidden="true"></li>
+                <li class="breadcrumb-item"><span class="breadcrumb-link active" aria-current="page">Created</span></li>
+            </ol>
+        </nav>
+    </div>
+    <div class="card-body">
+        @if (Model.EmailError != null)
+        {
+            <div class="alert theme-warning py-3">@Model.EmailError</div>
+        }
+        else
+        {
+            <div class="alert theme-success py-3">The credentials have been emailed to the tenant administrators.</div>
+        }
+        <div class="mb-5">
+            <label for="createdClientSecret" class="form-label">Client secret</label>
+            <div class="input-group">
+                <input type="text" id="createdClientSecret" class="form-control" value="@Model.ClientSecret" readonly autocomplete="off">
+                <button class="btn btn-subtle theme-secondary" type="button" onclick="copyCreated('createdClientSecret', 'The client secret has been copied to your clipboard!')" aria-label="Copy client secret">
+                    <i class="bi bi-copy"></i>
+                </button>
+            </div>
+        </div>
+        <div class="mb-5">
+            <label for="createdApiKey" class="form-label">API key</label>
+            <div class="input-group">
+                <input type="text" id="createdApiKey" class="form-control" value="@Model.ApiKey" readonly autocomplete="off">
+                <button class="btn btn-subtle theme-secondary" type="button" onclick="copyCreated('createdApiKey', 'The API key has been copied to your clipboard!')" aria-label="Copy API key">
+                    <i class="bi bi-copy"></i>
+                </button>
+            </div>
+        </div>
+        <p class="form-text fg-secondary">Save these securely now: they won't be shown or emailed again, and reloading this page won't bring them back.</p>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-solid theme-primary">Open tenant</a>
+        <a asp-action="Index" class="btn btn-solid theme-secondary">All tenants</a>
+    </div>
+</div>
+
+<script>
+    function copyCreated(elementId, message) {
+        ClipboardModule.copyText(elementId, message, 'Failed to copy the value.');
+    }
+</script>

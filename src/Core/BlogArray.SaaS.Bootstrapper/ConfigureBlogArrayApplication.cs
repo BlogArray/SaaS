@@ -20,6 +20,8 @@ public static class ConfigureBlogArrayApplication
         // ForwardedHeadersOptions in AddBlogArrayServices).
         app.UseForwardedHeaders();
 
+        app.UseBlogArraySecurityHeaders();
+
         app.UseCors("AllowedOrigins");
 
         app.UseCookiePolicy();
