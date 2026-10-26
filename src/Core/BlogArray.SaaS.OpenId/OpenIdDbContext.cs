@@ -36,6 +36,11 @@ public class OpenIdDbContext(DbContextOptions<OpenIdDbContext> options) :
     public DbSet<UserSession> UserSessions { get; set; }
 
     /// <summary>
+    /// Invitations for existing accounts to join a tenant, pending until accepted.
+    /// </summary>
+    public DbSet<TenantInvitation> TenantInvitations { get; set; }
+
+    /// <summary>
     /// Accepted SAML assertion IDs, for one-time use enforcement across instances.
     /// </summary>
     public DbSet<UsedSamlAssertion> UsedSamlAssertions { get; set; }

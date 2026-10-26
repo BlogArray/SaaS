@@ -160,6 +160,60 @@ public class UnAssignViewModel : AssignViewModel
 {
 }
 
+public class InviteUsersViewModel
+{
+    public string ApplicationId { get; set; } = default!;
+
+    public string Name { get; set; } = default!;
+}
+
+public class InviteUsersRequest
+{
+    public string ApplicationId { get; set; } = default!;
+
+    /// <summary>
+    /// The addresses to invite, separated by commas, semicolons or new lines.
+    /// </summary>
+    public string? Emails { get; set; }
+
+    /// <summary>
+    /// The name for a new account; used only when one address is invited.
+    /// </summary>
+    [StringLength(256)]
+    public string? DisplayName { get; set; }
+
+    /// <summary>
+    /// Email the invitations (otherwise invitations still appear in the user's portal).
+    /// </summary>
+    public bool Notify { get; set; } = true;
+}
+
+public class PendingInvitationsViewModel
+{
+    public string ApplicationId { get; set; } = default!;
+
+    public string Name { get; set; } = default!;
+
+    public List<PendingInvitationItem> Invitations { get; set; } = [];
+}
+
+public class PendingInvitationItem
+{
+    public string Id { get; set; } = default!;
+
+    public string Email { get; set; } = default!;
+
+    public string? DisplayName { get; set; }
+
+    public string InvitedBy { get; set; } = default!;
+
+    public DateTime CreatedOn { get; set; }
+
+    public DateTime ExpiresOn { get; set; }
+
+    public bool IsExpired => ExpiresOn < DateTime.UtcNow;
+}
+
 public class UnAssignViewModelRequest : AssignViewModelRequest
 {
 
@@ -275,6 +329,11 @@ public class TenantToolbar
     public string Id { get; set; } = default!;
 
     public int UsersCount { get; set; } = default!;
+
+    /// <summary>
+    /// Invitations waiting for an existing account to accept them (expired ones included).
+    /// </summary>
+    public int PendingInvitationsCount { get; set; }
 
     /// <summary>
     /// TenantSuite's own application: its client secret is managed in configuration.

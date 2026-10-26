@@ -1,9 +1,11 @@
 using System.Text;
 using BlogArray.SaaS.Domain.Entities;
 using BlogArray.SaaS.Infrastructure.Services;
+using BlogArray.SaaS.OpenId;
 using BlogArray.SaaS.Web.Extensions;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -24,9 +26,18 @@ public interface ITenantAccessNotifier
     /// already gone); returns false when the email could not be sent.
     /// </summary>
     Task<bool> NotifyRemovedAsync(string userId, OpenIdApplication application);
+
+    /// <summary>
+    /// The account's owner can sign in: a confirmed email address and a password, social
+    /// login or passkey. Otherwise access emails carry the password setup link. An unconfirmed
+    /// address never proved whoever set its credentials owns the mailbox (it may be a
+    /// pre-claimed sign-up), so its owner gets the setup link, which confirms the address.
+    /// </summary>
+    Task<bool> CanSignInAsync(ApplicationUser user);
 }
 
 public class TenantAccessNotifier(UserManager<ApplicationUser> userManager,
+    OpenIdDbContext context,
     IEmailTemplate emailTemplate,
     IConfiguration configuration,
     ILogger<TenantAccessNotifier> logger) : ITenantAccessNotifier
@@ -55,6 +66,14 @@ public class TenantAccessNotifier(UserManager<ApplicationUser> userManager,
         }
     }
 
+    public async Task<bool> CanSignInAsync(ApplicationUser user)
+    {
+        return user.EmailConfirmed
+            && (await userManager.HasPasswordAsync(user)
+                || (await userManager.GetLoginsAsync(user)).Count > 0
+                || await context.WebAuthnCredentials.AnyAsync(credential => credential.UserId == user.Id));
+    }
+
     public async Task<bool> NotifyAssignedAsync(string userId, OpenIdApplication application, string? invitedBy)
     {
         try
@@ -70,15 +89,9 @@ public class TenantAccessNotifier(UserManager<ApplicationUser> userManager,
             string organisationUrl = application.TenantUrl ?? string.Empty;
             string inviter = invitedBy ?? "an administrator";
 
-            // A setup link only for users who can't sign in yet: social-only users have no
-            // password but sign in with their provider. An unconfirmed address never proved
-            // whoever set its credentials owns the mailbox (it may be a pre-claimed sign-up), so
-            // its owner gets the setup link, which confirms the address.
-            bool canSignIn = user.EmailConfirmed
-                && (await userManager.HasPasswordAsync(user)
-                    || (await userManager.GetLoginsAsync(user)).Count > 0);
-
-            if (!canSignIn)
+            // A setup link only for users who can't sign in yet: social-only and passkey-only
+            // users have no password but can sign in.
+            if (!await CanSignInAsync(user))
             {
                 string code = await userManager.GeneratePasswordResetTokenAsync(user);
                 code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));

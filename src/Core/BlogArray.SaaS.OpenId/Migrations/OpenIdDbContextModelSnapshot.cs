@@ -671,6 +671,62 @@ namespace BlogArray.SaaS.OpenId.Migrations
                     b.ToTable("SignInEvents");
                 });
 
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.TenantInvitation", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<string>("ApplicationId")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<DateTime>("CreatedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime>("ExpiresOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InvitedBy")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("InvitedById")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<DateTime?>("RespondedOn")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationId", "UserId")
+                        .IsUnique()
+                        .HasFilter("[Status] = 'Pending'");
+
+                    b.HasIndex("UserId", "Status");
+
+                    b.ToTable("TenantInvitations");
+                });
+
             modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.UsedSamlAssertion", b =>
                 {
                     b.Property<string>("Id")
@@ -1079,6 +1135,21 @@ namespace BlogArray.SaaS.OpenId.Migrations
 
             modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.SignInEvent", b =>
                 {
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BlogArray.SaaS.Domain.Entities.TenantInvitation", b =>
+                {
+                    b.HasOne("BlogArray.SaaS.Domain.Entities.OpenIdApplication", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("BlogArray.SaaS.Domain.Entities.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")

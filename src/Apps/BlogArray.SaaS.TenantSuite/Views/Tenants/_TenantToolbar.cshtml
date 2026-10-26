@@ -39,7 +39,17 @@
    {
        UpdateTargetId = "changeTenantInfo",
        OnSuccess = "tenantEditFormLoaded"
-   }, new { @class = "btn btn-subtle theme-secondary", title = "Add users" })
+   }, new { @class = "btn btn-subtle theme-secondary", title = "Give existing accounts access now" })
+        @Html.AjaxActionLink("Invite users", "Invite", new { id = Model.Id }, new AjaxOptions
+   {
+       UpdateTargetId = "changeTenantInfo",
+       OnSuccess = "tenantEditFormLoaded"
+   }, new { @class = "btn btn-subtle theme-secondary", title = "Invite people by email" })
+        @Html.AjaxActionLink($"Pending invitations ({Model.PendingInvitationsCount})", "PendingInvitations", new { id = Model.Id }, new AjaxOptions
+   {
+       UpdateTargetId = "changeTenantInfo",
+       OnSuccess = "tenantEditFormLoaded"
+   }, new { @class = "btn btn-subtle theme-secondary", title = "Invitations waiting to be accepted" })
     </div>
 </div>
 

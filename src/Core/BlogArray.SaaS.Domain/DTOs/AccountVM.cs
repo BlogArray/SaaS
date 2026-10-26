@@ -90,4 +90,10 @@ public class UserTenantVM : UserEmailVM
 {
     [Required]
     public string Tenant { get; set; } = default!;
+
+    /// <summary>
+    /// Invite only: the name for an account created by the invitation (defaults to the email).
+    /// </summary>
+    [StringLength(256)]
+    public string? DisplayName { get; set; }
 }

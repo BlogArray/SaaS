@@ -1,0 +1,77 @@
+@page
+@model InvitationsModel
+@{
+    ViewData["Title"] = "Invitations";
+    ViewData["ActivePage"] = ManageNavPages.Invitations;
+    Layout = "~/Views/Shared/_SettingsLayout.cshtml";
+}
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    <div class="alert theme-@(Model.StatusIsError ? "danger" : "success")" role="alert">
+        @Model.StatusMessage
+        @if (!Model.StatusIsError && !string.IsNullOrEmpty(Model.AcceptedTenantUrl))
+        {
+            <a href="@Model.AcceptedTenantUrl" class="alert-link ms-1">Open it now</a>
+        }
+    </div>
+}
+else if (Model.LinkUnavailable)
+{
+    <div class="alert theme-warning" role="alert">
+        This invitation is no longer available. It may have expired, been withdrawn, or already been answered.
+        If you still need access, ask the administrator to invite you again.
+    </div>
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Invitations</h3>
+        <p class="mb-0 form-text">
+            Organizations that invited you to join them. You get access to an organization only
+            when you accept its invitation; declining it changes nothing for your account.
+        </p>
+    </div>
+    <div class="card-body">
+        @if (Model.Invitations.Count == 0)
+        {
+            <div class="alert theme-secondary mb-0">
+                <p class="mb-0"><i class="bi bi-envelope-open me-1"></i> You have no pending invitations.</p>
+            </div>
+        }
+        else
+        {
+            <div class="list-group list-group-flush">
+                @foreach (InvitationsModel.InvitationEntry invitation in Model.Invitations)
+                {
+                    bool highlighted = invitation.Id == Model.HighlightId;
+                    <div class="list-group-item d-flex flex-column sm:flex-row gap-5 py-5 sm:align-items-center @(highlighted ? "bg-1 border rounded" : null)">
+                        @if (!string.IsNullOrEmpty(invitation.Icon))
+                        {
+                            <img src="@invitation.Icon" alt="" width="32" height="32" class="rounded flex-shrink-0" loading="lazy" />
+                        }
+                        <div class="w-100">
+                            <strong>@invitation.Organisation</strong>
+                            <small class="d-block fg-secondary">Invited by @invitation.InvitedBy</small>
+                            <small class="d-block fg-secondary">
+                                Expires
+                                <time datetime="@invitation.ExpiresOn.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ss'Z'", CultureInfo.InvariantCulture)">@invitation.ExpiresOn.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture) (UTC)</time>
+                            </small>
+                        </div>
+                        <div class="d-flex gap-3 flex-shrink-0">
+                            <form method="post" asp-page-handler="Accept">
+                                <input type="hidden" name="id" value="@invitation.Id" />
+                                <button type="submit" class="btn btn-sm btn-solid theme-primary">Accept</button>
+                            </form>
+                            <form method="post" asp-page-handler="Decline"
+                                  onsubmit="return confirm('Decline the invitation to @Html.Raw(System.Text.Encodings.Web.JavaScriptEncoder.Default.Encode(invitation.Organisation))?');">
+                                <input type="hidden" name="id" value="@invitation.Id" />
+                                <button type="submit" class="btn btn-sm btn-subtle theme-secondary">Decline</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

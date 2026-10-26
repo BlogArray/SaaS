@@ -174,6 +174,22 @@ public static class AuditEventTypes
     public const string AccountEnabled = "AccountEnabled";
     public const string UserCreated = "UserCreated";
     public const string UserInvited = "UserInvited";
+
+    /// <summary>
+    /// The invited user accepted a tenant invitation in the identity portal (access granted).
+    /// </summary>
+    public const string TenantInvitationAccepted = "TenantInvitationAccepted";
+
+    /// <summary>
+    /// The invited user declined a tenant invitation (no access granted).
+    /// </summary>
+    public const string TenantInvitationDeclined = "TenantInvitationDeclined";
+
+    /// <summary>
+    /// A pending tenant invitation was withdrawn: by an administrator, or because the user's
+    /// access to the tenant was removed.
+    /// </summary>
+    public const string TenantInvitationRevoked = "TenantInvitationRevoked";
     public const string UserAddedToTenant = "UserAddedToTenant";
     public const string UserRemovedFromTenant = "UserRemovedFromTenant";
     public const string UserRolesChanged = "UserRolesChanged";

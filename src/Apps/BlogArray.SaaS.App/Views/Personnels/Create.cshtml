@@ -1,26 +1,32 @@
-﻿@model BlogArray.SaaS.App.Models.CreateUserVM
+@model BlogArray.SaaS.App.Models.CreateUserVM
 
 @{
-    ViewData["Title"] = "Create new personnel";
+    ViewData["Title"] = "Invite personnel";
 }
-<h3 class="mb-5">Create new personnel</h3>
+<h3 class="mb-5">Invite personnel</h3>
 <div class="row">
-    <div class="md:col-4">
+    <div class="md:col-6">
+        <p class="form-text">
+            New email addresses get an account and a link to set their password. People who already have an account
+            get an invitation, and have access once they accept it in their account settings.
+        </p>
         <form asp-action="Create">
             <div asp-validation-summary="ModelOnly" class="fg-danger"></div>
             <div class="mb-5">
-                <label asp-for="Email" class="form-label"></label>
-                <input asp-for="Email" class="form-control" placeholder="Email" />
-                <span asp-validation-for="Email" class="fg-danger"></span>
-            </div>
-            <div class="mb-5 form-field">
-                <div class="switch">
-                    <input asp-for="IsActive" type="checkbox" role="switch" switch>
-                </div>
-                <label hide-indicator="true" asp-for="IsActive">Active</label>
+                <label asp-for="Emails" class="form-label"></label>
+                <textarea asp-for="Emails" class="form-control" rows="4" placeholder="name@example.com, other@example.com"></textarea>
+                <div class="form-text">Separate addresses with commas or new lines. Up to @BlogArray.SaaS.Domain.Helpers.InviteEmailList.MaxEmails at a time.</div>
+                <span asp-validation-for="Emails" class="fg-danger"></span>
             </div>
             <div class="mb-5">
-                <input type="submit" value="Create personnel" class="btn btn-solid theme-primary" />
+                <label asp-for="DisplayName" class="form-label"></label>
+                <input asp-for="DisplayName" class="form-control" autocomplete="off" />
+                <div class="form-text">Used for a new account when you invite one address.</div>
+                <span asp-validation-for="DisplayName" class="fg-danger"></span>
+            </div>
+            <div class="mb-5">
+                <input type="submit" value="Send invitations" class="btn btn-solid theme-primary" />
+                <a asp-action="Index" class="btn btn-solid theme-secondary">Cancel</a>
             </div>
         </form>
     </div>

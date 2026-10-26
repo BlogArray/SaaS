@@ -35,6 +35,12 @@ public interface IEmailTemplate
     void Invite(string toEmail, string name, string org, string orgUrl, string invitedBy);
 
     /// <summary>
+    /// Invites the owner of an existing account to join a tenant. They get access only after
+    /// accepting it at <paramref name="acceptUrl"/> (the identity portal's Invitations page).
+    /// </summary>
+    void TenantInvitation(string toEmail, string name, string org, string invitedBy, string acceptUrl, DateTime expiresOn);
+
+    /// <summary>
     /// Tells a user an administrator created an account for them, with the link to create their
     /// password. (Not tied to a tenant: tenant access sends <see cref="InviteWithPasswordLink"/>.)
     /// </summary>
@@ -234,6 +240,19 @@ public class EmailTemplate(IEmailHelper emailHelper, IConfiguration configuratio
         Send(toEmail, $"You're Invited to Join {org} on App", body);
     }
 
+
+    public void TenantInvitation(string toEmail, string name, string org, string invitedBy, string acceptUrl, DateTime expiresOn)
+    {
+        string template = $"Hey {Encode(name)}!{newLine}" +
+            $"{Encode(Inviter(invitedBy))} invited you to join {Encode(org)} on App. " +
+            $"Sign in with your existing App account to accept or decline the invitation:" +
+            $"{MakeLinkButton(acceptUrl, "View invitation")}" +
+            $"You'll get access to {Encode(org)} once you accept. The invitation expires on {Encode(expiresOn.ToString("MMMM d, yyyy"))} (UTC).{newLine}" +
+            $"If you weren't expecting this invitation, you can ignore it: nothing changes unless you accept it.{newLine}" +
+            $"Thank you for choosing App.";
+
+        Send(toEmail, $"You're invited to join {org} on App", GenerateEmail(name, template));
+    }
 
     public void AccountSetupInvite(string toEmail, string name, string callbackUrl, string invitedBy)
     {

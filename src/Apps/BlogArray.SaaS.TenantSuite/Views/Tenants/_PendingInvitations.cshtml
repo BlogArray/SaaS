@@ -1,0 +1,67 @@
+@model PendingInvitationsViewModel
+@using System.Globalization
+
+<dialog class="drawer drawer-end medium" tabindex="-1" id="tenantEditOffcanvas" aria-labelledby="pendingInvitationsLabel" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="drawer-header border-bottom">
+        <h5 id="pendingInvitationsLabel">
+            Pending invitations for @Model.Name
+        </h5>
+        <button type="button" class="btn-close fg-reset" data-bs-dismiss="drawer" aria-label="Close"></button>
+    </div>
+    <div class="drawer-body">
+        @if (Model.Invitations.Count == 0)
+        {
+            <div class="p-12 text-center">
+                <i class="state-icon bi bi-envelope-open"></i>
+                <br />
+                <p class="fg-body fs-xl fw-semibold mb-0">
+                    No invitations are waiting.
+                </p>
+                <p class="lg:col-8 mx-auto fs-md fg-secondary">
+                    Invitations sent to existing accounts show here until they are accepted or declined.
+                </p>
+            </div>
+        }
+        else
+        {
+            <p class="form-text">
+                These people already have an account and get access once they accept in their account settings.
+                Resend emails the invitation again and gives it another @TenantInvitation.Lifetime.Days days.
+            </p>
+            <div class="list-group list-group-flush">
+                @foreach (PendingInvitationItem invitation in Model.Invitations)
+                {
+                    <div class="list-group-item d-flex gap-5 py-5 align-items-center" data-invitation="@invitation.Id">
+                        <div class="w-100">
+                            <strong>@(invitation.DisplayName ?? invitation.Email)</strong>
+                            @if (invitation.IsExpired)
+                            {
+                                <span class="badge badge-subtle rounded-pill theme-secondary ms-1">Expired</span>
+                            }
+                            <small class="d-block fg-secondary">@invitation.Email</small>
+                            <small class="d-block fg-secondary">
+                                Invited by @invitation.InvitedBy ·
+                                @(invitation.IsExpired ? "expired" : "expires") @invitation.ExpiresOn.ToString("dd-MM-yyyy", CultureInfo.InvariantCulture) UTC
+                            </small>
+                        </div>
+                        <div class="d-flex gap-3 flex-shrink-0">
+                            <form asp-controller="Tenants" asp-action="ResendInvitation" method="post" data-ajax="true" data-ajax-method="post" data-ajax-success="onInvitationResent" data-ajax-failure="handleAjaxError">
+                                <input type="hidden" name="id" value="@invitation.Id" />
+                                <button type="submit" class="btn btn-sm btn-subtle theme-secondary">Resend</button>
+                            </form>
+                            <form asp-controller="Tenants" asp-action="RevokeInvitation" method="post" data-ajax="true" data-ajax-method="post" data-ajax-confirm="Withdraw the invitation to @invitation.Email? Its link stops working; you can invite them again later." data-ajax-success="onInvitationRevoked" data-ajax-failure="handleAjaxError">
+                                <input type="hidden" name="id" value="@invitation.Id" />
+                                <button type="submit" class="btn btn-sm btn-subtle theme-danger">Withdraw</button>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+    <div class="drawer-footer border-top">
+        <div>
+            <input type="button" value="Close" class="btn btn-solid theme-secondary" data-bs-dismiss="drawer" aria-label="Close" />
+        </div>
+    </div>
+</dialog>

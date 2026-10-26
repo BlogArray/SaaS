@@ -71,6 +71,20 @@
         Toast.success(e.message);
     }
 
+    // Pending invitations drawer: "this" is the submitted form.
+    function onInvitationResent(e) {
+        Toast.success(e.message);
+    }
+
+    function onInvitationRevoked(e) {
+        const row = this.closest('[data-invitation]');
+        if (row) {
+            row.remove();
+        }
+        DynamicContentLoader.load('toolbar');
+        Toast.success(e.message);
+    }
+
     function onApiKeyRevoked(e) {
         DynamicContentLoader.load('toolbar');
         Toast.success(e.message);

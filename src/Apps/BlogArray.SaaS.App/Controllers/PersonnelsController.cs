@@ -9,6 +9,7 @@
 
 using BlogArray.SaaS.App.Interfaces;
 using BlogArray.SaaS.App.Models;
+using BlogArray.SaaS.Domain.Helpers;
 using Microsoft.EntityFrameworkCore;
 using Refit;
 
@@ -48,9 +49,24 @@ public class PersonnelsController(SaasAppDbContext context,
             return View(userVM);
         }
 
-        if (await context.AppPersonnels.AnyAsync(s => s.Email == userVM.Email))
+        List<string> emails = InviteEmailList.Parse(userVM.Emails);
+        List<string> invalid = [.. emails.Where(email => !InviteEmailList.IsValid(email))];
+
+        if (emails.Count == 0)
         {
-            ModelState.AddModelError("Email", "Email already exists.");
+            ModelState.AddModelError(nameof(CreateUserVM.Emails), "Enter at least one email address.");
+        }
+        else if (emails.Count > InviteEmailList.MaxEmails)
+        {
+            ModelState.AddModelError(nameof(CreateUserVM.Emails), $"Invite at most {InviteEmailList.MaxEmails} people at a time.");
+        }
+        else if (invalid.Count != 0)
+        {
+            ModelState.AddModelError(nameof(CreateUserVM.Emails), $"Not valid email address(es): {string.Join(", ", invalid)}.");
+        }
+
+        if (!ModelState.IsValid)
+        {
             return View(userVM);
         }
 
@@ -62,33 +78,81 @@ public class PersonnelsController(SaasAppDbContext context,
             return RedirectToAction("Index");
         }
 
-        try
-        {
-            await membershipClient.Invite(new UserTenantVM
-            {
-                Email = userVM.Email,
-                Tenant = tenantIdentifier
-            });
+        List<string> invited = [];
+        List<string> alreadyListed = [];
+        List<string> failed = [];
+        bool unavailable = false;
 
-            await context.AppPersonnels.AddAsync(new AppPersonnel
+        foreach (string email in emails)
+        {
+            if (await context.AppPersonnels.AnyAsync(s => s.Email == email && s.IsActive))
             {
-                Email = userVM.Email,
-                IsActive = userVM.IsActive
-            });
-            await context.SaveChangesAsync();
-            AddSuccessMessage($"Personnel {userVM.Email} is successfully added.");
+                alreadyListed.Add(email);
+                continue;
+            }
+
+            try
+            {
+                await membershipClient.Invite(new UserTenantVM
+                {
+                    Email = email,
+                    Tenant = tenantIdentifier,
+                    DisplayName = emails.Count == 1 ? userVM.DisplayName : null
+                });
+
+                invited.Add(email);
+            }
+            catch (ApiException apiException)
+            {
+                failed.Add(email);
+                logger.LogError("The API returned an exception with status code {StatusCode} with content {Content}", apiException.StatusCode, apiException.Content);
+                continue;
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                // The membership API is unreachable or timed out (Refit only throws ApiException
+                // for HTTP error responses): the remaining addresses would fail the same way.
+                logger.LogError(ex, "The membership API could not be reached.");
+                failed.AddRange(emails.Except(invited, StringComparer.OrdinalIgnoreCase).Except(alreadyListed, StringComparer.OrdinalIgnoreCase));
+                unavailable = true;
+                break;
+            }
+
+            // Listed as inactive until the person has access: the identity server activates the
+            // row when access is granted (at once for new accounts, on acceptance for existing
+            // ones), and may already have added it.
+            if (!await context.AppPersonnels.AnyAsync(s => s.Email == email))
+            {
+                await context.AppPersonnels.AddAsync(new AppPersonnel
+                {
+                    Email = email,
+                    IsActive = false
+                });
+                await context.SaveChangesAsync();
+            }
         }
-        catch (ApiException apiException)
+
+        // One combined message (the page shows a single alert).
+        List<string> summary = [];
+
+        if (invited.Count != 0)
         {
-            AddErrorMessage($"Unable to invite personnel with email {userVM.Email}.");
-            logger.LogError("The API returned an exception with status code {StatusCode} with content {Content}", apiException.StatusCode, apiException.Content);
+            summary.Add($"Invitation(s) sent to {string.Join(", ", invited)}: new accounts have access once they set their password, existing accounts once they accept the invitation.");
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+
+        if (alreadyListed.Count != 0)
         {
-            // The membership API is unreachable or timed out (Refit only throws ApiException
-            // for HTTP error responses).
-            AddErrorMessage($"Unable to invite personnel with email {userVM.Email}. The membership service is unavailable; try again later.");
-            logger.LogError(ex, "The membership API could not be reached.");
+            summary.Add($"Already active: {string.Join(", ", alreadyListed)}.");
+        }
+
+        if (failed.Count != 0)
+        {
+            summary.Add($"Unable to invite: {string.Join(", ", failed)}.{(unavailable ? " The membership service is unavailable; try again later." : string.Empty)}");
+            AddErrorMessage(string.Join(" ", summary));
+        }
+        else
+        {
+            AddSuccessMessage(string.Join(" ", summary));
         }
 
         return RedirectToAction("Index");
@@ -157,9 +221,10 @@ public class PersonnelsController(SaasAppDbContext context,
                     Email = user.Email,
                     Tenant = tenantIdentifier
                 });
-                user.IsActive = true;
-                await context.SaveChangesAsync();
-                AddSuccessMessage($"Personnel {user.Email} is activated successfully.");
+
+                // The row is not marked active here: the identity server does that when access
+                // is granted, which for an account that can sign in waits for it to accept.
+                AddSuccessMessage($"Access requested for {user.Email}. If they have an account, they get an invitation and are active once they accept it.");
             }
             catch (ApiException apiException)
             {

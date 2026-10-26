@@ -37,6 +37,7 @@ public class TenantsController(OpenIdDbContext context,
     IEmailTemplate emailTemplate,
     IAuditEventLogger auditLogger,
     ITenantAccessNotifier tenantAccessNotifier,
+    ITenantInviteService inviteService,
     IAdminAlertService adminAlerts,
     ILogger<TenantsController> logger) : BaseController
 {
@@ -227,6 +228,7 @@ public class TenantsController(OpenIdDbContext context,
         {
             Id = id,
             UsersCount = await context.Authorizations.CountAsync(a => a.Application.Id == id),
+            PendingInvitationsCount = await context.TenantInvitations.CountAsync(i => i.ApplicationId == id && i.Status == TenantInvitationStatus.Pending),
             HasApiKey = !string.IsNullOrEmpty(openIdApplication.APIKeyHash),
             IsTenantSuite = IsTenantSuite(openIdApplication)
         });
@@ -893,6 +895,215 @@ public class TenantsController(OpenIdDbContext context,
             : notFailed == 0 ? " The users have been notified by email." : $" {notFailed} notification email(s) could not be sent.";
 
         return JsonSuccess($"{assigned.Count} user(s) have been successfully assigned to the tenant.{notice}");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Invite(string id)
+    {
+        OpenIdApplication? openIdApplication = string.IsNullOrEmpty(id) ? null : await context.Applications.FindAsync(id);
+
+        if (openIdApplication is null)
+        {
+            return NotFound();
+        }
+
+        return PartialView("_InviteUsers", new InviteUsersViewModel
+        {
+            ApplicationId = openIdApplication.Id,
+            Name = openIdApplication.DisplayName
+        });
+    }
+
+    /// <summary>
+    /// Invites people by email. New addresses get an account and access with the password setup
+    /// link; existing accounts get an invitation they accept in the identity portal.
+    /// </summary>
+    [HttpPost, ActionName("Invite")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> InviteConfirm(InviteUsersRequest request)
+    {
+        if (!ModelState.IsValid)
+        {
+            return ModelStateError(ModelState);
+        }
+
+        OpenIdApplication? openIdApplication = string.IsNullOrEmpty(request.ApplicationId) ? null : await context.Applications.FindAsync(request.ApplicationId);
+
+        if (openIdApplication is null)
+        {
+            return JsonError("The operation could not be completed. Please refresh the page and try again.");
+        }
+
+        List<string> emails = InviteEmailList.Parse(request.Emails);
+
+        if (emails.Count == 0)
+        {
+            return JsonError("Enter at least one email address.");
+        }
+
+        if (emails.Count > InviteEmailList.MaxEmails)
+        {
+            return JsonError($"Invite at most {InviteEmailList.MaxEmails} people at a time.");
+        }
+
+        List<string> invalid = [.. emails.Where(email => !InviteEmailList.IsValid(email))];
+
+        if (invalid.Count != 0)
+        {
+            return JsonError($"Not valid email address(es): {string.Join(", ", invalid)}. Nobody was invited.");
+        }
+
+        // The name is for a single new account; with several addresses each defaults to its email.
+        string? displayName = emails.Count == 1 ? request.DisplayName : null;
+
+        List<TenantInviteResult> results = [];
+
+        foreach (string email in emails)
+        {
+            results.Add(await inviteService.InviteAsync(openIdApplication, email, displayName, request.Notify,
+                LoggedInUserID ?? "system", AuditTrigger.Admin, LoggedInUserEmail ?? "an administrator"));
+        }
+
+        string summary = DescribeInviteResults(results, request.Notify);
+
+        return results.Any(r => r.Outcome != TenantInviteOutcome.Failed) ? JsonSuccess(summary) : JsonError(summary);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> PendingInvitations(string id)
+    {
+        OpenIdApplication? openIdApplication = string.IsNullOrEmpty(id) ? null : await context.Applications.FindAsync(id);
+
+        if (openIdApplication is null)
+        {
+            return NotFound();
+        }
+
+        List<PendingInvitationItem> invitations = await context.TenantInvitations
+            .Where(i => i.ApplicationId == id && i.Status == TenantInvitationStatus.Pending)
+            .OrderByDescending(i => i.CreatedOn)
+            .Select(i => new PendingInvitationItem
+            {
+                Id = i.Id,
+                Email = i.Email,
+                DisplayName = context.Users.Where(u => u.Id == i.UserId).Select(u => u.DisplayName).FirstOrDefault(),
+                InvitedBy = i.InvitedBy,
+                CreatedOn = i.CreatedOn,
+                ExpiresOn = i.ExpiresOn
+            })
+            .ToListAsync();
+
+        return PartialView("_PendingInvitations", new PendingInvitationsViewModel
+        {
+            ApplicationId = openIdApplication.Id,
+            Name = openIdApplication.DisplayName,
+            Invitations = invitations
+        });
+    }
+
+    /// <summary>
+    /// Emails a pending invitation again and restarts its expiry.
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResendInvitation(string id)
+    {
+        TenantInvitation? invitation = string.IsNullOrEmpty(id) ? null
+            : await context.TenantInvitations.SingleOrDefaultAsync(i => i.Id == id && i.Status == TenantInvitationStatus.Pending);
+
+        OpenIdApplication? openIdApplication = invitation is null ? null : await context.Applications.FindAsync(invitation.ApplicationId);
+        string? email = invitation is null ? null : await context.Users.Where(u => u.Id == invitation.UserId).Select(u => u.Email).SingleOrDefaultAsync();
+
+        if (invitation is null || openIdApplication is null || string.IsNullOrEmpty(email))
+        {
+            return JsonError("This invitation is no longer pending. Refresh the list.");
+        }
+
+        TenantInviteResult result = await inviteService.InviteAsync(openIdApplication, email, null, notify: true,
+            LoggedInUserID ?? "system", AuditTrigger.Admin, LoggedInUserEmail ?? "an administrator");
+
+        return result.Outcome switch
+        {
+            TenantInviteOutcome.AlreadyMember => JsonSuccess($"{email} already has access to this tenant."),
+            TenantInviteOutcome.Failed => JsonError($"The invitation could not be sent: {result.Error}."),
+            _ when !result.EmailSent => JsonError($"The invitation to {email} could not be emailed. Please try again later."),
+            TenantInviteOutcome.Granted => JsonSuccess($"{email} has access now and was sent the link to set up their account."),
+            _ => JsonSuccess($"The invitation has been sent to {email} again. It expires in {TenantInvitation.Lifetime.Days} days.")
+        };
+    }
+
+    /// <summary>
+    /// Withdraws a pending invitation: its link stops working. No email (nothing was granted).
+    /// </summary>
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeInvitation(string id)
+    {
+        if (string.IsNullOrEmpty(id) || !await inviteService.RevokeAsync(id, LoggedInUserID ?? "system"))
+        {
+            return JsonError("This invitation is no longer pending. Refresh the list.");
+        }
+
+        return JsonSuccess("The invitation has been withdrawn. Its link no longer works.");
+    }
+
+    /// <summary>
+    /// The invite drawer's result: who was invited, added, skipped or failed.
+    /// </summary>
+    private static string DescribeInviteResults(List<TenantInviteResult> results, bool notify)
+    {
+        List<string> parts = [];
+
+        int invited = results.Count(r => r.Outcome == TenantInviteOutcome.Invited);
+        int granted = results.Count(r => r.Outcome == TenantInviteOutcome.Granted);
+
+        if (invited != 0)
+        {
+            parts.Add($"{invited} existing account(s) invited: they get access once they accept.");
+        }
+
+        if (granted != 0)
+        {
+            parts.Add($"{granted} new user(s) added: they set up their account from the emailed link.");
+        }
+
+        List<string> members = [.. results.Where(r => r.Outcome == TenantInviteOutcome.AlreadyMember).Select(r => r.Email)];
+
+        if (members.Count != 0)
+        {
+            parts.Add($"Already members: {string.Join(", ", members)}.");
+        }
+
+        List<string> failed = [.. results.Where(r => r.Outcome == TenantInviteOutcome.Failed).Select(r => $"{r.Email} ({r.Error})")];
+
+        if (failed.Count != 0)
+        {
+            parts.Add($"Failed: {string.Join(", ", failed)}.");
+        }
+
+        if (notify)
+        {
+            List<string> unsent = [.. results.Where(r => r.Outcome is TenantInviteOutcome.Invited or TenantInviteOutcome.Granted && !r.EmailSent).Select(r => r.Email)];
+
+            if (unsent.Count != 0)
+            {
+                parts.Add($"The email could not be sent to: {string.Join(", ", unsent)}. Resend it from Pending invitations, or invite again later.");
+            }
+        }
+        else
+        {
+            if (invited != 0)
+            {
+                parts.Add("No emails were sent: the invitations are listed in each user's account settings.");
+            }
+
+            if (granted != 0)
+            {
+                parts.Add("New users can't sign in until they get their setup link: send it with Users > Resend invite.");
+            }
+        }
+
+        return string.Join(" ", parts);
     }
 
     [HttpGet]

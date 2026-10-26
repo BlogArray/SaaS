@@ -563,6 +563,7 @@ public static class ConfigureBlogArrayServices
         builder.Services.AddScoped<IStepUpService, StepUpService>();
         builder.Services.AddScoped<ISecurityNotificationService, SecurityNotificationService>();
         builder.Services.AddScoped<ITenantAccessNotifier, TenantAccessNotifier>();
+        builder.Services.AddScoped<ITenantInviteService, TenantInviteService>();
         builder.Services.AddScoped<IAdminAlertService, AdminAlertService>();
         builder.Services.AddScoped<ApiKeyAuthorizationFilter>();
 

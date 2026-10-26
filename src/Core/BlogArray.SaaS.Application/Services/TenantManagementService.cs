@@ -82,6 +82,12 @@ public class TenantManagementService(OpenIdDbContext context,
             }
         }
 
+        // Access granted directly supersedes any invitation still waiting for these users.
+        if (assigned.Count != 0)
+        {
+            await CloseOpenInvitationsAsync(application, assigned);
+        }
+
         return assigned;
     }
 
@@ -95,6 +101,9 @@ public class TenantManagementService(OpenIdDbContext context,
             .ToListAsync();
 
         List<string> memberIds = [.. members.Select(m => m.Id).Distinct()];
+
+        // A pending invitation must not bring a removed user back when accepted later.
+        await CloseOpenInvitationsAsync(application, userIds);
 
         if (memberIds.Count == 0)
         {
@@ -141,5 +150,14 @@ public class TenantManagementService(OpenIdDbContext context,
         }
 
         return memberIds;
+    }
+
+    private async Task CloseOpenInvitationsAsync(OpenIdApplication application, IReadOnlyCollection<string> userIds)
+    {
+        await context.TenantInvitations
+            .Where(i => i.ApplicationId == application.Id && userIds.Contains(i.UserId) && i.Status == TenantInvitationStatus.Pending)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(i => i.Status, TenantInvitationStatus.Revoked)
+                .SetProperty(i => i.RespondedOn, DateTime.UtcNow));
     }
 }

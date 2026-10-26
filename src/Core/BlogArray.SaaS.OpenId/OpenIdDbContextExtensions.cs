@@ -158,6 +158,24 @@ public static class OpenIdDbContextExtensions
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<TenantInvitation>(entity =>
+        {
+            entity.Property(invitation => invitation.Status).HasConversion<string>().HasMaxLength(20);
+            // One open invitation per user and tenant: inviting again refreshes it.
+            entity.HasIndex(invitation => new { invitation.ApplicationId, invitation.UserId })
+                .IsUnique()
+                .HasFilter("[Status] = 'Pending'");
+            entity.HasIndex(invitation => new { invitation.UserId, invitation.Status });
+            entity.HasOne<OpenIdApplication>()
+                .WithMany()
+                .HasForeignKey(invitation => invitation.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(invitation => invitation.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<UsedSamlAssertion>(entity =>
         {
             entity.Property(assertion => assertion.Id).HasMaxLength(64);

@@ -1,5 +1,16 @@
-﻿@{
+﻿@using Microsoft.EntityFrameworkCore
+@inject BlogArray.SaaS.OpenId.OpenIdDbContext DbContext
+@inject Microsoft.AspNetCore.Identity.UserManager<BlogArray.SaaS.Domain.Entities.ApplicationUser> UserManager
+@{
     Layout = "~/Views/Shared/_Layout.cshtml";
+
+    // Open invitations to join an organization, shown as a badge on "Invitations".
+    string? currentUserId = UserManager.GetUserId(User);
+    DateTime now = DateTime.UtcNow;
+    int pendingInvitations = currentUserId is null ? 0 : await DbContext.TenantInvitations
+        .CountAsync(invitation => invitation.UserId == currentUserId
+            && invitation.Status == BlogArray.SaaS.Domain.Entities.TenantInvitationStatus.Pending
+            && invitation.ExpiresOn >= now);
 }
 <main class="app-main" id="app-main">
     <aside class="flex-column flex-shrink-0 p-5 app-sidenav">
@@ -11,6 +22,16 @@
                         <a active-route asp-controller="Settings" asp-action="Index" class="nav-link" title="Profile">
                             <i class="bi bi-person" aria-hidden="true"></i>
                             <span class="sidenav-label">Profile</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a asp-page="/settings/invitations" class="nav-link @ManageNavPages.InvitationsNavClass(ViewContext)" title="Invitations">
+                            <i class="bi bi-envelope-paper" aria-hidden="true"></i>
+                            <span class="sidenav-label">Invitations</span>
+                            @if (pendingInvitations > 0)
+                            {
+                                <span class="badge rounded-pill theme-primary ms-auto" aria-label="@pendingInvitations pending">@pendingInvitations</span>
+                            }
                         </a>
                     </li>
                     <li>
